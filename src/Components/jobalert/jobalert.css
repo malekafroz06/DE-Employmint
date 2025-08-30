@@ -1,0 +1,146 @@
+:root{
+  --theme-accent: #FF0000; /* user-requested red */
+  --theme-text: #000000;   /* black */
+  --bg: #ffffff;
+  --border: #e6e6e6;
+}
+
+.job-alerts-wrapper{
+  background: var(--bg);
+  padding: 28px;
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+  max-width: 720px;
+  margin: 32px auto;
+  margin-top: 100px;
+  color: var(--theme-text);
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+}
+
+.form-heading{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  font-size:20px;
+  font-weight:600;
+  color: var(--theme-text);
+  margin: 0 0 18px 0;
+}
+
+/* color the SVG paths (where possible) to theme accent */
+.form-heading svg path{
+  /* keep existing fills where necessary but try to tint smaller elements */
+  fill: var(--theme-accent);
+}
+
+/* Form layout */
+.job-alerts-form{
+  display:block;
+}
+
+.job-alerts-form .field-input,
+.job-alerts-form .field-select{
+  margin-bottom:16px;
+}
+
+.job-alerts-form label{
+  display:block;
+  margin-bottom:8px;
+  font-weight:500;
+  color: var(--theme-text);
+  font-size:14px;
+}
+
+.job-alerts-form input[type="text"],
+.job-alerts-form input[type="tel"],
+.job-alerts-form input[type="email"],
+.job-alerts-form select,
+.job-alerts-form textarea{
+  width:100%;
+  padding:10px 12px;
+  font-size:14px;
+  border-radius:6px;
+  border:1px solid var(--border);
+  background: #fff;
+  box-sizing: border-box;
+  color: var(--theme-text);
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+
+.job-alerts-form input:focus,
+.job-alerts-form select:focus,
+.job-alerts-form textarea:focus{
+  border-color: var(--theme-accent);
+  box-shadow: 0 0 0 3px rgba(255,0,0,0.08);
+}
+
+/* style multi-selects to look like selects */
+.job-alerts-form select[multiple]{
+  min-height: 90px;
+}
+
+/* small chevron icon placement (keeps same visual as original) */
+.form-select{
+  position: relative;
+}
+
+.form-select i.fas.fa-angle-down{
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  font-style: normal;
+  font-weight: 700;
+  color: var(--theme-text);
+}
+
+/* submit button */
+.civi-button{
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--theme-accent);
+  color: #fff;
+  border: 0;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 6px 12px rgba(255,0,0,0.12);
+  transition: transform .08s ease, box-shadow .12s ease;
+}
+
+.civi-button:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(255,0,0,0.18);
+}
+
+/* bell icon spacing */
+.civi-button .bell-icon{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:18px;
+  height:18px;
+  margin-right:4px;
+}
+
+/* small loading icon area (keeps structure) */
+.btn-loading{ display:inline-flex; align-items:center; }
+
+/* notice area (same class used in original) */
+.field-submit .notice{
+  margin-bottom:8px;
+  color: var(--theme-text);
+}
+
+/* responsive */
+@media (max-width: 767px){
+  .job-alerts-wrapper{ padding:18px; margin:18px; }
+  .form-heading{ font-size:18px; gap:8px; }
+}
+
+/* keep similar styling to original where obvious */
+.job-alerts-wrapper .form-heading .link-text{ color: var(--theme-text); }

@@ -1,0 +1,60 @@
+/* AuthModal.css */
+.MuiDialog-paper {
+  border-radius: 12px !important;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1) !important;
+}
+
+.MuiDialogTitle-root {
+  padding: 24px 24px 16px 24px !important;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.MuiDialogContent-root {
+  padding: 24px !important;
+}
+
+.MuiTextField-root {
+  margin-bottom: 8px !important;
+}
+
+.MuiButton-contained {
+  background-color: #ff0000 !important; /* Your red color */
+  border-radius: 8px !important;
+  text-transform: none !important;
+  font-weight: 600 !important;
+  padding: 12px 24px !important;
+  box-shadow: 0 3px 10px rgba(255, 0, 0, 0.3) !important;
+  border: none !important;
+  color: white !important;
+}
+
+.MuiButton-contained:hover {
+  background-color: #cc0000 !important; /* Darker red on hover */
+  box-shadow: 0 5px 15px rgba(255, 0, 0, 0.4) !important;
+}
+
+.MuiFormControl-root .MuiOutlinedInput-root {
+  border-radius: 8px !important;
+}
+
+.MuiFormControl-root .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline {
+  border-color: #022030 !important; /* Your blue color for focus states */
+}
+
+.MuiFormControl-root .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+  border-color: #022030 !important; /* Your blue color */
+  border-width: 2px !important;
+}
+
+.MuiInputLabel-root.Mui-focused {
+  color: #022030 !important; /* Your blue color */
+}
+
+.MuiLink-root {
+  color: #ff0000 !important; /* Your red color for links */
+  cursor: pointer;
+}
+
+.MuiLink-root:hover {
+  color: #cc0000 !important; /* Darker red on hover */
+}
