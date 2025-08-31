@@ -1,13 +1,18 @@
-import React from "react";
+
+import React, { useState } from "react";
 import "./RoleSection.css";
 import Employee from "../../Assets/Employee.svg";
 import Employer from "../../Assets/Employer.svg";
+import AuthModal from "../Auth/AuthModal"; // Import the AuthModal component
 
 // Importing icons from react-icons
 import { FaLaptopCode, FaChartLine, FaPaintBrush, FaHeadset, FaBriefcase, FaDatabase } from "react-icons/fa";
+
 const scrollCategories = (direction) => {
   const container = document.getElementById("categories-container");
+
   const scrollAmount = 350; // how much to scroll
+
 
   if (direction === "left") {
     container.scrollBy({ left: -scrollAmount, behavior: "smooth" });
@@ -17,6 +22,13 @@ const scrollCategories = (direction) => {
 };
 
 const RoleSection = () => {
+     const [openAuthModal, setOpenAuthModal] = useState(false); 
+      const handleLoginClick = () => {
+    setOpenAuthModal(true);
+  };
+   const handleCloseAuthModal = () => {
+    setOpenAuthModal(false);
+  };
   const categories = [
     {
       id: 1,
@@ -87,7 +99,8 @@ const RoleSection = () => {
             <div className="card-content">
               <h2>For Candidate</h2>
               <p>Build your professional profile, find new job opportunities.</p>
-              <button className="role-button candidate-btn">Upload your CV</button>
+              <button onClick={handleLoginClick} className="role-button candidate-btn">Upload your CV</button>
+                <AuthModal open={openAuthModal} onClose={handleCloseAuthModal} />
             </div>
             <div className="card-illustration">
               <img

@@ -20,6 +20,7 @@ const JobSearch = () => {
     // Example redirect:
     // window.location.href = `/jobs?keyword=${keyword}&location=${location}`;
   };
+  
 
   return (
     <div className="civi-search-horizontal">
@@ -91,9 +92,11 @@ const JobSearch = () => {
 
           {/* 🔴 Search Button */}
           <div className="form-group">
-            <button type="submit" className="btn-search-horizontal civi-button">
-              Search
+            <button  type="submit" className="btn-search-horizontal civi-button">
+              <a href="/candidatedashboard" style={{ color: "white", textDecoration: "none" }}> Search</a>
+             
             </button>
+          
           </div>
         </div>
       </form>

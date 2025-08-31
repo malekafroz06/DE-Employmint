@@ -3,6 +3,7 @@ import Home from "./Components/Home/Home";
 import Candidatedashboard from "./Components/Candidatedashboard/Candidatedashboard";
 import About from "./Components/About";
 import JobSearch from "./Components/Jobsearch/Jobsearch";
+import ProfilePage from "./Components/ProfilePage/ProfilePage";
 import Navbar from "./Components/Navbar/Navbar";
 import Work from "./Components/Work/Work";
 import Testimonial from "./Components/Testimonial/Testimonial";
@@ -20,6 +21,7 @@ function App() {
       <Route path="/" element={<Home />} />
       <Route path="/candidatedashboard" element={<Candidatedashboard />} />
       <Route path="/rolesection" element={<RoleSection />} />
+            <Route path="/profilepage" element={<ProfilePage />} />
        <Route path="/work" element={<Work />} />
          <Route path="/jobalert" element={<JobAlert />} />
         <Route path="/testimonial" element={<Testimonial />} />
