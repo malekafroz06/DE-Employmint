@@ -7,6 +7,10 @@ import { FiArrowRight } from "react-icons/fi";
 import './Home.css';
 
 import JobSearch from "../Jobsearch/Jobsearch";
+import RoleSection from "../RoleSection/RoleSection";
+import Workk from "../Workk/Workk";
+import { Work } from "@mui/icons-material";
+import Testimonial from "../Testimonial/Testimonial";
 
 const Home = () => {
 
@@ -68,9 +72,17 @@ const Home = () => {
             playsInline
           />
         </div>
+         
       </div>
+     <RoleSection/>
+     <Workk />
+     <Testimonial/>
+     
     </div>
+    
+   
   );
 };
+
 
 export default Home;

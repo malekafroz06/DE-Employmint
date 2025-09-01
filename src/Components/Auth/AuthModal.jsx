@@ -219,7 +219,7 @@ const AuthModal = ({ open, onClose, onLoginSuccess = () => {} }) => {
           borderRadius: 3,
           background: 'white',
           color: '#333',
-          boxShadow: '0 20px 40px rgba(255, 0, 0, 0.3)',
+          // boxShadow: '0 20px 40px rgba(255, 0, 0, 0.3)',
         }
       }}
     >

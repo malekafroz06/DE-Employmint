@@ -94,7 +94,9 @@ const Candidatedashboard = () => {
     </div>
   );
 
-  const JobCard = ({ job }) => (
+  const JobCard = ({ job }) => {
+      const [saved, setSaved] = useState(false);
+      return(
     <div className="job-card">
       <h3 className="job-title">{job.title}</h3>
       <p className="job-company">{job.company} - <span className="job-location">{job.location}</span></p>
@@ -105,8 +107,9 @@ const Candidatedashboard = () => {
       </div>
       <p className="job-description">{job.description}</p>
       <button className="apply-btn">Apply Now</button>
+        
     </div>
-  );
+)  };
 
   return (
     <div className="candidate-jobs">

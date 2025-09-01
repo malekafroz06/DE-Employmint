@@ -5,7 +5,7 @@ import About from "./Components/About";
 import JobSearch from "./Components/Jobsearch/Jobsearch";
 import ProfilePage from "./Components/ProfilePage/ProfilePage";
 import Navbar from "./Components/Navbar/Navbar";
-import Work from "./Components/Work/Work";
+import Workk from "./Components/Workk/Workk";
 import Testimonial from "./Components/Testimonial/Testimonial";
 import JobAlert from "./Components/jobalert/jobalert";
 import Contact from "./Components/Contact";
@@ -22,7 +22,7 @@ function App() {
       <Route path="/candidatedashboard" element={<Candidatedashboard />} />
       <Route path="/rolesection" element={<RoleSection />} />
             <Route path="/profilepage" element={<ProfilePage />} />
-       <Route path="/work" element={<Work />} />
+       <Route path="/workk" element={<Workk />} />
          <Route path="/jobalert" element={<JobAlert />} />
         <Route path="/testimonial" element={<Testimonial />} />
          <Route path="/contact" element={<Contact />} />

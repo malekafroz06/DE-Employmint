@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import './Work.css';
+import './Workk.css';
 import {
   ChevronLeft,
   ChevronRight,
@@ -11,7 +11,7 @@ import {
   BarChart
 } from '@mui/icons-material';
 
-const Work = () => {
+const Workk = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const cardsToShow = 3;
 
@@ -132,4 +132,4 @@ const Work = () => {
   );
 };
 
-export default Work;
+export default Workk;
