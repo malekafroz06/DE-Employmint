@@ -10,9 +10,11 @@ import Testimonial from "./Components/Testimonial/Testimonial";
 import JobAlert from "./Components/jobalert/jobalert";
 import Contact from "./Components/Contact";
 import Footer from "./Components/Footer/Footer";
+import Postajob from "./Components/Postajob/Postajob";
 import RoleSection from "./Components/RoleSection/RoleSection";
 import "@fortawesome/fontawesome-free/css/all.min.css";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+
 function App() {
   return (
     <div className="App">
@@ -24,6 +26,7 @@ function App() {
             <Route path="/profilepage" element={<ProfilePage />} />
        <Route path="/workk" element={<Workk />} />
          <Route path="/jobalert" element={<JobAlert />} />
+          <Route path="/postajob" element={<Postajob />} />
         <Route path="/testimonial" element={<Testimonial />} />
          <Route path="/contact" element={<Contact />} />
     </Routes>
@@ -31,6 +34,7 @@ function App() {
      
       <Footer />
     </div>
+    
   );
 }
 

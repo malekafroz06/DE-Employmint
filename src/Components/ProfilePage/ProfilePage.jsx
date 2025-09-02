@@ -355,7 +355,7 @@ const ProfilePage = ({ userData: initialUserData = {}, onLogout = () => {}, onNa
     }}>
       <Box maxWidth="lg" mx="auto">
         <Box display="flex" justifyContent="space-between" alignItems="center" sx={{ mb: 4 }}>
-          <Typography variant="h4" sx={{ color: '#333', fontWeight: 'bold' }}>
+          <Typography variant="h4" sx={{ color: '#020330', fontWeight: 'bold' }}>
             My Profile
           </Typography>
           <Button
@@ -402,11 +402,11 @@ const ProfilePage = ({ userData: initialUserData = {}, onLogout = () => {}, onNa
             border: '1px solid #f1efebff',
             borderRadius: 0.5,
             mb: 4,
-            boxShadow: '0 8px 32px rgba(255, 234, 167, 0.3)',
+            // boxShadow: '0 8px 32px rgba(255, 234, 167, 0.3)',
           }}>
             <CardContent sx={{ textAlign: 'center', py: 4 }}>
               <Upload sx={{ fontSize: 64, color: '#FF0000', mb: 2 }} />
-              <Typography variant="h5" sx={{ fontWeight: 'bold', mb: 2, color: '#333' }}>
+              <Typography variant="h5" sx={{ fontWeight: 'bold', mb: 2, color: '#022030' }}>
                 Complete Your Profile
               </Typography>
               <Typography variant="body1" sx={{ color: '#666', mb: 3, maxWidth: 600, mx: 'auto' }}>
@@ -455,8 +455,8 @@ const ProfilePage = ({ userData: initialUserData = {}, onLogout = () => {}, onNa
               backgroundColor: 'white', 
               color: '#333',
               border: '2px solid #FF0000',
-              borderRadius: 3,
-              boxShadow: '0 8px 32px rgba(255, 0, 0, 0.1)',
+              borderRadius: 2,
+              // boxShadow: '0 8px 32px rgba(255, 0, 0, 0.1)',
             }}>
               <CardContent sx={{ textAlign: 'center', py: 4 }}>
                 <Box position="relative" display="inline-block" sx={{ mb: 2 }}>
@@ -555,9 +555,9 @@ const ProfilePage = ({ userData: initialUserData = {}, onLogout = () => {}, onNa
               backgroundColor: 'white', 
               color: '#333',
               border: '2px solid #FF0000',
-              borderRadius: 3,
+              borderRadius: 2,
               mt: 3,
-              boxShadow: '0 8px 32px rgba(255, 0, 0, 0.1)',
+              // boxShadow: '0 8px 32px rgba(255, 0, 0, 0.1)',
             }}>
               <CardContent>
                 <Box display="flex" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
@@ -694,13 +694,13 @@ const ProfilePage = ({ userData: initialUserData = {}, onLogout = () => {}, onNa
               backgroundColor: 'white', 
               color: '#333',
               border: '2px solid #FF0000',
-              borderRadius: 3,
+              borderRadius: 2,
               mb: 3,
-              boxShadow: '0 8px 32px rgba(255, 0, 0, 0.1)',
+              // boxShadow: '0 8px 32px rgba(255, 0, 0, 0.1)',
             }}>
               <CardContent>
                 <Box display="flex" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
-                  <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#333' }}>
+                  <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#020330' }}>
                     Personal Information
                   </Typography>
                   <Button
@@ -771,7 +771,7 @@ const ProfilePage = ({ userData: initialUserData = {}, onLogout = () => {}, onNa
                         <Typography variant="caption" sx={{ color: '#666' }}>
                           Last Name
                         </Typography>
-                        <Typography variant="body1" sx={{ color: '#333', fontWeight: 'bold' }}>
+                        <Typography variant="body1" sx={{ color: '#020330', fontWeight: 'bold' }}>
                           {userData?.lastName || 'Not provided'}
                         </Typography>
                       </Box>
@@ -785,7 +785,7 @@ const ProfilePage = ({ userData: initialUserData = {}, onLogout = () => {}, onNa
                         <Typography variant="caption" sx={{ color: '#666' }}>
                           Email
                         </Typography>
-                        <Typography variant="body1" sx={{ color: '#333', fontWeight: 'bold' }}>
+                        <Typography variant="body1" sx={{ color: '#020330', fontWeight: 'bold' }}>
                           {userData?.email || 'Not provided'}
                         </Typography>
                       </Box>
@@ -799,7 +799,7 @@ const ProfilePage = ({ userData: initialUserData = {}, onLogout = () => {}, onNa
                         <Typography variant="caption" sx={{ color: '#666' }}>
                           Phone
                         </Typography>
-                        <Typography variant="body1" sx={{ color: '#333', fontWeight: 'bold' }}>
+                        <Typography variant="body1" sx={{ color: '#020330', fontWeight: 'bold' }}>
                           {userData?.phone || 'Not provided'}
                         </Typography>
                       </Box>
@@ -813,7 +813,7 @@ const ProfilePage = ({ userData: initialUserData = {}, onLogout = () => {}, onNa
                         <Typography variant="caption" sx={{ color: '#666' }}>
                           Job Title
                         </Typography>
-                        <Typography variant="body1" sx={{ color: '#333', textTransform: 'capitalize', fontWeight: 'bold' }}>
+                        <Typography variant="body1" sx={{ color: '#020330', textTransform: 'capitalize', fontWeight: 'bold' }}>
                           {userData?.jobTitle || userData?.role || 'Not specified'}
                         </Typography>
                       </Box>
@@ -841,7 +841,7 @@ const ProfilePage = ({ userData: initialUserData = {}, onLogout = () => {}, onNa
                         <Typography variant="caption" sx={{ color: '#666' }}>
                           Username
                         </Typography>
-                        <Typography variant="body1" sx={{ color: '#333', fontWeight: 'bold' }}>
+                        <Typography variant="body1" sx={{ color: '#020330', fontWeight: 'bold' }}>
                           {userData?.username || 'Not provided'}
                         </Typography>
                       </Box>
@@ -870,7 +870,7 @@ const ProfilePage = ({ userData: initialUserData = {}, onLogout = () => {}, onNa
                           <Typography variant="caption" sx={{ color: '#666' }}>
                             Skills (from Resume)
                           </Typography>
-                          <Typography variant="body1" sx={{ color: '#333', fontWeight: 'bold' }}>
+                          <Typography variant="body1" sx={{ color: '#020330', fontWeight: 'bold' }}>
                             {userData.skills}
                           </Typography>
                         </Box>
@@ -887,7 +887,7 @@ const ProfilePage = ({ userData: initialUserData = {}, onLogout = () => {}, onNa
                             <Typography variant="caption" sx={{ color: '#666' }}>
                               Company Name
                             </Typography>
-                            <Typography variant="body1" sx={{ color: '#333', fontWeight: 'bold' }}>
+                            <Typography variant="body1" sx={{ color: '#020330', fontWeight: 'bold' }}>
                               {userData?.companyName || 'Not provided'}
                             </Typography>
                           </Box>
@@ -901,7 +901,7 @@ const ProfilePage = ({ userData: initialUserData = {}, onLogout = () => {}, onNa
                             <Typography variant="caption" sx={{ color: '#666' }}>
                               Website
                             </Typography>
-                            <Typography variant="body1" sx={{ color: '#333', fontWeight: 'bold' }}>
+                            <Typography variant="body1" sx={{ color: '#020330', fontWeight: 'bold' }}>
                               {userData?.website || 'Not provided'}
                             </Typography>
                           </Box>
@@ -917,13 +917,13 @@ const ProfilePage = ({ userData: initialUserData = {}, onLogout = () => {}, onNa
               backgroundColor: 'white', 
               color: '#333',
               border: '2px solid #FF0000',
-              borderRadius: 3,
+              borderRadius: 2,
               mb: 3,
-              boxShadow: '0 8px 32px rgba(255, 0, 0, 0.1)',
+              // boxShadow: '0 8px 32px rgba(255, 0, 0, 0.1)',
             }}>
               <CardContent>
                 <Box display="flex" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
-                  <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#333' }}>
+                  <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#020330' }}>
                     Resume & Documents
                   </Typography>
                   <Button
@@ -966,7 +966,7 @@ const ProfilePage = ({ userData: initialUserData = {}, onLogout = () => {}, onNa
                     ) : (
                       <Upload sx={{ fontSize: 64, color: '#FF0000', mb: 2 }} />
                     )}
-                    <Typography variant="h6" sx={{ color: '#333', mb: 1, fontWeight: 'bold' }}>
+                    <Typography variant="h6" sx={{ color: '#020330', mb: 1, fontWeight: 'bold' }}>
                       {isProcessingResume ? 'Processing Your Resume...' : 'Upload Your Resume'}
                     </Typography>
                     <Typography variant="body2" sx={{ color: '#666' }}>
@@ -1004,7 +1004,7 @@ const ProfilePage = ({ userData: initialUserData = {}, onLogout = () => {}, onNa
                             </Typography>
                           </Box>
                           <Box>
-                            <Typography variant="body1" sx={{ color: '#333', fontWeight: 'bold' }}>
+                            <Typography variant="body1" sx={{ color: '#020330', fontWeight: 'bold' }}>
                               {resumeFile?.name || 'Resume'}
                             </Typography>
                             <Typography variant="caption" sx={{ color: '#666' }}>
@@ -1053,8 +1053,8 @@ const ProfilePage = ({ userData: initialUserData = {}, onLogout = () => {}, onNa
               backgroundColor: 'white', 
               color: '#333',
               border: '2px solid #FF0000',
-              borderRadius: 3,
-              boxShadow: '0 8px 32px rgba(255, 0, 0, 0.1)',
+              borderRadius: 2,
+              // boxShadow: '0 8px 32px rgba(255, 0, 0, 0.1)',
             }}>
               <CardContent>
                 <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 3, color: '#333' }}>
@@ -1114,11 +1114,11 @@ const ProfilePage = ({ userData: initialUserData = {}, onLogout = () => {}, onNa
                 backgroundColor: 'white', 
                 color: '#333',
                 border: '2px solid #FF0000',
-                borderRadius: 3,
-                boxShadow: '0 8px 32px rgba(255, 0, 0, 0.1)',
+                borderRadius: 2,
+                // boxShadow: '0 8px 32px rgba(255, 0, 0, 0.1)',
               }}>
                 <CardContent>
-                  <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 3, color: '#333' }}>
+                  <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 3, color: '#020330' }}>
                     Quick Actions
                   </Typography>
                   

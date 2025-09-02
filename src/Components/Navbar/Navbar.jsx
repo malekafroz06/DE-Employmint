@@ -16,6 +16,7 @@ import CommentRoundedIcon from "@mui/icons-material/CommentRounded";
 import PhoneRoundedIcon from "@mui/icons-material/PhoneRounded";
 import ShoppingCartRoundedIcon from "@mui/icons-material/ShoppingCartRounded";
 import AuthModal from "../Auth/AuthModal"; // Import the AuthModal component
+import Postajob from "../Postajob/Postajob";
 import './Navbar.css';
 
 const Navbar = () => {
@@ -28,23 +29,30 @@ const Navbar = () => {
       icon: <HomeIcon />,
     },
     {
-      text: "About",
+      text: "Job Categories",
       icon: <InfoIcon />,
     },
     {
-      text: "Testimonials",
+      text: "Job Industries",
       icon: <CommentRoundedIcon />,
     },
     {
-      text: "Contact",
+      text: "Latest Jobs",
       icon: <PhoneRoundedIcon />,
     },
     {
-      text: "Cart",
+      text: "Job Alert",
+      icon: <ShoppingCartRoundedIcon />,
+    },
+      {
+      element:<button className="primary-button">Post a job</button>,
       icon: <ShoppingCartRoundedIcon />,
     },
   ];
-
+ const handlepost= () => {
+   
+     window.location.href = "/postajob"; 
+  };
   const handleLoginClick = () => {
     setOpenAuthModal(true);
   };
@@ -68,7 +76,7 @@ const Navbar = () => {
           <a href="#" onClick={handleLoginClick}>
             Login
           </a>
-          <button className="primary-button">Post a Job</button>
+          <button onClick={handlepost} className="primary-button">Post a Job</button>
         </div>
         <div className="navbar-menu-container">
           <HiOutlineBars3 onClick={() => setOpenMenu(true)} />
@@ -86,9 +94,12 @@ const Navbar = () => {
                   <ListItemButton>
                     <ListItemIcon>{item.icon}</ListItemIcon>
                     <ListItemText primary={item.text} />
+                     
                   </ListItemButton>
+                  
                 </ListItem>
               ))}
+              
             </List>
             <Divider />
           </Box>

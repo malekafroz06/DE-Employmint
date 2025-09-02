@@ -28,7 +28,7 @@ const JobSearch = () => {
         <div className="search-horizontal-inner">
 
           {/* 🔍 Job title */}
-          <div className="form-group">
+          <div className="form-group1">
             <input
               className="search-horizontal-control"
               type="text"
@@ -52,7 +52,7 @@ const JobSearch = () => {
           </div>
 
           {/* 📍 Location */}
-          <div className="form-group civi-form-location">
+          <div className="form-group1 civi-form-location">
             <select
               className="civi-select2"
               value={location}
@@ -91,8 +91,8 @@ const JobSearch = () => {
           </div>
 
           {/* 🔴 Search Button */}
-          <div className="form-group">
-            <button  type="submit" className="btn-search-horizontal civi-button">
+          <div className="form-group1">
+            <button  type="submit" className="btn-search-horizontal civi-button3">
               <a href="/candidatedashboard" style={{ color: "white", textDecoration: "none" }}> Search</a>
              
             </button>

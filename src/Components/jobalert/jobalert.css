@@ -21,6 +21,7 @@
   display:flex;
   align-items:center;
   gap:12px;
+  color: #022030;
   font-size:20px;
   font-weight:600;
   color: var(--theme-text);
@@ -47,7 +48,7 @@
   display:block;
   margin-bottom:8px;
   font-weight:500;
-  color: var(--theme-text);
+  color: #022030;
   font-size:14px;
 }
 
@@ -97,7 +98,7 @@
 }
 
 /* submit button */
-.civi-button{
+.civi-button4{
   display: inline-flex;
   align-items: center;
   gap: 10px;
@@ -112,13 +113,13 @@
   transition: transform .08s ease, box-shadow .12s ease;
 }
 
-.civi-button:hover{
+.civi-button4:hover{
   transform: translateY(-1px);
   box-shadow: 0 8px 18px rgba(255,0,0,0.18);
 }
 
 /* bell icon spacing */
-.civi-button .bell-icon{
+.civi-button4 .bell-icon{
   display:inline-flex;
   align-items:center;
   justify-content:center;

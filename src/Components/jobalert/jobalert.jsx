@@ -183,7 +183,7 @@ const JobAlert = () => {
 
         <div className="field-submit">
           <div className="notice" />
-          <button className="civi-button" type="submit">
+          <button className="civi-button4" type="submit">
             <span className="bell-icon" aria-hidden>
               {/* inline bell SVG */}
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
