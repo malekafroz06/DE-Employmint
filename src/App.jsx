@@ -1,7 +1,6 @@
 import "./App.css";
 import Home from "./Components/Home/Home";
 import Candidatedashboard from "./Components/Candidatedashboard/Candidatedashboard";
-import About from "./Components/About";
 import JobSearch from "./Components/Jobsearch/Jobsearch";
 import ProfilePage from "./Components/ProfilePage/ProfilePage";
 import Navbar from "./Components/Navbar/Navbar";
@@ -19,6 +18,7 @@ function App() {
   return (
     <div className="App">
       <Navbar/>
+      
         <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/candidatedashboard" element={<Candidatedashboard />} />
