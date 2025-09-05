@@ -30,7 +30,7 @@ const Candidatedashboard = () => {
     { title: "Full Stack Developer", company: "Wealth Management", location: "Remote", type: "Full-Time", salary: "80k-100k", level: "Mid", description: "Develop and maintain web applications from front to back..." },
     { title: "Cloud Solutions Architect", company: "General Insurance", location: "Seattle, USA", type: "Full-Time", salary: "100k+", level: "Executive", description: "Design and implement cloud infrastructure for our enterprise clients." },
     { title: "Database Administrator", company: "Life Insurance", location: "Remote", type: "Full-Time", salary: "80k-100k", level: "Senior", description: "Manage and optimize our large-scale database systems." },
-    { title: "Junior UI/UX Designer", company: "Equity Broking", location: "Austin, USA", type: "Internship", salary: "N/A", level: "Entry", description: "Assist senior designers in creating mockups and user flows." },
+    { title: "Junior UI/UX Designer", company: "Equity Broking", location: "Austin, USA", type: "Internship", salary: "40k-60k", level: "Entry", description: "Assist senior designers in creating mockups and user flows." },
     { title: "Operations Manager", company: "Equity Research", location: "Chicago, USA", type: "Full-Time", salary: "100k+", level: "Senior", description: "Oversee daily operations and improve efficiency across all departments." },
     { title: "Frontend Developer", company: "Life Insurance", location: "Remote", type: "Freelance", salary: "60k-80k", level: "Mid", description: "Build interactive and responsive user interfaces for our web apps." },
     { title: "Product Manager", company: "Wealth Management", location: "San Francisco, USA", type: "Full-Time", salary: "100k+", level: "Senior", description: "Lead the development of new products from concept to launch." },
@@ -78,7 +78,7 @@ const Candidatedashboard = () => {
     const filtered = jobListings.filter(job => {
       const keywordMatch = keyword === "" || job.title.toLowerCase().includes(keyword);
       const locationMatch = location === "all industries" || job.company.toLowerCase().includes(location);
-      const jobTypeMatch = checkedFilters.jobType.length === 0 || checkedFilters.jobType.includes(job.type);
+      const jobTypeMatch = checkedFilters.jobType.length === 0 || checkedFilters.jobType.includes(job.company);
       const careerLevelMatch = checkedFilters.careerLevel.length === 0 || checkedFilters.careerLevel.includes(job.level);
       const salaryRangeMatch = checkedFilters.salaryRange.length === 0 || checkedFilters.salaryRange.includes(job.salary);
       return locationMatch && keywordMatch && jobTypeMatch && careerLevelMatch && salaryRangeMatch;
@@ -154,10 +154,11 @@ const Candidatedashboard = () => {
               title="Sector "
               filterType="jobType"
               options={[
-                { value: "Full-Time", label: "Full-Time" },
-                { value: "Part-Time", label: "Part-Time" },
-                { value: "Freelance", label: "Freelance" },
-                { value: "Internship", label: "Internship" }
+                { value: "Life Insurance", label: "Life Insurance" },
+                { value: "Wealth Management", label: "Wealth Management" },
+                { value: "Equity Broking", label: "Equity Broking" },
+                { value: "Equity Research", label: "Equity Research" },
+                { value: "General Insurance", label: "General Insurance" }
               ]}
             />
 
