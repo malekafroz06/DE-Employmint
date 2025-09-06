@@ -4,18 +4,18 @@ nav {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1rem 2rem;
-  /* background: linear-gradient(135deg, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.968) 100%);
-  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.08); */
-  /* backdrop-filter: blur(10px); */
-  /* border-radius: 16px; */
-  /* margin: 1rem 1rem; */
+  padding: 1rem 3rem;
+  background: linear-gradient(135deg, white 0%, white 100%);
+  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.08); 
+   border-radius: 16px; 
+   /* margin: 1rem 1rem;  */
+   margin-bottom: 25px;
   position:relative;
   top: 1rem;
   width: 100%;
   z-index: 1000;
  
-  /* border: 1px solid rgba(255, 255, 255, 0.2); */
+   border: 1px solid rgba(255, 255, 255, 0.2); 
 }
 
 .nav-logo-container {

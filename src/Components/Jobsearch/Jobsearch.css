@@ -177,6 +177,7 @@
 
 /* Popular searches */
 .popular-categories {
+  margin-left: 260px;
   margin-top: 12px;
   font-size: 14px;
   color: var(--theme-black);

@@ -16,11 +16,10 @@ const Home = () => {
   
   return (
     <div className="home-container">
-      {/* <Navbar /> */}
       
       {/* FIRST SECTION WITH BACKGROUND IMAGE */}
-      <div className="banner-section" style={{
-         backgroundImage: `url(${BannerImage})`,
+      {/* <div className="banner-section" style={{
+        backgroundImage: `url(${BannerImage})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat',
@@ -29,10 +28,10 @@ const Home = () => {
         display: 'flex',
         alignItems: 'center',
         paddingLeft: '4rem'
-      }}>
+      }}> */}
         <div className="text-content">
           <h1 className="primary-heading" >
-            Got Talent ?<br />Meet Opportunity
+         <span className="primary2">Got Talent ?  </span><br />Meet Opportunity
           </h1>
            
           <p className="primary-text">
@@ -69,16 +68,15 @@ const Home = () => {
             </ul>
           </div>
         </div>
-      </div>
-      
-      {/* OTHER SECTIONS - NO BACKGROUND */}
+    
+     
       <div className="main-content">
         <RoleSection/>
         <Workk />
         <Testimonial/>
       </div>
-          
-    </div>
+       </div>   
+    
            
   );
 };
