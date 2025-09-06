@@ -1,37 +1,48 @@
 /* Home.css */
 
-.home-container {
-  min-height: 100vh;
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-.home-banner-container {
+.home-container {
+  width: 100%;
+}
+
+/* HERO SECTION - ONLY THIS HAS BACKGROUND IMAGE */
+.hero-section {
+  width: 100%;
+  height: 100vh;
+  background-image: url('../../Assets/banner.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   padding: 2rem;
-  margin: 0 2rem;
-  min-height: calc(100vh - 140px);
   position: relative;
-  gap: 3rem;
-  background: transparent;
-}
-
-.home-bannerImage-container {
-  display: none;
-}
-
-.home-bannerImage-container img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
 }
 
 .home-text-section {
-  flex: 1;
   max-width: 600px;
-  padding-right: 2rem;
   animation: slideInLeft 1s ease-out;
-  background: transparent;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 3rem;
+  border-radius: 20px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+  position: relative;
+  z-index: 10;
+}
+
+/* CONTENT SECTIONS - NO BACKGROUND IMAGE */
+.content-sections {
+  background: #ffffff;
+  width: 100%;
+  min-height: 100vh;
+  position: relative;
 }
 
 .primary-heading {
@@ -39,18 +50,17 @@
   font-weight: 800;
   line-height: 1.2;
   margin: 0 0 1.5rem 0;
-  color: #022030;
+  color: #020330;
   letter-spacing: -0.02em;
   display: block;
   white-space: nowrap;
   overflow: visible;
 }
 
-/* Removed gradient animation as it's no longer needed */
 
 .primary-text {
   font-size: 1.2rem;
-  color: #6b7280;
+  color: #4c4c4c;
   line-height: 1.7;
   margin-bottom: 2.5rem;
   font-weight: 400;
@@ -58,7 +68,7 @@
 }
 
 .secondary-button {
-  background: linear-gradient(135deg, #ff0000 );
+  background: linear-gradient(135deg, #ff0000);
   color: white;
   border: none;
   padding: 1rem 2rem;
@@ -110,35 +120,12 @@
   transform: translateX(3px);
 }
 
-.home-image-section {
-  flex: 1;
-  max-width: 600px;
-  height: 500px;
-  border-radius: 20px;
-  overflow: hidden;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
-  position: relative;
-  animation: slideInRight 1s ease-out;
-}
-
-.home-image-section::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(45deg, rgba(255, 0, 0, 0.1) 0%, rgba(2, 32, 48, 0.1) 100%);
-  z-index: 1;
-  pointer-events: none;
-}
-
-.home-image-section video {
-  transition: transform 0.5s ease;
-}
-
-.home-image-section:hover video {
-  transform: scale(1.05);
+/* REMOVE OLD CLASSES */
+.home-banner-container,
+.home-bannerImage-container,
+.home-image-section,
+.other-sections {
+  display: none;
 }
 
 /* Animations */
@@ -166,31 +153,27 @@
 
 /* Responsive Design */
 @media (max-width: 1024px) {
-  .home-banner-container {
-    margin: 0 1rem;
-    padding: 1.5rem;
-    gap: 2rem;
+  .hero-section {
+    padding: 3rem 1rem;
   }
 
   .primary-heading {
     font-size: clamp(2.5rem, 5vw, 3.5rem);
   }
 
-  .home-image-section {
-    height: 400px;
+  .home-text-section {
+    padding: 2.5rem;
   }
 }
 
 @media (max-width: 768px) {
-  .home-banner-container {
-    flex-direction: column;
+  .hero-section {
+    padding: 3rem 1rem;
     text-align: center;
-    gap: 3rem;
-    padding: 2rem 1rem;
   }
 
   .home-text-section {
-    padding-right: 0;
+    padding: 2rem;
     max-width: 100%;
   }
 
@@ -205,11 +188,6 @@
     margin-bottom: 2rem;
   }
 
-  .home-image-section {
-    max-width: 100%;
-    height: 300px;
-  }
-
   .secondary-button {
     padding: 0.9rem 1.8rem;
     font-size: 1rem;
@@ -217,9 +195,8 @@
 }
 
 @media (max-width: 480px) {
-  .home-banner-container {
-    margin: 0 0.5rem;
-    padding: 1.5rem 0.5rem;
+  .hero-section {
+    padding: 2rem 1rem;
   }
 
   .primary-heading {
@@ -234,10 +211,6 @@
     padding: 0.8rem 1.5rem;
     font-size: 0.9rem;
   }
-
-  .home-image-section {
-    height: 250px;
-  }
 }
 
 /* Accessibility improvements */
@@ -246,19 +219,11 @@
     animation: none;
   }
   
-  .home-text-section,
-  .home-image-section {
+  .home-text-section {
     animation: none;
   }
   
   .secondary-button {
     transition: none;
   }
-  .primary-heading {
-  font-size: 32px;
-  font-weight: 700;
-  color: #022030; /* Updated heading color */
-  line-height: 1.2;
-}
-
 }
