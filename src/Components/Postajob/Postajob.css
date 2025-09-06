@@ -48,7 +48,7 @@
 
 .heading-secondary {
   color: var(--theme-color);
-  font-size: 1.8rem;
+  font-size: 1.9rem;
   font-weight: 400;
   margin-bottom: 0.5rem;
   letter-spacing: normal;
@@ -56,7 +56,7 @@
 
 .heading-primary {
   color: var(--heading-color);
-  font-size: 60px;
+  font-size: 70px;
   font-weight: 500;
   letter-spacing: normal;
   line-height: 1.2;
