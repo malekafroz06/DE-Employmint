@@ -151,8 +151,10 @@ const Candidatedashboard = () => {
             )} */}
             
             <FilterSection
+            
               title="Sector "
               filterType="jobType"
+              
               options={[
                 { value: "Life Insurance", label: "Life Insurance" },
                 { value: "Wealth Management", label: "Wealth Management" },
