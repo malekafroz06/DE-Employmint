@@ -45,22 +45,70 @@ const JobCategories = () => {
   ];
 
   const categories = [
-    { id: 1, name: "Equity Broking", icon: TrendingUp, designation: "Equity Broking" },
-    { id: 2, name: "Commodity Broking", icon: BarChart3, designation: "Commodity Broking" },
-    { id: 3, name: "Currency Broking", icon: DollarSign, designation: "Currency Broking" },
-    { id: 4, name: "Fundamental Research", icon: Search, designation: "Fundamental Research" },
-    { id: 5, name: "Technical Research", icon: LineChart, designation: "Technical Research" },
-    { id: 6, name: "Data Analysis", icon: Database, designation: "Data Analysis" },
-    { id: 7, name: "Quant Analysis", icon: Calculator, designation: "Quant Analysis" },
-    { id: 8, name: "Life Insurance", icon: Shield, designation: "Life Insurance" },
-    { id: 9, name: "General Insurance", icon: Car, designation: "General Insurance" },
-    { id: 10, name: "Asset Finance", icon: Building2, designation: "Asset Finance" },
-    { id: 11, name: "Loan Companies", icon: DollarSign, designation: "Loan Companies" },
-    { id: 12, name: "Microfinance MFI", icon: Home, designation: "Microfinance" },
-    { id: 13, name: "Housing Finance Co. (HFC)", icon: Home, designation: "Housing Finance Co. (HFC)" },
-    { id: 14, name: "Discretionary Portfolio Management", icon: PieChart, designation: "Discretionary Portfolio Management" },
-    { id: 15, name: "Non-Discretionary Advisory", icon: Target, designation: "Non-Discretionary Advisory" },
-    { id: 16, name: "Other Categories", icon: Briefcase, designation: "Other", isOther: true }
+    {
+      id: 1, name: "Equity Broking", icon: TrendingUp, designation: "Equity Broking",
+      products: ["Equity", "Commodity", "Currency", "Mutual Funds", "Insurance"]
+    },
+    {
+      id: 2, name: "Commodity Broking", icon: BarChart3, designation: "Commodity Broking",
+      products: ["Equity", "Commodity", "Currency", "Mutual Funds", "Insurance"]
+    },
+    {
+      id: 3, name: "Currency Broking", icon: DollarSign, designation: "Currency Broking",
+      products: ["Equity", "Commodity", "Currency", "Mutual Funds", "Insurance"]
+    },
+    {
+      id: 4, name: "Fundamental Research", icon: Search, designation: "Fundamental Research",
+      products: ["Buy Side", "Sell Side"]
+    },
+    {
+      id: 5, name: "Technical Research", icon: LineChart, designation: "Technical Research",
+      products: ["Derivative", "Non Derivative"]
+    },
+    {
+      id: 6, name: "Data Analysis", icon: Database, designation: "Data Analysis",
+      products: ["Quant Modeling", "Algorithmic Trading Strategies"]
+    },
+    {
+      id: 7, name: "Quant Analysis", icon: Calculator, designation: "Quant Analysis",
+      products: ["Quant Modeling"]
+    },
+    {
+      id: 8, name: "Life Insurance", icon: Shield, designation: "Life Insurance",
+      products: ["Term Plans", "Endowment Plan", "ULIPs"]
+    },
+    {
+      id: 9, name: "General Insurance", icon: Car, designation: "General Insurance",
+      products: ["Motor Insurance", "Health Insurance", "Travel Insurance", "Property Insurance", "Fire Insurance", "Marine Insurance", "Burglory Insurance"]
+    },
+    {
+      id: 10, name: "Asset Finance Company (AFC)", icon: Building2, designation: "Asset Finance",
+      products: ["Commercial Vehicle Loans", "Construction Equipment Loans", "Tractor Loan"]
+    },
+    {
+      id: 11, name: "Loan Company (LC)", icon: DollarSign, designation: "Loan Companies",
+      products: ["Personal Loans", "Business Loans", "MSME Loans"]
+    },
+    {
+      id: 12, name: "Microfinance Institution (MFI)", icon: Home, designation: "Microfinance",
+      products: ["Group Loans", "Small Ticket Loans", "Micro Loans", "Women Group Lending", "Rural Credit"]
+    },
+    {
+      id: 13, name: "Housing Finance Co. (HFC)", icon: Home, designation: "Housing Finance Co. (HFC)",
+      products: ["Home Loans", "Loan Against Property (LAP)", "Affordable Housing Loans"]
+    },
+    {
+      id: 14, name: "Discretionary Portfolio Management", icon: PieChart, designation: "Discretionary Portfolio Management",
+      products: ["Buy Side", "Sell Side", "Quant Modeling"]
+    },
+    {
+      id: 15, name: "Algo Trading", icon: Target, designation: "Non-Discretionary Advisory",
+      products: ["Algorithmic Trading Strategies"]
+    },
+    {
+      id: 16, name: "Other Categories", icon: Briefcase, designation: "Other", isOther: true,
+      products: []
+    }
   ];
 
   // Function to check if a job is "Other" (not in predefined categories)
@@ -70,19 +118,6 @@ const JobCategories = () => {
   };
 
   // Function to get job count for a specific category
-  const getJobCount = (designation, isOther = false) => {
-    if (isOther) {
-      // Count all jobs that don't match the predefined categories
-      const count = jobs.filter(job => isOtherJob(job)).length;
-      return count > 0 ? `${count} job${count !== 1 ? 's' : ''}` : 'No jobs';
-    }
-    
-    // Check both designation and jobcategory fields
-    const count = jobs.filter(job => 
-      job.designation === designation || job.jobcategory === designation
-    ).length;
-    return count > 0 ? `${count} job${count !== 1 ? 's' : ''}` : 'No jobs';
-  };
 
   // Function to handle category click
   const handleCategoryClick = (designation, isOther = false) => {
@@ -129,48 +164,54 @@ const JobCategories = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {categories.map((category) => {
               const IconComponent = category.icon;
-              const jobCount = getJobCount(category.designation, category.isOther);
-              
+              const rawCount = jobs.filter(job =>
+                category.isOther ? isOtherJob(job) : (job.designation === category.designation || job.jobcategory === category.designation)
+              ).length;
+
               return (
                 <div
                   key={category.id}
-                  className={`bg-white border border-gray-200 rounded-2xl p-6 cursor-pointer transition-all duration-300 hover:shadow-md hover:-translate-y-1 group ${
+                  className={`bg-white border border-gray-200 rounded-2xl p-6 cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-1 group ${
                     category.isOther ? 'border-blue-300 bg-blue-50' : ''
                   }`}
                   onClick={() => handleCategoryClick(category.designation, category.isOther)}
                 >
-                  {/* Icon */}
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 group-hover:scale-105 transition-transform duration-300 ${
-                    category.isOther ? 'bg-blue-500' : 'bg-[#FF0000]'
-                  }`}>
-                    <IconComponent className="w-6 h-6 text-white" />
-                  </div>
-                  
-                  {/* Category Name */}
-                  <h3 className="text-lg font-semibold mb-2" style={{ color: "#022030" }}>
-                    {category.name}
-                  </h3>
-                  
-                  {/* Dynamic Job Count */}
-                  <p className={`text-sm font-medium mb-2 ${jobCount === 'No jobs' ? 'text-gray-400' : 'text-gray-600'}`}>
-                    {jobCount}
-                  </p>
-                  
-                  {/* Hover Arrow */}
-                  <div className="mt-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    <div className="inline-flex items-center text-sm font-medium text-gray-600 group-hover:text-gray-800">
-                      {jobCount === 'No jobs' ? (
-                        'No Jobs Available'
-                      ) : (
-                        'View Jobs'
-                      )}
-                      {jobCount !== 'No jobs' && (
-                        <svg className="ml-1 w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                      )}
+                  {/* Top row: Icon + Job count badge */}
+                  <div className="flex items-start justify-between mb-4">
+                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center group-hover:scale-105 transition-transform duration-300 ${
+                      category.isOther ? 'bg-blue-500' : 'bg-[#FF0000]'
+                    }`}>
+                      <IconComponent className="w-7 h-7 text-white" />
+                    </div>
+
+                    {/* Job count circle */}
+                    <div className="w-14 h-14 rounded-full border-2 border-gray-200 flex flex-col items-center justify-center">
+                      <span className="text-sm font-bold leading-none" style={{ color: "#022030" }}>
+                        {rawCount > 0 ? rawCount : '0'}
+                      </span>
+                      <span className="text-xs text-gray-400 leading-none mt-0.5">Jobs</span>
                     </div>
                   </div>
+
+                  {/* Category Name */}
+                  <h3 className="text-lg font-bold mb-3" style={{ color: "#022030" }}>
+                    {category.name}
+                  </h3>
+
+                  {/* Products */}
+                  {category.products && category.products.length > 0 && (
+                    <div>
+                      <p className="text-sm font-bold mb-1" style={{ color: "#022030" }}>Products</p>
+                      <ul className="space-y-0.5">
+                        {category.products.map((product, idx) => (
+                          <li key={idx} className="text-xs text-gray-400 flex items-center gap-1">
+                            <span className="w-1 h-1 rounded-full bg-gray-400 inline-block flex-shrink-0"></span>
+                            {product}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               );
             })}

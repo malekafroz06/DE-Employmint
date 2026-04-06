@@ -1,14 +1,33 @@
 import Job from "../models/Job.js";
+import EmployerProfile from "../models/EmployerProfile.js";
 
-// Get all jobs 
+// Helper: merge EmployerProfile logos into jobs
+const mergeLogos = async (jobs) => {
+    const companyIds = [...new Set(jobs.map(j => j.companyId?._id?.toString()).filter(Boolean))];
+    const profiles = await EmployerProfile.find({ companyId: { $in: companyIds } }).select('companyId logo');
+    const logoMap = {};
+    profiles.forEach(p => { logoMap[p.companyId.toString()] = p.logo; });
+
+    return jobs.map(job => {
+        const obj = job.toObject ? job.toObject() : { ...job };
+        if (obj.companyId) {
+            const profileLogo = logoMap[obj.companyId._id?.toString()];
+            obj.companyId.image = profileLogo || obj.companyId.image || '';
+        }
+        return obj;
+    });
+};
+
+// Get all jobs
 export const getJobs = async (req, res) => {
     try {
         const jobs = await Job.find({ visible: true})
             .populate({path: "companyId", select: "-password"})
-        
-        res.json({success: true, data: jobs}) // ← Changed from "jobs" to "data"
+
+        const jobsWithLogos = await mergeLogos(jobs);
+        res.json({success: true, data: jobsWithLogos})
     } catch (error) {
-        res.status(500).json({success: false, message: error.message}) // ← Added status code
+        res.status(500).json({success: false, message: error.message})
     }
 };
 
@@ -21,20 +40,21 @@ export const getJobById = async (req, res) => {
             path:"companyId",
             select:"-password",
         })
-        
+
         if(!job){
-            return res.status(404).json({ // ← Added status code
+            return res.status(404).json({
                 success:false,
                 message:"Job not found"
             })
         }
 
+        const [jobWithLogo] = await mergeLogos([job]);
         res.json({
             success:true,
-            data: job // ← Changed from "job" to "data"
+            data: jobWithLogo
         })
     } catch (error) {
-        res.status(500).json({success: false, message: error.message}) // ← Added status code
+        res.status(500).json({success: false, message: error.message})
     }
 }
 

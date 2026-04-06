@@ -206,6 +206,15 @@ const candidateAssessmentSchema = new mongoose.Schema({
     ]
   },
   
+  // Remarks per role
+  remarks: [
+    {
+      role: { type: String, trim: true },
+      text: { type: String, trim: true },
+      submittedAt: { type: Date, default: Date.now }
+    }
+  ],
+
   // Assessment Metadata
   assessmentStatus: {
     type: String,

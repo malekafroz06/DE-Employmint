@@ -60,7 +60,8 @@ router.post('/assessment', async (req, res) => {
       candidateName,
       candidateEmail,
       candidatePhone,
-      // Step 1 data
+      remarkEntry,
+      // Legacy step data (kept for backward compatibility)
       consultancy,
       financialStatus,
       dailyCommute,
@@ -70,13 +71,11 @@ router.post('/assessment', async (req, res) => {
       workStyle,
       pressureHandling,
       roleClarityNeed,
-      // Step 2 data
       fear1,
       motivation1,
       challenge1,
       powerLanguage1,
       companyPriority1,
-      // Step 3 data
       targets,
       references,
       softwares,
@@ -105,8 +104,7 @@ router.post('/assessment', async (req, res) => {
 
     if (existingAssessment) {
       console.log('Assessment exists, updating...');
-      
-      // Update existing assessment
+
       const updateData = {
         candidateName: candidateName.trim(),
         candidateEmail: candidateEmail ? candidateEmail.toLowerCase().trim() : undefined,
@@ -132,14 +130,32 @@ router.post('/assessment', async (req, res) => {
         sourceOfRevenue,
         assessmentStatus: 'completed',
         lastUpdated: currentDate,
-        lastContactedDate: currentDate // Update last contacted date
+        lastContactedDate: currentDate
       };
 
-      const updatedAssessment = await CandidateAssessment.findByIdAndUpdate(
-        existingAssessment._id,
-        updateData,
-        { new: true, runValidators: true }
-      );
+      // Handle remark entry: replace existing remark for same role or push new
+      let updatedAssessment;
+      if (remarkEntry && remarkEntry.role && remarkEntry.text) {
+        // Remove existing remark for this role then push new one
+        await CandidateAssessment.findByIdAndUpdate(
+          existingAssessment._id,
+          { $pull: { remarks: { role: remarkEntry.role } } }
+        );
+        updatedAssessment = await CandidateAssessment.findByIdAndUpdate(
+          existingAssessment._id,
+          {
+            ...updateData,
+            $push: { remarks: { role: remarkEntry.role, text: remarkEntry.text, submittedAt: currentDate } }
+          },
+          { new: true, runValidators: false }
+        );
+      } else {
+        updatedAssessment = await CandidateAssessment.findByIdAndUpdate(
+          existingAssessment._id,
+          updateData,
+          { new: true, runValidators: true }
+        );
+      }
 
       console.log('Assessment updated successfully:');
       
@@ -157,11 +173,16 @@ router.post('/assessment', async (req, res) => {
 
     console.log('Creating new assessment...');
 
+    const remarksArray = (remarkEntry && remarkEntry.role && remarkEntry.text)
+      ? [{ role: remarkEntry.role, text: remarkEntry.text, submittedAt: currentDate }]
+      : [];
+
     // Create new assessment
     const assessment = new CandidateAssessment({
       candidateName: candidateName.trim(),
       candidateEmail: candidateEmail ? candidateEmail.toLowerCase().trim() : undefined,
       candidatePhone: candidatePhone ? candidatePhone.trim() : undefined,
+      remarks: remarksArray,
       consultancy,
       financialStatus,
       dailyCommute,

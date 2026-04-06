@@ -23,6 +23,10 @@ const ViewApplications = () => {
   const [selectedProfile, setSelectedProfile] = useState(null);
   const [resumeModalOpen, setResumeModalOpen] = useState(false);
   const [resumeApplicantName, setResumeApplicantName] = useState("");
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [rejectApplicationId, setRejectApplicationId] = useState(null);
+  const [rejectCandidateName, setRejectCandidateName] = useState("");
+  const [acceptApplicationId, setAcceptApplicationId] = useState(null);
   const dropdownRef = useRef(null);
 
   // ✅ Check if user is sub-user (HR/Consultancy/Management)
@@ -60,7 +64,7 @@ const ViewApplications = () => {
     }
   };
 
-  const changeJobApplicationStatus = async (id, status) => {
+  const changeJobApplicationStatus = async (id, status, remarks = "") => {
     // ✅ Prevent sub-users from accepting/rejecting
     if (isSubUser) {
       toast.error(`${subUserRole.toUpperCase()} users cannot accept/reject applications. Only view and assess.`);
@@ -69,10 +73,10 @@ const ViewApplications = () => {
 
     try {
       console.log("Changing status for application:", id, "to:", status);
-      
+
       const { data } = await axios.post(
         `${backendUrl}/api/company/change-status`,
-        { id, status },
+        { id, status, remarks },
         { headers: { token: companyToken } }
       );
 
@@ -475,15 +479,6 @@ const ViewApplications = () => {
                             <Eye size={12} className="sm:w-[14px] sm:h-[14px]" />
                             <span>Profile</span>
                           </button>
-                          <button
-                            onClick={() => handleViewAssessment(applicant.userId?._id, applicant.userId)}
-                            className="inline-flex items-center justify-center gap-1.5 sm:gap-2 bg-purple-50 text-purple-600 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium hover:bg-purple-100 transition-colors whitespace-nowrap"
-                            title={isSubUser ? `Fill ${subUserRole.toUpperCase()} assessment` : 'View assessment'}
-                          >
-                            <ClipboardList size={12} className="sm:w-[14px] sm:h-[14px]" />
-                            <span className="hidden sm:inline">{isSubUser ? 'Assessment' : 'Assessment'}</span>
-                            <span className="sm:hidden">Assess</span>
-                          </button>
                         </div>
                       </td>
                       
@@ -518,7 +513,10 @@ const ViewApplications = () => {
                                       onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
-                                        changeJobApplicationStatus(applicant._id, "Accepted");
+                                        setActiveDropdown(null);
+                                        setAcceptApplicationId(applicant._id);
+                                        setSelectedProfile(applicant.userId);
+                                        setAssessmentModalOpen(true);
                                       }}
                                       className="w-full px-3 sm:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-green-600 hover:bg-green-50 flex items-center gap-2 transition-colors border-b border-gray-100"
                                     >
@@ -529,7 +527,10 @@ const ViewApplications = () => {
                                       onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
-                                        changeJobApplicationStatus(applicant._id, "Rejected");
+                                        setActiveDropdown(null);
+                                        setRejectApplicationId(applicant._id);
+                                        setRejectCandidateName(applicant.userId?.name || "Candidate");
+                                        setRejectModalOpen(true);
                                       }}
                                       className="w-full px-3 sm:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors"
                                     >
@@ -554,18 +555,35 @@ const ViewApplications = () => {
         </motion.div>
         
         {/* Profile Modal */}
-        <CandidateProfileModal 
+        <CandidateProfileModal
           isOpen={profileModalOpen}
           onClose={() => setProfileModalOpen(false)}
           profile={selectedProfile}
           backendUrl={backendUrl}
         />
 
+        {/* Reject Remarks Modal */}
+        <RejectRemarksModal
+          isOpen={rejectModalOpen}
+          onClose={() => { setRejectModalOpen(false); setRejectApplicationId(null); }}
+          candidateName={rejectCandidateName}
+          onConfirm={(remarks) => {
+            changeJobApplicationStatus(rejectApplicationId, "Rejected", remarks);
+            setRejectModalOpen(false);
+            setRejectApplicationId(null);
+          }}
+        />
+
         {/* Assessment Modal */}
-        <CandidateDetails 
+        <CandidateDetails
           isOpen={assessmentModalOpen}
-          onClose={() => setAssessmentModalOpen(false)}
+          onClose={() => { setAssessmentModalOpen(false); setAcceptApplicationId(null); }}
           profile={selectedProfile}
+          onAccept={acceptApplicationId ? () => {
+            changeJobApplicationStatus(acceptApplicationId, "Accepted");
+            setAssessmentModalOpen(false);
+            setAcceptApplicationId(null);
+          } : null}
         />
 
         {/* Resume Not Available Modal */}
@@ -621,6 +639,85 @@ const ViewApplications = () => {
         </AnimatePresence>
       </div>
     </div>
+  );
+};
+
+// Reject Remarks Modal Component
+const RejectRemarksModal = ({ isOpen, onClose, candidateName, onConfirm }) => {
+  const [remarks, setRemarks] = useState("");
+
+  if (!isOpen) return null;
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onConfirm(remarks.trim());
+    setRemarks("");
+  };
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+        onClick={onClose}
+      >
+        <motion.div
+          initial={{ scale: 0.95, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.95, opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className="bg-white rounded-xl shadow-lg p-6 max-w-md w-full"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-gray-800">Reject Application</h2>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+              <X size={20} />
+            </button>
+          </div>
+
+          <p className="text-sm text-gray-600 mb-4">
+            You are rejecting the application of{" "}
+            <span className="font-semibold text-red-600">{candidateName}</span>.
+            Please add your remarks below.
+          </p>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                Rejection Remarks
+              </label>
+              <textarea
+                value={remarks}
+                onChange={(e) => setRemarks(e.target.value)}
+                rows={4}
+                placeholder="Enter reason for rejection or any remarks..."
+                className="w-full px-4 py-3 border border-gray-200 rounded-lg resize-none text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
+              />
+            </div>
+
+            <div className="flex gap-3 justify-end pt-1">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium bg-red-500 text-white hover:bg-red-600 transition-colors"
+              >
+                <X size={15} />
+                Confirm Reject
+              </button>
+            </div>
+          </form>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
   );
 };
 

@@ -19,6 +19,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import employerProfileRoutes from './routes/employerProfileRoutes.js';
 import bulkUpload from './routes/bulkUpload.js';
+import adminRoutes from './routes/adminRoutes.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 import { sendDailyDigestAt9AM } from './services/jobNotificationService.js'; 
@@ -83,6 +84,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/employer', employerProfileRoutes);
 app.use('/api/job-alerts', jobAlertRoutes);
 app.use('/api/candidates', candidateRoutes);
+app.use('/api/admin', adminRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

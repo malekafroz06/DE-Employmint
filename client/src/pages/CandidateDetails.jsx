@@ -1,657 +1,264 @@
-import React, { useState, useEffect, useContext } from "react";
+import { useState, useEffect, useContext } from "react";
 import { AppContext } from "../context/AppContext";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  X, ChevronRight, ChevronLeft, User, Briefcase, HelpCircle, Check,
-  Building, DollarSign, Clock, Target, Heart, Zap, Shield, Users,
-  Code, TrendingUp, Mail, Phone, Download
+import {
+  X, Check, User, Mail, Phone, Building, Users, Target,
+  ChevronLeft, ChevronRight, Shield, Clock, MessageSquare,
 } from "lucide-react";
-import { 
-  Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, 
-  AlignmentType, BorderStyle, WidthType, ShadingType, HeadingLevel, VerticalAlign 
-} from "docx";
 
-// Initial form state
-const initialFormData = {
-  candidateName: '', candidateEmail: '', candidatePhone: '',
-  consultancy: '', financialStatus: '', dailyCommute: '', aspirations: '',
-  moneyAttitude: '', loyaltyBehavior: '', workStyle: '', pressureHandling: '',
-  roleClarityNeed: '', fear1: '', motivation1: '', challenge1: '',
-  powerLanguage1: '', companyPriority1: '', targets: '', references: '',
-  softwares: '', productKnowledge: '', sourceOfRevenue: ''
+const STEPS = [
+  { id: 1, key: "basic",        title: "Basic Information",     icon: User,     description: "Candidate details" },
+  { id: 2, key: "consultancy",  title: "Consultancy Remarks",   icon: Building, description: "Consultancy evaluation" },
+  { id: 3, key: "hr",           title: "HR Remarks",            icon: Users,    description: "HR evaluation" },
+  { id: 4, key: "management",   title: "Manager Remarks",       icon: Target,   description: "Management evaluation" },
+];
+
+const ROLE_COLORS = {
+  consultancy: "bg-blue-50 border-blue-200 text-blue-700",
+  hr:          "bg-purple-50 border-purple-200 text-purple-700",
+  management:  "bg-green-50 border-green-200 text-green-700",
+  recruiter:   "bg-gray-50 border-gray-200 text-gray-700",
 };
 
-// Dropdown options
-const dropdownOptions = {
-  financialStatus: ["Employment & Income", "Household Dependency", "Liabilities / Commitments", "Risk Appetite (Financial Comfort Zone)"],
-  dailyCommute: ["By Bus", "By Two Wheeler", "By Four Wheeler", "By Sharing with Friend", "By Auto"],
-  aspirations: ["Career Growth & Development", "Work Environment & Culture", "Compensation & Benefits", "Job Role & Responsibilities", "Location & Commute", "Company-Related Factors", "Personal Reasons"],
-  fear1: ["Fear of failing again like last job", "Fear of resume instability", "Fear of lack of field support", "Fear of blame for advisor failure"],
-  motivation1: ["Wants unlimited earning via incentives", "Wants social recognition", "Wants to outperform peers", "Wants better life for family", "Wants public appreciation"],
-  challenge1: ["Advisor retention", "No field support", "Manual processes", "Delayed incentives", "Stuck career path"],
-  powerLanguage1: ["Your incentives, your speed — no cap", "Weekly advisor performance reports in app", "Promotion to TL in 6 months", "We never delay commissions", "Field support guaranteed"],
-  companyPriority1: ["Stable payout structure", "Lead support + onboarding", "Supportive manager", "Transparent promotion path", "Modern tools (POSP App, CRM)"],
-  moneyAttitude: ["Salary is for survival, growth is in incentives.", "work for passion first, money second.", "Money is secondary, work-life balance is primary."],
-  loyaltyBehavior: ["I stay loyal if the company values my growth.", "I prefer long-term stability over frequent job changes.", "I am loyal to leaders, not just organizations.", "I am loyal to opportunities, not just companies."],
-  workStyle: ["I prefer structured processes and clear guidelines.", "I like working independently with minimal supervision", "I am deadline-driven and work well under pressure.", "I like multitasking across different projects.", "I prioritize speed and efficiency over perfection.", "Prefers fieldwork", "Prefers Office Work"],
-  targets: ["I see targets as motivation to push beyond limits.", "I prefer realistic and achievable targets.", "I thrive under aggressive, high-pressure targets.", "I focus on consistent performance rather than chasing big numbers.", "I value team-based targets more than individual ones", "I feel stressed when targets are unrealistic.", "I see targets as guidance, not as pressure."],
-  softwares: ["Basic Awareness", "Intermediate Awareness", "Advanced Awareness", "Specialized Awareness", "Expert / Tech-Savvy"],
-  productKnowledge: ["Basic Awareness", "Intermediate Awareness", "Advanced Awareness", "Specialized Awareness", "Expert / Tech-Savvy"],
-  sourceOfRevenue: ["Personal Network (Warm Leads)", "Cold Calling & Prospecting", "Corporate Tie-Ups & Partnerships", "Events & Seminars", "Digital Marketing", "Channel Partners", "Networking & Community Outreach"],
-  pressureHandling: ["Calmness under stress: Not showing frustration even when targets are tight or clients are difficult.", "Prioritization skills: Handling multiple tasks and clients efficiently.", "Problem-solving mindset: Quickly finding solutions instead of panicking.", "Resilience: Bouncing back from failures, rejections, or missed opportunities.", "Decision-making: Making accurate decisions quickly, without overthinking"],
-  roleClarityNeed: ["Understanding Responsibilities: Knowing exactly what tasks you are expected to perform daily, weekly, and monthly.", "Knowing Key Metrics: Understanding targets, KPIs, and performance expectations.", "Decision Boundaries: Knowing what decisions you can make independently and what requires approval.", "Reporting Structure: Clear knowledge of who you report to and who reports to you (if applicable).", "Career Path: Awareness of promotion opportunities and skills needed for growth."]
+const ROLE_LABELS = {
+  consultancy: "Consultancy",
+  hr:          "HR",
+  management:  "Management",
+  recruiter:   "Recruiter",
 };
 
-const CandidateDetails = ({ isOpen, onClose, profile }) => {
+const formatDate = (d) => {
+  if (!d) return "";
+  try {
+    return new Date(d).toLocaleDateString("en-US", {
+      year: "numeric", month: "short", day: "numeric",
+      hour: "2-digit", minute: "2-digit",
+    });
+  } catch { return ""; }
+};
+
+const CandidateDetails = ({ isOpen, onClose, profile, onAccept }) => {
   const { companyToken } = useContext(AppContext);
   const [userRole, setUserRole] = useState(null);
   const [currentStep, setCurrentStep] = useState(1);
-  const [formData, setFormData] = useState(initialFormData);
   const [loading, setLoading] = useState(false);
-  const [isExistingAssessment, setIsExistingAssessment] = useState(false);
-  const [assessmentData, setAssessmentData] = useState(null);
 
-  // Format date helper
-  const formatDate = (dateString) => {
-    if (!dateString) return 'Not available';
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('en-US', {
-        year: 'numeric', month: 'short', day: 'numeric',
-        hour: '2-digit', minute: '2-digit'
-      });
-    } catch (error) {
-      return 'Invalid date';
-    }
-  };
+  // Basic info
+  const [candidateName, setCandidateName]   = useState("");
+  const [candidateEmail, setCandidateEmail] = useState("");
+  const [candidatePhone, setCandidatePhone] = useState("");
 
-  // Check user role from token
+  // One textarea per step/role
+  const [remarks, setRemarks] = useState({
+    consultancy: "", hr: "", management: "",
+  });
+
+  // Saved remarks from DB
+  const [savedRemarks, setSavedRemarks] = useState([]);
+  const [isExisting, setIsExisting]     = useState(false);
+  const [lastUpdated, setLastUpdated]   = useState(null);
+
+  // Decode role from token
   useEffect(() => {
-    const checkUserRole = () => {
-      if (!companyToken) return;
-      
-      try {
-        const tokenParts = companyToken.split('.');
-        if (tokenParts.length === 3) {
-          const payload = JSON.parse(atob(tokenParts[1]));
-          
-          if (payload.isSubUser && payload.roleType) {
-            setUserRole(payload.roleType);
-            console.log('Sub-user detected, role:', payload.roleType);
-          } else {
-            setUserRole(null);
-            console.log('Main recruiter - full access');
-          }
-        }
-      } catch (error) {
-        console.log('Error decoding token:', error);
-        setUserRole(null);
-      }
-    };
-    
-    checkUserRole();
+    if (!companyToken) return;
+    try {
+      const payload = JSON.parse(atob(companyToken.split(".")[1]));
+      setUserRole(payload.isSubUser && payload.roleType ? payload.roleType : null);
+    } catch {
+      setUserRole(null);
+    }
   }, [companyToken]);
 
-  // ✅ Word document generation function using docx library (ES6 import)
-  const generateWordDocument = async (data) => {
-    try {
-      // Border styling
-      const border = { style: BorderStyle.SINGLE, size: 1, color: "CCCCCC" };
-      const borders = { top: border, bottom: border, left: border, right: border };
-
-      // Helper function to create a section header cell
-      const createSectionHeaderCell = (text) => {
-        return new TableCell({
-          borders,
-          width: { size: 9360, type: WidthType.DXA },
-          shading: { fill: "FF0000", type: ShadingType.CLEAR },
-          margins: { top: 150, bottom: 150, left: 150, right: 150 },
-          verticalAlign: VerticalAlign.CENTER,
-          children: [
-            new Paragraph({
-              children: [
-                new TextRun({
-                  text: text,
-                  bold: true,
-                  size: 28,
-                  color: "FFFFFF",
-                })
-              ],
-              alignment: AlignmentType.LEFT,
-              spacing: { before: 200, after: 200 }
-            })
-          ],
-          columnSpan: 2
-        });
-      };
-
-      // Helper function to create a field row
-      const createFieldRow = (label, value, width1 = 3500, width2 = 5860) => {
-        return new TableRow({
-          children: [
-            new TableCell({
-              borders,
-              width: { size: width1, type: WidthType.DXA },
-              shading: { fill: "F2F2F2", type: ShadingType.CLEAR },
-              margins: { top: 100, bottom: 100, left: 150, right: 150 },
-              verticalAlign: VerticalAlign.CENTER,
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: label,
-                      bold: true,
-                      size: 22,
-                    })
-                  ]
-                })
-              ]
-            }),
-            new TableCell({
-              borders,
-              width: { size: width2, type: WidthType.DXA },
-              shading: { fill: "FFFFFF", type: ShadingType.CLEAR },
-              margins: { top: 100, bottom: 100, left: 150, right: 150 },
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: value || '',
-                      size: 22,
-                    })
-                  ],
-                  spacing: { before: 80, after: 80 }
-                })
-              ]
-            })
-          ]
-        });
-      };
-
-      const doc = new Document({
-        styles: {
-          default: {
-            document: {
-              run: { font: "Arial", size: 24 }
-            }
-          },
-          paragraphStyles: [
-            {
-              id: "Heading1",
-              name: "Heading 1",
-              basedOn: "Normal",
-              next: "Normal",
-              quickFormat: true,
-              run: { size: 32, bold: true, font: "Arial", color: "000000" },
-              paragraph: { spacing: { before: 240, after: 240 }, outlineLevel: 0 }
-            }
-          ]
-        },
-        sections: [{
-          properties: {
-            page: {
-              size: {
-                width: 12240,
-                height: 15840
-              },
-              margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 }
-            }
-          },
-          children: [
-            // Title
-            new Paragraph({
-              heading: HeadingLevel.HEADING_1,
-              children: [
-                new TextRun({
-                  text: "Candidate Interview Evaluation Form",
-                  bold: true,
-                  size: 36,
-                  color: "000000"
-                })
-              ],
-              alignment: AlignmentType.CENTER,
-              spacing: { before: 0, after: 400 }
-            }),
-
-            // Main table
-            new Table({
-              width: { size: 100, type: WidthType.PERCENTAGE },
-              columnWidths: [3500, 5860],
-              rows: [
-                // Basic Information Section
-                new TableRow({
-                  children: [createSectionHeaderCell("Basic Information")]
-                }),
-                createFieldRow("Name of Candidate", data.candidateName),
-                createFieldRow("Mobile", data.candidatePhone),
-                createFieldRow("Email", data.candidateEmail),
-
-                // Consultancy Section
-                new TableRow({
-                  children: [createSectionHeaderCell("Consultancy")]
-                }),
-                createFieldRow("Consultancy", data.consultancy),
-                createFieldRow("Financial Status", data.financialStatus),
-                createFieldRow("Daily Commute", data.dailyCommute),
-                createFieldRow("Aspirations", data.aspirations),
-                createFieldRow("Money Attitude", data.moneyAttitude),
-                createFieldRow("Loyalty Behavior", data.loyaltyBehavior),
-                createFieldRow("Pressure Handling", data.pressureHandling),
-                createFieldRow("Work Style", data.workStyle),
-                createFieldRow("Role Clarity Need", data.roleClarityNeed),
-
-                // HR Section
-                new TableRow({
-                  children: [createSectionHeaderCell("HR")]
-                }),
-                createFieldRow("What concerns you most about this role?", data.fear1),
-                createFieldRow("Motivation 1 - What drives you professionally?", data.motivation1),
-                createFieldRow("Challenge 1 - Describe a significant challenge you overcame", data.challenge1),
-                createFieldRow("Power Language 1 - How do you communicate authority?", data.powerLanguage1),
-                createFieldRow("Company Priority 1 - What's most important in a company?", data.companyPriority1),
-
-                // Management Section
-                new TableRow({
-                  children: [createSectionHeaderCell("Management")]
-                }),
-                createFieldRow("Targets - What are your key performance goals?", data.targets),
-                createFieldRow("Software Skills", data.softwares),
-                createFieldRow("Source of Revenue - How will you contribute to revenue?", data.sourceOfRevenue),
-                createFieldRow("Product Knowledge", data.productKnowledge),
-                createFieldRow("References", data.references),
-              ]
-            }),
-
-            // Footer spacing
-            new Paragraph({
-              children: [new TextRun("")],
-              spacing: { before: 400 }
-            })
-          ]
-        }]
-      });
-
-      // Generate and download the document
-      const blob = await Packer.toBlob(doc);
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${data.candidateName || 'candidate'}_evaluation_form.docx`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      
-      console.log('Word document downloaded successfully');
-    } catch (error) {
-      console.error('Error generating Word document:', error);
-      alert('Error generating Word document: ' + error.message);
-    }
-  };
-
-  // ✅ Download handler for Word document
-  const downloadDocument = () => {
-    if (!assessmentData && !formData.candidateName) {
-      alert('No assessment data available to download');
-      return;
-    }
-
-    // Use assessmentData if available, otherwise use current formData
-    const dataToDownload = assessmentData || formData;
-    
-    generateWordDocument(dataToDownload);
-  };
-  
-  const fetchExistingAssessment = async (candidateEmail) => {
-    if (!candidateEmail) return null;
-    try {
-      setLoading(true);
-      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/candidates/assessment/email/${candidateEmail}`, {
-        method: "GET",
-        headers: { "Content-Type": "application/json" }
-      });
-      if (response.ok) {
-        const result = await response.json();
-        return result.assessment;
-      } else if (response.status === 404) {
-        return null;
-      }
-      return null;
-    } catch (error) {
-      console.error('Network error:', error);
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Reset + load when modal opens
   useEffect(() => {
-    if (isOpen && profile) {
-      const initializeForm = async () => {
-        const existingAssessment = await fetchExistingAssessment(profile.email);
-        if (existingAssessment) {
-          setIsExistingAssessment(true);
-          setAssessmentData(existingAssessment);
-          setFormData({
-            ...initialFormData,
-            ...existingAssessment,
-            candidateName: profile.name || existingAssessment.candidateName || '',
-            candidateEmail: profile.email || existingAssessment.candidateEmail || '',
-            candidatePhone: profile.phone || existingAssessment.candidatePhone || ''
-          });
-        } else {
-          setIsExistingAssessment(false);
-          setAssessmentData(null);
-          setFormData({
-            ...initialFormData,
-            candidateName: profile.name || '',
-            candidateEmail: profile.email || '',
-            candidatePhone: profile.phone || ''
-          });
+    if (!isOpen || !profile) return;
+    const email = profile?.email || profile?.userId?.email || "";
+    const name  = profile?.name  || profile?.userId?.name  || "";
+    const phone = profile?.phone || profile?.userId?.phone || "";
+
+    setCandidateName(name);
+    setCandidateEmail(email);
+    setCandidatePhone(phone);
+    setRemarks({ consultancy: "", hr: "", management: "" });
+    setSavedRemarks([]);
+    setIsExisting(false);
+    setLastUpdated(null);
+    setCurrentStep(1);
+
+    if (!email) return;
+
+    const load = async () => {
+      setLoading(true);
+      try {
+        const res  = await fetch(
+          `${import.meta.env.VITE_BACKEND_URL}/api/candidates/assessment/email/${encodeURIComponent(email)}`
+        );
+        const data = await res.json();
+        if (data.success && data.assessment) {
+          const a = data.assessment;
+          setCandidateName(a.candidateName  || name);
+          setCandidateEmail(a.candidateEmail || email);
+          setCandidatePhone(a.candidatePhone || phone);
+          setSavedRemarks(Array.isArray(a.remarks) ? a.remarks : []);
+          setIsExisting(true);
+          setLastUpdated(a.lastUpdated || a.submittedAt);
         }
-        setCurrentStep(1);
-      };
-      initializeForm();
-    }
+      } catch { /* no assessment yet */ }
+      finally  { setLoading(false); }
+    };
+    load();
   }, [isOpen, profile]);
 
-  // Dynamic steps based on user role with cascading access
-  const allSteps = [
-    { id: 1, title: "Basic Information", icon: User, description: "Candidate contact details", roles: ['all'], editable: ['all'] },
-    { id: 2, title: "Consultancy Assessment", icon: Building, description: "Professional evaluation", roles: ['consultancy', 'hr', 'management', null], editable: ['consultancy', null] },
-    { id: 3, title: "HR Evaluation", icon: Users, description: "Cultural fit and motivation", roles: ['hr', 'management', null], editable: ['hr', null] },
-    { id: 4, title: "Manager Assessment", icon: Target, description: "Technical and business alignment", roles: ['management', null], editable: ['management', null] }
-  ];
+  const nextStep = () => setCurrentStep((s) => Math.min(s + 1, STEPS.length));
+  const prevStep = () => setCurrentStep((s) => Math.max(s - 1, 1));
 
-  const steps = allSteps.filter(step => 
-    step.roles.includes('all') || 
-    step.roles.includes(userRole) || 
-    (userRole === null && step.roles.includes(null))
-  );
+  // Submit one step's remark
+  const handleStepSubmit = async (stepKey) => {
+    const text = remarks[stepKey]?.trim();
+    if (!text) { alert("Please enter your remarks before submitting."); return; }
 
-  // Check if current user can edit a specific step
-  const canEditStep = (step) => {
-    return step.editable.includes('all') || 
-           step.editable.includes(userRole) || 
-           (userRole === null && step.editable.includes(null));
-  };
+    const roleKey = userRole || "recruiter";
 
-  const handleInputChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
+    const payload = {
+      candidateName,
+      candidateEmail,
+      candidatePhone,
+      remarkEntry: { role: roleKey, text },
+      assessmentStatus: "completed",
+    };
 
-  const nextStep = () => { if (currentStep < steps.length) setCurrentStep(currentStep + 1); };
-  const prevStep = () => { if (currentStep > 1) setCurrentStep(currentStep - 1); };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!formData.candidateName || !formData.candidateName.trim()) {
-      alert('Please enter candidate name');
-      return;
-    }
-
-    const filteredData = Object.fromEntries(
-      Object.entries(formData).filter(([key, value]) => value && value !== "")
-    );
-    filteredData.assessmentStatus = 'completed';
-
+    setLoading(true);
     try {
-      setLoading(true);
-      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/candidates/assessment`, {
-        method: "POST",
+      const res    = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/candidates/assessment`, {
+        method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(filteredData),
+        body:    JSON.stringify(payload),
       });
-
-      const result = await response.json();
-      if (!response.ok) {
-        alert(`Submission failed: ${result.message || 'Unknown error'}`);
-      } else {
-        alert(result.message || 'Assessment processed successfully!');
-        setAssessmentData({...filteredData, lastUpdated: new Date().toISOString()});
-        onClose();
+      const result = await res.json();
+      if (!res.ok) {
+        alert(`Failed: ${result.message || "Unknown error"}`);
+        return;
       }
-    } catch (error) {
-      console.error("Network error:", error);
-      alert('Network error. Please check your connection and try again.');
+      // update local saved remarks
+      setSavedRemarks((prev) => {
+        const filtered = prev.filter((r) => r.role !== roleKey);
+        return [...filtered, { role: roleKey, text, submittedAt: new Date().toISOString() }];
+      });
+      setRemarks((prev) => ({ ...prev, [stepKey]: "" }));
+      setIsExisting(true);
+    } catch {
+      alert("Network error. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  const renderFormField = (label, field, type = "text", options = null, icon = null, required = false, readOnly = false) => {
-    const IconComponent = icon;
-    return (
-      <div className="mb-6">
-        <label className="block text-sm font-semibold text-gray-700 mb-2">
-          <div className="flex items-center gap-2">
-            {IconComponent && <IconComponent size={16} className="text-gray-500 flex-shrink-0" />}
-            <span className="break-words">{label}</span>
-            {required && !readOnly && <span className="text-red-500 flex-shrink-0">*</span>}
-          </div>
-        </label>
-        {type === "select" && options ? (
-          <select 
-            value={formData[field]} 
-            onChange={(e) => handleInputChange(field, e.target.value)}
-            disabled={readOnly}
-            className={`w-full px-4 py-3 border rounded-lg transition-colors text-sm sm:text-base min-h-[44px] ${
-              readOnly 
-                ? 'bg-gray-100 border-gray-300 text-gray-600 cursor-not-allowed' 
-                : 'border-gray-200 focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white'
-            }`} 
-            required={required && !readOnly}>
-            <option value="">Select an option</option>
-            {options.map((option, index) => (<option key={index} value={option}>{option}</option>))}
-          </select>
-        ) : type === "textarea" ? (
-          <textarea 
-            value={formData[field]} 
-            onChange={(e) => handleInputChange(field, e.target.value)} 
-            rows="3"
-            readOnly={readOnly}
-            className={`w-full px-4 py-3 border rounded-lg resize-none text-sm sm:text-base ${
-              readOnly 
-                ? 'bg-gray-100 border-gray-300 text-gray-600 cursor-not-allowed' 
-                : 'border-gray-200 focus:ring-2 focus:ring-red-500 focus:border-red-500'
-            }`}
-            placeholder={readOnly ? '' : `Enter ${label.toLowerCase()}`} 
-            required={required && !readOnly} />
-        ) : (
-          <input 
-            type={type} 
-            value={formData[field]} 
-            onChange={(e) => handleInputChange(field, e.target.value)}
-            readOnly={readOnly}
-            className={`w-full px-4 py-3 border rounded-lg text-sm sm:text-base min-h-[44px] ${
-              readOnly 
-                ? 'bg-gray-100 border-gray-300 text-gray-600 cursor-not-allowed' 
-                : 'border-gray-200 focus:ring-2 focus:ring-red-500 focus:border-red-500'
-            }`}
-            placeholder={readOnly ? '' : `Enter ${label.toLowerCase()}`} 
-            required={required && !readOnly} />
-        )}
-      </div>
-    );
-  };
+  // Final submit on last step — saves + accepts
+  const handleFinalSubmit = async () => {
+    const stepKey = "management";
+    const text    = remarks[stepKey]?.trim();
 
-  const renderStep1 = () => {
-    const isReadOnly = !canEditStep(steps[currentStep - 1]);
-    
-    return (
-      <div className="space-y-4">
-        {isExistingAssessment && (
-          <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="flex items-center gap-2 text-blue-700 mb-2">
-              <Check size={16} />
-              <span className="text-sm font-medium">Existing Assessment Found</span>
-            </div>
-            <p className="text-blue-600 text-sm mb-2">You can view and edit the previously submitted assessment data.</p>
-            {assessmentData && (
-              <div className="flex items-center gap-2 text-blue-600 text-sm">
-                <Clock size={14} />
-                <span>Last contacted: {formatDate(assessmentData.lastUpdated || assessmentData.submittedAt)}</span>
-              </div>
-            )}
-          </div>
-        )}
-        
-        {isReadOnly && (
-          <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-            <div className="flex items-center gap-2 text-amber-700">
-              <Shield size={16} />
-              <span className="text-sm font-medium">This section is read-only for your role</span>
-            </div>
-          </div>
-        )}
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {renderFormField("Full Name", "candidateName", "text", null, User, true, isReadOnly)}
-          {renderFormField("Email Address", "candidateEmail", "email", null, Mail, false, isReadOnly)}
-          {renderFormField("Phone Number", "candidatePhone", "tel", null, Phone, false, isReadOnly)}
-        </div>
-      </div>
-    );
-  };
+    // Save remark if filled
+    if (text) {
+      await handleStepSubmit(stepKey);
+    }
 
-  const renderStep2 = () => {
-    const isReadOnly = !canEditStep(steps[currentStep - 1]);
-    
-    return (
-      <div className="space-y-4">
-        {isReadOnly && (
-          <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-            <div className="flex items-center gap-2 text-amber-700">
-              <Shield size={16} />
-              <span className="text-sm font-medium">Consultancy Section (Read-only) - Filled by Consultancy team</span>
-            </div>
-          </div>
-        )}
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {renderFormField("Consultancy", "consultancy", "text", null, Building, false, isReadOnly)}
-          {renderFormField("Financial Status", "financialStatus", "select", dropdownOptions.financialStatus, DollarSign, false, isReadOnly)}
-          {renderFormField("Daily Commute", "dailyCommute", "select", dropdownOptions.dailyCommute, Clock, false, isReadOnly)}
-          {renderFormField("Aspirations", "aspirations", "select", dropdownOptions.aspirations, Target, false, isReadOnly)}
-          {renderFormField("Money Attitude", "moneyAttitude", "select", dropdownOptions.moneyAttitude, DollarSign, false, isReadOnly)}
-          {renderFormField("Loyalty Behavior", "loyaltyBehavior", "select", dropdownOptions.loyaltyBehavior, Heart, false, isReadOnly)}
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {renderFormField("Work Style", "workStyle", "select", dropdownOptions.workStyle, Briefcase, false, isReadOnly)}
-          {renderFormField("Pressure Handling", "pressureHandling", "select", dropdownOptions.pressureHandling, Shield, false, isReadOnly)}
-          {renderFormField("Role Clarity Need", "roleClarityNeed", "select", dropdownOptions.roleClarityNeed, HelpCircle, false, isReadOnly)}
-        </div>
-      </div>
-    );
-  };
-
-  const renderStep3 = () => {
-    const isReadOnly = !canEditStep(steps[currentStep - 1]);
-    
-    return (
-      <div className="space-y-4">
-        {isReadOnly && (
-          <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-            <div className="flex items-center gap-2 text-amber-700">
-              <Shield size={16} />
-              <span className="text-sm font-medium">HR Section (Read-only) - Filled by HR team</span>
-            </div>
-          </div>
-        )}
-        
-        <div className="grid grid-cols-1 gap-6">
-          {renderFormField("Fear 1 - What concerns you most about this role?", "fear1", "select", dropdownOptions.fear1, Shield, false, isReadOnly)}
-          {renderFormField("Motivation 1 - What drives you professionally?", "motivation1", "select", dropdownOptions.motivation1, Zap, false, isReadOnly)}
-          {renderFormField("Challenge 1 - Describe a significant challenge you overcame", "challenge1", "select", dropdownOptions.challenge1, Target, false, isReadOnly)}
-          {renderFormField("Power Language 1 - How do you communicate authority?", "powerLanguage1", "select", dropdownOptions.powerLanguage1, Users, false, isReadOnly)}
-          {renderFormField("Company Priority 1 - What's most important in a company?", "companyPriority1", "select", dropdownOptions.companyPriority1, Building, false, isReadOnly)}
-        </div>
-      </div>
-    );
-  };
-
-  const renderStep4 = () => {
-    const isReadOnly = !canEditStep(steps[currentStep - 1]);
-    
-    return (
-      <div className="space-y-4">
-        {isReadOnly && (
-          <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-            <div className="flex items-center gap-2 text-amber-700">
-              <Shield size={16} />
-              <span className="text-sm font-medium">Management Section (Read-only) - Filled by Management team</span>
-            </div>
-          </div>
-        )}
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {renderFormField("Targets - What are your key performance goals?", "targets", "select", dropdownOptions.targets, Target, false, isReadOnly)}
-          {renderFormField("References", "references", "text", null, Users, false, isReadOnly)}
-          {renderFormField("Software Skills", "softwares", "select", dropdownOptions.softwares, Code, false, isReadOnly)}
-          {renderFormField("Product Knowledge", "productKnowledge", "select", dropdownOptions.productKnowledge, Briefcase, false, isReadOnly)}
-          {renderFormField("Source of Revenue - How will you contribute to revenue?", "sourceOfRevenue", "select", dropdownOptions.sourceOfRevenue, TrendingUp, false, isReadOnly)}
-        </div>
-      </div>
-    );
+    // Accept the application
+    if (onAccept) {
+      onAccept();
+    } else {
+      onClose();
+    }
   };
 
   if (!isOpen) return null;
 
+  const stepObj      = STEPS[currentStep - 1];
+  const isLastStep   = currentStep === STEPS.length;
+  const isFirstStep  = currentStep === 1;
+  const stepKey      = stepObj.key;
+  // Saved remark for a given role key
+  const getSaved = (role) => savedRemarks.find((r) => r.role === role);
+
   return (
     <AnimatePresence>
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
-        <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-          className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
-          
-          <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200">
-            <div className="flex-1 min-w-0">
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-800 truncate">Candidate Assessment</h2>
-              <p className="text-sm sm:text-base text-gray-600 mt-1 truncate">
-                {isExistingAssessment ? 'Edit Assessment' : 'Comprehensive Evaluation Process'}
-                {userRole && <span className="ml-2 text-blue-600">({userRole.toUpperCase()} View)</span>}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+        onClick={onClose}
+      >
+        <motion.div
+          initial={{ scale: 0.95, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.95, opacity: 0 }}
+          className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between p-5 border-b border-gray-200">
+            <div>
+              <h2 className="text-xl font-bold text-gray-800">Candidate Assessment</h2>
+              <p className="text-sm text-gray-500 mt-0.5">
+                {onAccept ? "Fill assessment to accept application" : "Assessment remarks"}
+                {userRole && (
+                  <span className="ml-2 text-blue-600 font-medium">
+                    ({ROLE_LABELS[userRole] || userRole} View)
+                  </span>
+                )}
               </p>
             </div>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors p-2 ml-2 flex-shrink-0" aria-label="Close modal">
-              <X size={24} />
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1">
+              <X size={22} />
             </button>
           </div>
 
-          <div className="px-4 sm:px-6 py-4 bg-gray-50 border-b border-gray-200">
-            <div className="flex sm:hidden items-center justify-center gap-2 mb-3">
-              {steps.map((step, idx) => (
-                <div key={step.id} className={`h-2 rounded-full transition-all ${
-                  currentStep === idx + 1 ? 'w-8 bg-red-500' : currentStep > idx + 1 ? 'w-2 bg-green-500' : 'w-2 bg-gray-300'
-                }`} />
+          {/* Step Progress */}
+          <div className="px-5 py-4 bg-gray-50 border-b border-gray-200">
+            {/* Mobile dots */}
+            <div className="flex sm:hidden items-center justify-center gap-2 mb-2">
+              {STEPS.map((s, i) => (
+                <div
+                  key={s.id}
+                  className={`h-2 rounded-full transition-all ${
+                    currentStep === i + 1 ? "w-8 bg-red-500" :
+                    currentStep > i + 1  ? "w-2 bg-green-500" : "w-2 bg-gray-300"
+                  }`}
+                />
               ))}
             </div>
             <div className="sm:hidden text-center">
-              <div className="text-sm font-semibold text-red-600">{steps[currentStep - 1].title}</div>
-              <div className="text-xs text-gray-500">{steps[currentStep - 1].description}</div>
+              <div className="text-sm font-semibold text-red-600">{stepObj.title}</div>
+              <div className="text-xs text-gray-500">{stepObj.description}</div>
             </div>
-            
-            <div className="hidden sm:flex items-center justify-between">
-              {steps.map((step, index) => {
-                const IconComponent = step.icon;
-                const isActive = currentStep === index + 1;
-                const isCompleted = currentStep > index + 1;
+
+            {/* Desktop steps */}
+            <div className="hidden sm:flex items-center">
+              {STEPS.map((s, i) => {
+                const Icon      = s.icon;
+                const isActive  = currentStep === i + 1;
+                const isDone    = currentStep > i + 1;
                 return (
-                  <div key={step.id} className="flex items-center flex-1">
+                  <div key={s.id} className="flex items-center flex-1">
                     <div className="flex items-center">
-                      <div className={`flex items-center justify-center w-10 h-10 rounded-full transition-colors ${
-                        isActive ? 'bg-red-500 text-white' : isCompleted ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-500'
-                      }`}>
-                        {isCompleted ? <Check size={20} /> : <IconComponent size={20} />}
+                      <div
+                        className={`flex items-center justify-center w-9 h-9 rounded-full transition-colors ${
+                          isActive ? "bg-red-500 text-white" :
+                          isDone   ? "bg-green-500 text-white" : "bg-gray-200 text-gray-500"
+                        }`}
+                      >
+                        {isDone ? <Check size={18} /> : <Icon size={18} />}
                       </div>
-                      <div className="ml-3 hidden md:block">
-                        <div className={`text-sm font-semibold ${isActive ? 'text-red-600' : isCompleted ? 'text-green-600' : 'text-gray-500'}`}>
-                          {step.title}
+                      <div className="ml-2.5 hidden md:block">
+                        <div className={`text-xs font-semibold ${isActive ? "text-red-600" : isDone ? "text-green-600" : "text-gray-500"}`}>
+                          {s.title}
                         </div>
-                        <div className="text-xs text-gray-500">{step.description}</div>
+                        <div className="text-xs text-gray-400">{s.description}</div>
                       </div>
                     </div>
-                    {index < steps.length - 1 && (
-                      <div className={`flex-1 h-px mx-2 md:mx-4 ${isCompleted ? 'bg-green-300' : 'bg-gray-200'}`} />
+                    {i < STEPS.length - 1 && (
+                      <div className={`flex-1 h-px mx-3 ${isDone ? "bg-green-300" : "bg-gray-200"}`} />
                     )}
                   </div>
                 );
@@ -659,58 +266,186 @@ const CandidateDetails = ({ isOpen, onClose, profile }) => {
             </div>
           </div>
 
-          <div className="p-4 sm:p-6 overflow-y-auto flex-grow">
+          {/* Body */}
+          <div className="p-5 overflow-y-auto flex-grow">
             {loading ? (
-              <div className="flex items-center justify-center py-20">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500"></div>
+              <div className="flex items-center justify-center py-16">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-red-500" />
               </div>
             ) : (
               <AnimatePresence mode="wait">
-                <motion.div key={currentStep} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
-                  {currentStep === 1 && renderStep1()}
-                  {steps[currentStep - 1]?.id === 2 && renderStep2()}
-                  {steps[currentStep - 1]?.id === 3 && renderStep3()}
-                  {steps[currentStep - 1]?.id === 4 && renderStep4()}
+                <motion.div
+                  key={currentStep}
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.25 }}
+                  className="space-y-5"
+                >
+                  {/* ── Step 1: Basic Info ── */}
+                  {currentStep === 1 && (
+                    <>
+                      {isExisting && (
+                        <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
+                          <Check size={15} className="mt-0.5 flex-shrink-0" />
+                          <div>
+                            <span className="font-medium">Existing assessment found.</span>
+                            {lastUpdated && (
+                              <span className="ml-1 flex items-center gap-1 text-blue-500 mt-0.5 text-xs">
+                                <Clock size={11} /> Last updated: {formatDate(lastUpdated)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Candidate Info</h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <div className="flex items-center gap-2 text-sm text-gray-700">
+                            <User size={14} className="text-gray-400 flex-shrink-0" />
+                            <span className="font-medium truncate">{candidateName || "—"}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm text-gray-700">
+                            <Mail size={14} className="text-gray-400 flex-shrink-0" />
+                            <span className="truncate">{candidateEmail || "—"}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm text-gray-700">
+                            <Phone size={14} className="text-gray-400 flex-shrink-0" />
+                            <span>{candidatePhone || "—"}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Show all saved remarks overview */}
+                      {savedRemarks.length > 0 && (
+                        <div className="space-y-2">
+                          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
+                            <MessageSquare size={13} /> Remarks Summary
+                          </h3>
+                          {savedRemarks.map((r, i) => {
+                            const colorClass = ROLE_COLORS[r.role] || ROLE_COLORS.recruiter;
+                            return (
+                              <div key={i} className={`rounded-lg px-4 py-3 border ${colorClass}`}>
+                                <div className="flex items-center gap-2 mb-1">
+                                  <Shield size={12} />
+                                  <span className="text-xs font-semibold uppercase">{ROLE_LABELS[r.role] || r.role}</span>
+                                  {r.submittedAt && (
+                                    <span className="ml-auto text-xs opacity-60 flex items-center gap-1">
+                                      <Clock size={10} /> {formatDate(r.submittedAt)}
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-sm">{r.text}</p>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {/* ── Steps 2/3/4: Remarks steps ── */}
+                  {currentStep > 1 && (
+                    <>
+                      {/* Saved remark from DB for this step's role */}
+                      {(() => {
+                        const roleForStep = stepKey; // consultancy | hr | management
+                        const saved = getSaved(roleForStep);
+                        return saved ? (
+                          <div className={`rounded-lg px-4 py-3 border ${ROLE_COLORS[roleForStep] || ROLE_COLORS.recruiter}`}>
+                            <div className="flex items-center gap-2 mb-1">
+                              <Shield size={12} />
+                              <span className="text-xs font-semibold uppercase">{ROLE_LABELS[roleForStep] || roleForStep} — Saved</span>
+                              {saved.submittedAt && (
+                                <span className="ml-auto text-xs opacity-60 flex items-center gap-1">
+                                  <Clock size={10} /> {formatDate(saved.submittedAt)}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm">{saved.text}</p>
+                          </div>
+                        ) : null;
+                      })()}
+
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                          {getSaved(stepKey) ? `Update ${stepObj.title}` : stepObj.title}
+                        </label>
+                        <textarea
+                          value={remarks[stepKey] || ""}
+                          onChange={(e) =>
+                            setRemarks((prev) => ({ ...prev, [stepKey]: e.target.value }))
+                          }
+                          rows={6}
+                          placeholder={`Enter ${stepObj.title.toLowerCase()} here...`}
+                          className="w-full px-4 py-3 border border-gray-200 rounded-lg resize-none text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
+                        />
+                      </div>
+
+                      {/* Per-step Submit button */}
+                      {!isLastStep && (
+                        <div className="flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => handleStepSubmit(stepKey)}
+                            disabled={loading || !remarks[stepKey]?.trim()}
+                            className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            {loading ? (
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                            ) : (
+                              <Check size={15} />
+                            )}
+                            Submit Remarks
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </motion.div>
               </AnimatePresence>
             )}
           </div>
 
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-4 sm:p-6 border-t border-gray-200 bg-gray-50">
-            <button onClick={prevStep} disabled={currentStep === 1 || loading}
-              className={`flex items-center justify-center gap-2 px-4 py-3 sm:py-2 rounded-lg font-medium transition-colors order-2 sm:order-1 ${
-                currentStep === 1 || loading ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}>
+          {/* Footer Navigation */}
+          <div className="flex items-center justify-between p-5 border-t border-gray-200 bg-gray-50">
+            <button
+              onClick={prevStep}
+              disabled={isFirstStep || loading}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                isFirstStep || loading
+                  ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+              }`}
+            >
               <ChevronLeft size={16} /> Previous
             </button>
 
-            <div className="text-sm text-gray-500 text-center order-1 sm:order-2">Step {currentStep} of {steps.length}</div>
+            <span className="text-xs text-gray-400">Step {currentStep} of {STEPS.length}</span>
 
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 order-3">
-              {/* ✅ Download button */}
-              {currentStep === steps.length && (assessmentData || formData.candidateName) && (
-                <button 
-                  onClick={downloadDocument}
-                  className="flex items-center justify-center gap-2 bg-blue-500 text-white px-4 py-3 sm:py-2 rounded-lg font-medium hover:bg-blue-600 transition-colors min-h-[44px]"
-                  title="Download evaluation form as Word document">
-                  <Download size={16} /> <span>Download</span>
-                </button>
-              )}
-              
-              {currentStep === steps.length ? (
-                <button onClick={handleSubmit} disabled={loading}
-                  className="flex items-center justify-center gap-2 bg-green-500 text-white px-6 py-3 sm:py-2 rounded-lg font-medium hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px]">
-                  {loading ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : <Check size={16} />}
-                  {loading ? 'Processing...' : 'Submit Assessment'}
-                </button>
-              ) : (
-                <button onClick={nextStep} disabled={loading}
-                  className="flex items-center justify-center gap-2 bg-red-500 text-white px-4 py-3 sm:py-2 rounded-lg font-medium hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px]">
-                  Next <ChevronRight size={16} />
-                </button>
-              )}      
-            </div>
+            {isLastStep ? (
+              <button
+                onClick={handleFinalSubmit}
+                disabled={loading}
+                className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium bg-green-500 text-white hover:bg-green-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {loading ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                ) : (
+                  <Check size={15} />
+                )}
+                {onAccept ? "Submit & Accept" : "Submit"}
+              </button>
+            ) : (
+              <button
+                onClick={nextStep}
+                disabled={loading}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Next <ChevronRight size={16} />
+              </button>
+            )}
           </div>
         </motion.div>
       </motion.div>

@@ -633,21 +633,29 @@ export const getCompanyJobApplicants = async (req, res) => {
 export const getCompanyPostedJobs = async (req, res) => {
   try {
     const companyId = req.company._id;
-    console.log("companyId:", companyId);
 
     const jobs = await Job.find({ companyId });
-    console.log("jobs:", jobs);
+
+    // Auto-expire jobs older than 15 days
+    const fifteenDaysAgo = Date.now() - 15 * 24 * 60 * 60 * 1000;
+    const expiredIds = jobs
+      .filter(job => job.visible && job.date < fifteenDaysAgo)
+      .map(job => job._id);
+
+    if (expiredIds.length > 0) {
+      await Job.updateMany({ _id: { $in: expiredIds } }, { visible: false });
+      expiredIds.forEach(id => {
+        const job = jobs.find(j => j._id.equals(id));
+        if (job) job.visible = false;
+      });
+    }
 
     const jobsData = await Promise.all(
       jobs.map(async (job) => {
-        console.log("job:", job);
         const applicants = await JobApplication.find({ jobId: job._id });
-        console.log("applicants:", applicants);
         return { ...job.toObject(), applicants: applicants.length };
       })
     );
-
-    console.log("jobsData:", jobsData);
 
     res.json({ success: true, jobsData });
   } catch (error) {

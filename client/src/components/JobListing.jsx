@@ -5,6 +5,7 @@ import JobCard from "../components/JobCard";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate, useLocation } from "react-router-dom"; 
 import {ChevronDown, ChevronUp, IndianRupee} from "lucide-react";
+import { FiSearch, FiMapPin, FiArrowRight } from "react-icons/fi";
 
 // Job Channel Options (without "Other")
 const JobChannels = [
@@ -805,27 +806,73 @@ const JobListing = () => {
 
       {/* JOB LISTING SECTION */}
       <section className="w-full lg:w-4/5 pl-0 lg:pl-8">
-        <div className="mb-8">
+        <div className="mb-6">
           <h3 className="font-bold text-3xl md:text-4xl text-gray-900 mb-2" id="job-list">
-            Latest Jobs
+            Find Jobs
           </h3>
-          <p className="text-gray-600">Find your dream job from top companies worldwide</p>
-        </div>
+          <p className="text-gray-600 mb-4">Find your dream job from top companies</p>
 
-        <div className="lg:hidden mb-6">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Search jobs..."
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-              value={searchFilter.title}
-              onChange={(e) => setSearchFilter({...searchFilter, title: e.target.value})}
-            />
-            <button className="absolute right-3 top-3 text-gray-400">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
-              </svg>
-            </button>
+          {/* Search Bar */}
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-md">
+            {/* Desktop Layout */}
+            <div className="hidden md:flex flex-row">
+              <div className="flex-1 flex items-center px-4 py-3.5 lg:px-6 lg:py-4 border-r border-gray-200">
+                <FiSearch className="text-gray-400 text-lg mr-3 flex-shrink-0" />
+                <input
+                  type="text"
+                  placeholder="Job title, keywords, or company"
+                  className="w-full text-base border-none outline-none bg-transparent text-gray-900 placeholder-gray-400"
+                  value={searchFilter.title}
+                  onChange={(e) => setSearchFilter({ ...searchFilter, title: e.target.value })}
+                />
+              </div>
+              <div className="flex-1 flex items-center px-4 py-3.5 lg:px-6 lg:py-4 border-r border-gray-200">
+                <FiMapPin className="text-gray-400 text-lg mr-3 flex-shrink-0" />
+                <input
+                  type="text"
+                  placeholder="Location or remote"
+                  className="w-full text-base border-none outline-none bg-transparent text-gray-900 placeholder-gray-400"
+                  value={searchFilter.location}
+                  onChange={(e) => setSearchFilter({ ...searchFilter, location: e.target.value })}
+                />
+              </div>
+              <button
+                className="bg-gradient-to-r from-red-600 to-red-700 text-white font-bold px-6 lg:px-8 py-3.5 lg:py-4 text-sm lg:text-base border-none cursor-pointer flex items-center gap-2 hover:from-red-700 hover:to-red-800 transition-all whitespace-nowrap"
+                onClick={() => setSearchFilter({ ...searchFilter })}
+              >
+                Search Jobs <FiArrowRight />
+              </button>
+            </div>
+
+            {/* Mobile Layout */}
+            <div className="md:hidden flex flex-col">
+              <div className="flex items-center px-4 py-3 border-b border-gray-200">
+                <FiSearch className="text-gray-400 text-lg mr-3 flex-shrink-0" />
+                <input
+                  type="text"
+                  placeholder="Job title, keywords..."
+                  className="w-full text-base border-none outline-none bg-transparent text-gray-900 placeholder-gray-400"
+                  value={searchFilter.title}
+                  onChange={(e) => setSearchFilter({ ...searchFilter, title: e.target.value })}
+                />
+              </div>
+              <div className="flex items-center px-4 py-3 border-b border-gray-200">
+                <FiMapPin className="text-gray-400 text-lg mr-3 flex-shrink-0" />
+                <input
+                  type="text"
+                  placeholder="Location or remote"
+                  className="w-full text-base border-none outline-none bg-transparent text-gray-900 placeholder-gray-400"
+                  value={searchFilter.location}
+                  onChange={(e) => setSearchFilter({ ...searchFilter, location: e.target.value })}
+                />
+              </div>
+              <button
+                className="bg-gradient-to-r from-red-600 to-red-700 text-white font-bold px-6 py-3.5 text-base border-none cursor-pointer flex items-center justify-center gap-2 hover:from-red-700 hover:to-red-800 transition-all w-full"
+                onClick={() => setSearchFilter({ ...searchFilter })}
+              >
+                Search Jobs <FiArrowRight />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -886,7 +933,7 @@ const JobListing = () => {
             >
               <AnimatePresence>
                 {filterJobs
-                  .slice((currentPage - 1) * 6, currentPage * 6)
+                  .slice((currentPage - 1) * 12, currentPage * 12)
                   .map((job, index) => (
                     <motion.div
                       key={job.id || index}
@@ -920,7 +967,7 @@ const JobListing = () => {
                   </svg>
                 </button>
                 
-                {Array.from({ length: Math.ceil(filterJobs.length / 6) }).map((_, index) => (
+                {Array.from({ length: Math.ceil(filterJobs.length / 12) }).map((_, index) => (
                   <button
                     key={index}
                     onClick={() => handlePageChange(index + 1)}
@@ -935,9 +982,9 @@ const JobListing = () => {
                 ))}
                 
                 <button
-                  onClick={() => handlePageChange(Math.min(currentPage + 1, Math.ceil(filterJobs.length / 6)))}
-                  disabled={currentPage === Math.ceil(filterJobs.length / 6)}
-                  className={`p-2 rounded-full ${currentPage === Math.ceil(filterJobs.length / 6) ? 'text-gray-300' : 'text-primary hover:bg-primary hover:text-white'}`}
+                  onClick={() => handlePageChange(Math.min(currentPage + 1, Math.ceil(filterJobs.length / 12)))}
+                  disabled={currentPage === Math.ceil(filterJobs.length / 12)}
+                  className={`p-2 rounded-full ${currentPage === Math.ceil(filterJobs.length / 12) ? 'text-gray-300' : 'text-primary hover:bg-primary hover:text-white'}`}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />

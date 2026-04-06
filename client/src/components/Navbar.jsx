@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useState } from "react";
 import { useClerk, UserButton, useUser } from "@clerk/clerk-react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { AppContext } from "../context/AppContext";
-import { Zap, Briefcase, Menu, X, User, AlertCircle } from "lucide-react";
+import { Zap, Menu, X, User } from "lucide-react";
 import DEEmploymintIcon from "../assets/DEEmploymintIcon.png";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -133,7 +133,7 @@ const Navbar = () => {
     { path: "/", label: "Home" },
     { path: "/JobCategories", label: "Job Categories" },
     { path: "/JobListing", label: "Latest Jobs" },
-    { path: "/applications", label: "My Jobs", icon: <Briefcase size={16} /> },
+    { path: "/contact", label: "Contact Us" },
   ];
 
   return (
@@ -168,10 +168,10 @@ const Navbar = () => {
                 scrolled ? "shadow-lg" : ""
               } group-hover:shadow-red-500/30 transition-all duration-300`}
             >
-              <img 
-                src={DEEmploymintIcon} 
-                alt="DEEmploymint" 
-                className="w-8 h-8 sm:w-10 sm:h-10 object-contain"
+              <img
+                src={DEEmploymintIcon}
+                alt="DEEmploymint"
+                className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 object-contain"
               />
             </div>
             <span className="text-lg sm:text-xl lg:text-2xl font-bold whitespace-nowrap" style={{ color: "#020330" }}>
@@ -181,7 +181,7 @@ const Navbar = () => {
 
           {/* Desktop Navigation - Hidden on mobile/tablet (< 1024px) */}
           <div className="hidden lg:flex items-center flex-1 justify-center mx-4">
-            <div className="flex items-center gap-1 xl:gap-4 text-gray-700 font-medium">
+            <div className="flex items-center gap-6 xl:gap-8 text-gray-700 font-medium">
               {navItems.map((item, index) => (
                 <Link
                   key={item.path}
@@ -289,11 +289,12 @@ const Navbar = () => {
               <>
                 <button
                   onClick={handleRecruiterClick}
-                  className={`text-sm font-medium transition-all duration-200 px-4 py-2 rounded-lg shadow-sm hover:shadow-md whitespace-nowrap ${
-                    companyToken 
-                      ? "bg-green-500 text-white hover:bg-green-600" 
-                      : "text-gray-600 hover:text-red-600 hover:bg-red-50"
+                  className={`text-sm font-medium transition-all duration-300 px-6 py-2.5 rounded-xl shadow-md hover:shadow-lg whitespace-nowrap transform hover:scale-105 ${
+                    companyToken
+                      ? "bg-green-500 text-white hover:bg-green-600"
+                      : "text-white"
                   }`}
+                  style={!companyToken ? { backgroundColor: "#FF0000" } : {}}
                 >
                   {companyToken ? "Recruiter Dashboard" : "Post Job for Free"}
                 </button>

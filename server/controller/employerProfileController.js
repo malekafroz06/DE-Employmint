@@ -148,10 +148,13 @@ export const updateEmployerProfile = async (req, res) => {
         }
               
         // Update both company and profile in parallel
+        const companyUpdate = { name, email, phone };
+        if (logoPath) companyUpdate.image = logoPath; // Sync logo to Company so job cards can display it
+
         const [company, profile] = await Promise.all([
             Company.findByIdAndUpdate(
                 companyId,
-                { name, email, phone },
+                companyUpdate,
                 { new: true }
             ).select('-password'),
             

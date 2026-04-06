@@ -350,7 +350,7 @@ const Footer = () => {
         </div>
 
         {/* Bottom Bar */}
-        <div className="pt-8 mt-10 border-t border-gray-200 flex flex-col md:flex-row justify-between items-center">
+        {/* <div className="pt-8 mt-10 border-t border-gray-200 flex flex-col md:flex-row justify-between items-center">
           <div className="flex items-center mb-4 md:mb-0">
             <div
               className="mr-3 w-8 h-8 rounded-lg flex items-center justify-center"
@@ -375,7 +375,7 @@ const Footer = () => {
               Terms of Service
             </a>
           </div>
-        </div>
+        </div> */}
       </div>
 
       {/* Animated gradient line */}

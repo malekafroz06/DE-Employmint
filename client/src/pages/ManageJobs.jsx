@@ -12,6 +12,8 @@ const ManageJobs = () => {
   const [jobs, setJobs] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const JOBS_PER_PAGE = 10;
   const { backendUrl, companyToken, setShowRecruiterLogin } = useContext(AppContext);
   
   const outletContext = useOutletContext();
@@ -30,7 +32,9 @@ const ManageJobs = () => {
       });
 
       if (data.success && Array.isArray(data.jobsData)) {
-        setJobs(data.jobsData.reverse());
+        const sorted = [...data.jobsData].sort((a, b) => new Date(b.date) - new Date(a.date));
+        setJobs(sorted);
+        setCurrentPage(1);
       } else {
         setJobs([]);
         toast.error(data.message || "Failed to fetch jobs");
@@ -188,14 +192,26 @@ const ManageJobs = () => {
           transition={{ duration: 0.5 }}
           className="mb-8"
         >
-          <div className="mb-6">
-            <h1 
-              className="text-2xl md:text-3xl font-bold mb-2"
-              style={{ color: '#020330' }}
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1
+                className="text-2xl md:text-3xl font-bold mb-2"
+                style={{ color: '#020330' }}
+              >
+                Manage Jobs
+              </h1>
+              <p className="text-gray-600">View, update, and manage your job listings</p>
+            </div>
+            <button
+              onClick={() => navigate("/dashboard/add-job")}
+              className="text-white py-3 px-6 rounded-xl font-medium hover:opacity-90 transition duration-300 ease-in-out flex items-center gap-2 shadow-md"
+              style={{ backgroundColor: '#FF0000' }}
             >
-              Manage Jobs
-            </h1>
-            <p className="text-gray-600">View, update, and manage your job listings</p>
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+              </svg>
+              Add new Job
+            </button>
           </div>
         </motion.div>
 
@@ -298,13 +314,13 @@ const ManageJobs = () => {
                 </tr>
               </thead>
               <tbody>
-                {jobs.map((job, index) => (
+                {jobs.slice((currentPage - 1) * JOBS_PER_PAGE, currentPage * JOBS_PER_PAGE).map((job, index) => (
                   <tr
                     key={job._id || index}
                     className="sm:text-[15px] border-b hover:bg-gray-50 transition-colors"
                     style={{ color: '#020330' }}
                   >
-                    <td className="py-4 px-6 max-sm:hidden">{index + 1}</td>
+                    <td className="py-4 px-6 max-sm:hidden">{(currentPage - 1) * JOBS_PER_PAGE + index + 1}</td>
                     <td 
                       className="py-4 px-6 font-medium"
                       style={{ color: '#020330' }}
@@ -390,27 +406,47 @@ const ManageJobs = () => {
           </div>
         </div>
 
-        <div className="flex justify-end">
-          <button
-            onClick={() => navigate("/dashboard/add-job")}
-            className="text-white py-3 px-6 rounded-xl font-medium hover:opacity-90 transition duration-300 ease-in-out flex items-center gap-2 shadow-md"
-            style={{ backgroundColor: '#FF0000' }}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-            >
-              <path
-                fillRule="evenodd"
-                d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z"
-                clipRule="evenodd"
-              />
-            </svg>
-            Add new Job
-          </button>
-        </div>
+        {/* Pagination */}
+        {jobs.length > JOBS_PER_PAGE && (
+          <div className="flex items-center justify-between mb-6">
+            <p className="text-sm text-gray-500">
+              Showing {(currentPage - 1) * JOBS_PER_PAGE + 1}–{Math.min(currentPage * JOBS_PER_PAGE, jobs.length)} of {jobs.length} jobs
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50"
+                style={{ color: '#020330' }}
+              >
+                Previous
+              </button>
+              {Array.from({ length: Math.ceil(jobs.length / JOBS_PER_PAGE) }, (_, i) => i + 1).map(page => (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className="w-9 h-9 rounded-lg text-sm font-medium transition-colors"
+                  style={
+                    page === currentPage
+                      ? { backgroundColor: '#FF0000', color: '#fff' }
+                      : { color: '#020330', border: '1px solid #e5e7eb' }
+                  }
+                >
+                  {page}
+                </button>
+              ))}
+              <button
+                onClick={() => setCurrentPage(p => Math.min(Math.ceil(jobs.length / JOBS_PER_PAGE), p + 1))}
+                disabled={currentPage === Math.ceil(jobs.length / JOBS_PER_PAGE)}
+                className="px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50"
+                style={{ color: '#020330' }}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
+
       </div>
     </motion.div>
   );

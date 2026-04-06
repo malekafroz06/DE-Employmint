@@ -1,25 +1,49 @@
-import React, { useContext, useRef } from "react";
-import { AppContext } from "../context/AppContext";
-import { motion } from "framer-motion";
-import backgroundImage from '../assets/backgroundimage.jpg';
-import { FiSearch, FiMapPin, FiArrowRight } from "react-icons/fi";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+
+import img1 from '../assets/backgroundimage.jpg';
+import img2 from '../assets/bg-image-main.jpg';
+import img3 from '../assets/hero.jpeg';
+import img4 from '../assets/Dreamjob.jpeg';
+import img5 from '../assets/calltoaction.jpg';
+import img6 from '../assets/image-gall.jpg';
+import img7 from '../assets/app_main_img.png';
+import img8 from '../assets/DEEmploymint.png';
+import img9 from '../assets/backgroundimage.jpg';   // replace with your own image
+import img10 from '../assets/hero.jpeg';             // replace with your own image
+
+const slides = [img1, img2, img3, img4, img5, img6, img7, img8, img9, img10];
+
+const INTERVAL = 10000; // 10 seconds
 
 const Hero = () => {
-  const { setSearchFilter, setIsSearched } = useContext(AppContext);
-  const titleRef = useRef(null);
-  const locationRef = useRef(null);
-  const navigate = useNavigate();
+  const [current, setCurrent] = useState(0);
+  const [direction, setDirection] = useState(1); // 1 = forward, -1 = backward
 
-  const onSearch = (e) => {
-    e.preventDefault();
-    const searchData = {
-      title: titleRef.current.value,
-      location: locationRef.current.value,
-    };
-    setIsSearched(true);
-    setSearchFilter(searchData);
-    navigate('/Joblisting');
+  const goTo = useCallback((index, dir = 1) => {
+    setDirection(dir);
+    setCurrent(index);
+  }, []);
+
+  const next = useCallback(() => {
+    goTo((current + 1) % slides.length, 1);
+  }, [current, goTo]);
+
+  const prev = useCallback(() => {
+    goTo((current - 1 + slides.length) % slides.length, -1);
+  }, [current, goTo]);
+
+  // Auto-scroll every 10 seconds
+  useEffect(() => {
+    const timer = setInterval(next, INTERVAL);
+    return () => clearInterval(timer);
+  }, [next]);
+
+  const variants = {
+    enter: (dir) => ({ x: dir > 0 ? "100%" : "-100%", opacity: 0 }),
+    center: { x: 0, opacity: 1 },
+    exit: (dir) => ({ x: dir > 0 ? "-100%" : "100%", opacity: 0 }),
   };
 
   return (
@@ -28,99 +52,77 @@ const Hero = () => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.8, ease: "easeOut" }}
     >
-      <section 
+      <section
         className="relative overflow-hidden mx-2 sm:mx-4 my-4 sm:my-6 lg:mx-8 lg:my-10 rounded-2xl sm:rounded-3xl shadow-2xl"
-        style={{ minHeight: '500px' }}
+        style={{ minHeight: '500px', height: '60vh', maxHeight: '700px' }}
       >
-        {/* Background */}
-        <div className="absolute inset-0">
-          <img
-            src={backgroundImage}
-            alt="Background"
-            className="w-full h-full object-cover object-center"
+        {/* Slides */}
+        <AnimatePresence initial={false} custom={direction}>
+          <motion.img
+            key={current}
+            src={slides[current]}
+            alt={`Slide ${current + 1}`}
+            custom={direction}
+            variants={variants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ duration: 0.7, ease: "easeInOut" }}
+            className="absolute inset-0 w-full h-full object-cover object-center"
           />
+        </AnimatePresence>
+
+        {/* Dark overlay for better contrast */}
+        <div className="absolute inset-0 bg-black/20 rounded-2xl sm:rounded-3xl pointer-events-none" />
+
+        {/* Prev Button */}
+        <button
+          onClick={prev}
+          className="absolute left-3 sm:left-5 top-1/2 -translate-y-1/2 z-10 bg-white/20 hover:bg-white/40 backdrop-blur-sm text-white rounded-full p-2 sm:p-3 transition-all duration-200 shadow-lg"
+          aria-label="Previous slide"
+        >
+          <ChevronLeft size={22} />
+        </button>
+
+        {/* Next Button */}
+        <button
+          onClick={next}
+          className="absolute right-3 sm:right-5 top-1/2 -translate-y-1/2 z-10 bg-white/20 hover:bg-white/40 backdrop-blur-sm text-white rounded-full p-2 sm:p-3 transition-all duration-200 shadow-lg"
+          aria-label="Next slide"
+        >
+          <ChevronRight size={22} />
+        </button>
+
+        {/* Dot indicators */}
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2">
+          {slides.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => goTo(i, i > current ? 1 : -1)}
+              aria-label={`Go to slide ${i + 1}`}
+              className={`rounded-full transition-all duration-300 ${
+                i === current
+                  ? "bg-white w-6 h-2.5"
+                  : "bg-white/50 hover:bg-white/75 w-2.5 h-2.5"
+              }`}
+            />
+          ))}
         </div>
 
-        {/* Content */}
-        <div className="relative w-full h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 md:py-24 lg:py-32 flex items-center justify-center">
-          
-          {/* Search Bar - Centered and Responsive */}
-          <motion.form
-            onSubmit={onSearch}
-            initial={{ opacity: 0, y: 30, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ delay: 0.6, duration: 0.8 }}
-            className="w-full max-w-4xl"
-          >
-            <div className="bg-white rounded-xl sm:rounded-2xl border border-gray-200 overflow-hidden shadow-xl">
-              
-              {/* Desktop Layout */}
-              <div className="hidden md:flex flex-row">
-                {/* Job Input */}
-                <div className="flex-1 flex items-center px-4 py-4 lg:px-6 lg:py-5 border-r border-gray-200">
-                  <FiSearch className="text-gray-400 text-lg lg:text-xl mr-3 flex-shrink-0" />
-                  <input
-                    type="text"
-                    ref={titleRef}
-                    placeholder="Job title, keywords, or company"
-                    className="w-full text-base lg:text-lg border-none outline-none bg-transparent text-gray-900 placeholder-gray-400"
-                  />
-                </div>
+        {/* Slide counter */}
+        <div className="absolute top-4 right-5 z-10 bg-black/30 backdrop-blur-sm text-white text-xs font-medium px-3 py-1 rounded-full">
+          {current + 1} / {slides.length}
+        </div>
 
-                {/* Location Input */}
-                <div className="flex-1 flex items-center px-4 py-4 lg:px-6 lg:py-5 border-r border-gray-200">
-                  <FiMapPin className="text-gray-400 text-lg lg:text-xl mr-3 flex-shrink-0" />
-                  <input
-                    type="text"
-                    ref={locationRef}
-                    placeholder="Location or remote"
-                    className="w-full text-base lg:text-lg border-none outline-none bg-transparent text-gray-900 placeholder-gray-400"
-                  />
-                </div>
-
-                {/* Search Button */}
-                <button
-                  type="submit"
-                  className="bg-gradient-to-r from-red-600 to-red-700 text-white font-bold px-6 lg:px-8 py-4 lg:py-5 text-base lg:text-lg border-none cursor-pointer flex items-center gap-2 hover:from-red-700 hover:to-red-800 transition-all whitespace-nowrap"
-                >
-                  Search Jobs <FiArrowRight />
-                </button>
-              </div>
-
-              {/* Mobile/Tablet Layout */}
-              <div className="md:hidden flex flex-col">
-                {/* Job Input */}
-                <div className="flex items-center px-4 py-3.5 border-b border-gray-200">
-                  <FiSearch className="text-gray-400 text-lg mr-3 flex-shrink-0" />
-                  <input
-                    type="text"
-                    ref={titleRef}
-                    placeholder="Job title, keywords..."
-                    className="w-full text-base border-none outline-none bg-transparent text-gray-900 placeholder-gray-400"
-                  />
-                </div>
-
-                {/* Location Input */}
-                <div className="flex items-center px-4 py-3.5 border-b border-gray-200">
-                  <FiMapPin className="text-gray-400 text-lg mr-3 flex-shrink-0" />
-                  <input
-                    type="text"
-                    ref={locationRef}
-                    placeholder="Location or remote"
-                    className="w-full text-base border-none outline-none bg-transparent text-gray-900 placeholder-gray-400"
-                  />
-                </div>
-
-                {/* Search Button */}
-                <button
-                  type="submit"
-                  className="bg-gradient-to-r from-red-600 to-red-700 text-white font-bold px-6 py-4 text-base border-none cursor-pointer flex items-center justify-center gap-2 hover:from-red-700 hover:to-red-800 transition-all w-full"
-                >
-                  Search Jobs <FiArrowRight />
-                </button>
-              </div>
-            </div>
-          </motion.form>
+        {/* Progress bar */}
+        <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20 z-10 rounded-b-3xl overflow-hidden">
+          <motion.div
+            key={current}
+            className="h-full bg-white"
+            initial={{ width: "0%" }}
+            animate={{ width: "100%" }}
+            transition={{ duration: INTERVAL / 1000, ease: "linear" }}
+          />
         </div>
       </section>
     </motion.div>

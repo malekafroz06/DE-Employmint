@@ -289,6 +289,14 @@ const EmployerProfile = () => {
     return placeholders[field] || `Enter ${field}`;
   };
 
+  // Get initials from name (e.g. "Afroz Malek" → "AM")
+  const getInitials = (name) => {
+    if (!name || name === 'Not provided') return 'C';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0][0].toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  };
+
   // Get logo URL for display
   const getLogoUrl = () => {
     console.log('=== GET LOGO URL DEBUG ===');
@@ -374,7 +382,7 @@ const EmployerProfile = () => {
                   className="w-20 h-20 rounded-full flex items-center justify-center text-white text-3xl font-bold shadow-lg"
                   style={{ backgroundColor: '#ff6666' }}
                 >
-                  {getDisplayValue('name')?.[0] || "C"}
+                  {getInitials(getDisplayValue('name'))}
                 </div>
               );
             })()}

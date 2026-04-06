@@ -1,20 +1,15 @@
 import React, { useState, useContext, useRef, useEffect } from "react";
 import { AppContext } from "../context/AppContext";
 import { toast } from "react-toastify";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { useOutletContext } from "react-router-dom";
 import axios from "axios";
 import * as XLSX from 'xlsx';
 import {
   FiUpload,
-  FiFile,
-  FiTrash2,
   FiDownload,
-  FiEye,
   FiFileText,
   FiDatabase,
-  FiX,
-  FiCheck,
   FiAlertCircle,
   FiRefreshCw
 } from "react-icons/fi";
@@ -24,7 +19,6 @@ const BulkUpload = () => {
   const outletContext = useOutletContext();
   const { isLoggedIn, showLoginNotification } = outletContext || {};
   
-  const [uploadedFiles, setUploadedFiles] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
   const [activeTab, setActiveTab] = useState("resumes");
   const [dragActive, setDragActive] = useState(false);
@@ -32,54 +26,15 @@ const BulkUpload = () => {
     resumes: { totalResumes: 0, processedResumes: 0, failedResumes: 0, totalSize: 0 },
     csv: { totalCSVs: 0, processedCSVs: 0, failedCSVs: 0, totalRows: 0, totalSize: 0 }
   });
-  const [isLoadingFiles, setIsLoadingFiles] = useState(false);
-  const [previewModal, setPreviewModal] = useState({
-    isOpen: false,
-    file: null,
-    data: null,
-    type: null
-  });
   
   const resumeInputRef = useRef(null);
   const csvInputRef = useRef(null);
 
   useEffect(() => {
     if (companyToken) {
-      fetchUploadedFiles();
       fetchStats();
     }
   }, [companyToken, activeTab]);
-
-  // Enhanced name extraction from resume filename
-  const extractCandidateName = (filename) => {
-    if (!filename) return "";
-    
-    // Remove file extension
-    let name = filename.replace(/\.(pdf|doc|docx)$/i, "");
-    
-    // Replace common separators with space
-    name = name.replace(/[-_]/g, " ");
-    
-    // Remove extra spaces and numbers
-    name = name.replace(/\s+/g, " ")
-                .replace(/\d+/g, "")
-                .trim();
-    
-    // Capitalize each word
-    name = name.split(' ')
-               .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-               .join(' ');
-    
-    return name;
-  };
-
-  // Normalize name for comparison (remove spaces, convert to lowercase)
-  const normalizeName = (name) => {
-    if (!name) return "";
-    return name.toLowerCase()
-               .replace(/\s+/g, "")
-               .replace(/[^a-z]/g, "");
-  };
 
   // Download sample format function
   const downloadSampleFormat = async () => {
@@ -181,39 +136,7 @@ const BulkUpload = () => {
     }
   };
 
-  const fetchUploadedFiles = async () => {
-    setIsLoadingFiles(true);
-    try {
-      const { data } = await axios.get(`${backendUrl}/api/bulk-upload/files?type=${activeTab}`, {
-        headers: { token: companyToken }
-      });
-
-      if (data.success) {
-        const files = data.data.files || [];
-        
-        // If we're viewing resumes, extract candidate names
-        if (activeTab === "resumes") {
-          const processedFiles = files.map(file => ({
-            ...file,
-            candidateName: extractCandidateName(file.originalName),
-            normalizedName: normalizeName(extractCandidateName(file.originalName))
-          }));
-          setUploadedFiles(processedFiles);
-        } else {
-          setUploadedFiles(files);
-        }
-      } else {
-        toast.error(data.message || "Failed to fetch files");
-      }
-    } catch (error) {
-      console.error("Error fetching files:", error);
-      toast.error(error.response?.data?.message || "Failed to fetch files");
-    } finally {
-      setIsLoadingFiles(false);
-    }
-  };
-
-  const fetchStats = async () => {
+const fetchStats = async () => {
     try {
       const { data } = await axios.get(`${backendUrl}/api/bulk-upload/stats`, {
         headers: { token: companyToken }
@@ -289,24 +212,6 @@ const BulkUpload = () => {
           ? "Please select valid resume files (PDF, DOC, DOCX)"
           : "Please select valid CSV or Excel files (CSV, XLSX, XLS)"
       );
-      return;
-    }
-
-    if (validFiles.length > 20 && type === "resumes") {
-      toast.error("Maximum 20 resume files allowed at once");
-      return;
-    }
-
-    if (validFiles.length > 10 && type === "csv") {
-      toast.error("Maximum 10 CSV/Excel files allowed at once");
-      return;
-    }
-
-    const maxSize = type === "csv" ? 5 * 1024 * 1024 : 400 * 1024;
-    const oversizedFiles = validFiles.filter(file => file.size > maxSize);
-    if (oversizedFiles.length > 0) {
-      const sizeLimit = type === "csv" ? "5MB" : "400KB";
-      toast.error(`${oversizedFiles.length} file(s) exceed ${sizeLimit} limit: ${oversizedFiles.map(f => f.name).join(', ')}`);
       return;
     }
 
@@ -401,163 +306,6 @@ const BulkUpload = () => {
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       handleFileUpload(e.dataTransfer.files, activeTab);
     }
-  };
-
-  const removeFile = async (fileId) => {
-    try {
-      const { data } = await axios.delete(`${backendUrl}/api/bulk-upload/files/${fileId}?type=${activeTab === "resumes" ? "resume" : "csv"}`, {
-        headers: { token: companyToken }
-      });
-
-      if (data.success) {
-        toast.success("File removed successfully");
-        await fetchUploadedFiles();
-        await fetchStats();
-      } else {
-        toast.error(data.message || "Failed to remove file");
-      }
-    } catch (error) {
-      console.error("Error removing file:", error);
-      toast.error(error.response?.data?.message || "Failed to remove file");
-    }
-  };
-
-  const canViewFile = (file) => {
-    const fileName = file.originalName.toLowerCase();
-    const fileType = file.fileType?.toLowerCase();
-    
-    if (fileType === 'pdf' || fileName.endsWith('.pdf')) {
-      return true;
-    }
-    
-    if (fileName.endsWith('.csv') || fileType === 'csv') {
-      return true;
-    }
-    
-    if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls') || 
-        fileType === 'xlsx' || fileType === 'xls') {
-      return true;
-    }
-    
-    return false;
-  };
-
-  const viewFile = async (file) => {
-    try {
-      const fileName = file.originalName.toLowerCase();
-      const fileType = file.fileType?.toLowerCase();
-      
-      const response = await axios.get(`${backendUrl}/api/bulk-upload/download/${file._id}`, {
-        headers: { token: companyToken },
-        responseType: 'blob'
-      });
-
-      if (fileType === 'pdf' || fileName.endsWith('.pdf')) {
-        const blob = new Blob([response.data], { type: 'application/pdf' });
-        const url = window.URL.createObjectURL(blob);
-        window.open(url, '_blank');
-        setTimeout(() => window.URL.revokeObjectURL(url), 100);
-      }
-      else if (fileName.endsWith('.doc') || fileName.endsWith('.docx')) {
-        toast.info("Word documents are processed on the server. Please download to view the file.");
-        downloadFile(file);
-      }
-      else if (fileName.endsWith('.csv')) {
-        try {
-          const text = await response.data.text();
-          const rows = text.split('\n').map(row => {
-            // Handle CSV with proper parsing (handles commas in quotes)
-            const regex = /(".*?"|[^,]+)(?=\s*,|\s*$)/g;
-            return row.match(regex)?.map(cell => cell.replace(/^"|"$/g, '').trim()) || [];
-          });
-          setPreviewModal({
-            isOpen: true,
-            file: file,
-            data: rows.filter(row => row.length > 0), // Filter empty rows
-            type: 'csv'
-          });
-        } catch (error) {
-          console.error("Error parsing CSV:", error);
-          toast.error("Failed to preview CSV file. Please download to view.");
-        }
-      }
-      else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
-        try {
-          const arrayBuffer = await response.data.arrayBuffer();
-          const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-          const firstSheetName = workbook.SheetNames[0];
-          const worksheet = workbook.Sheets[firstSheetName];
-          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
-          
-          setPreviewModal({
-            isOpen: true,
-            file: file,
-            data: jsonData.filter(row => row.some(cell => cell !== '')), // Filter empty rows
-            type: 'excel'
-          });
-        } catch (error) {
-          console.error("Error parsing Excel:", error);
-          toast.error("Failed to preview Excel file. Please download to view.");
-        }
-      }
-      else {
-        toast.info("This file type cannot be previewed. Please use download instead.");
-      }
-    } catch (error) {
-      console.error("View error:", error);
-      toast.error("Failed to view file");
-    }
-  };
-
-  const downloadFile = async (file) => {
-    try {
-      const response = await axios.get(`${backendUrl}/api/bulk-upload/download/${file._id}`, {
-        headers: { token: companyToken },
-        responseType: 'blob'
-      });
-
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', file.originalName);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error("Download error:", error);
-      toast.error("Failed to download file");
-    }
-  };
-
-  const formatFileSize = (bytes) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
-
-  const getFileIcon = (type) => {
-    return type === "resume" ? <FiFileText className="text-blue-500" /> : <FiDatabase className="text-green-500" />;
-  };
-
-  const getStatusBadge = (status) => {
-    const statusConfig = {
-      'processed': { bg: 'bg-green-100', text: 'text-green-800', icon: <FiCheck className="mr-1" /> },
-      'failed': { bg: 'bg-red-100', text: 'text-red-800', icon: <FiX className="mr-1" /> },
-      'processing': { bg: 'bg-yellow-100', text: 'text-yellow-800', icon: <FiRefreshCw className="mr-1 animate-spin" /> },
-      'uploaded': { bg: 'bg-blue-100', text: 'text-blue-800', icon: <FiUpload className="mr-1" /> }
-    };
-
-    const config = statusConfig[status] || statusConfig['uploaded'];
-
-    return (
-      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.bg} ${config.text}`}>
-        {config.icon}
-        {status.charAt(0).toUpperCase() + status.slice(1)}
-      </span>
-    );
   };
 
   return (
@@ -671,9 +419,9 @@ const BulkUpload = () => {
               </h3>
               
               <p className="text-gray-600 mb-4">
-                {activeTab === "resumes" 
-                  ? "Drag and drop PDF, DOC, or DOCX files here, or click to browse (Max 20 files)"
-                  : "Drag and drop CSV or Excel files here, or click to browse (Max 10 files)"
+                {activeTab === "resumes"
+                  ? "Drag and drop PDF, DOC, or DOCX files here, or click to browse"
+                  : "Drag and drop CSV or Excel files here, or click to browse"
                 }
               </p>
 
@@ -718,9 +466,9 @@ const BulkUpload = () => {
               </button>
 
               <p className="text-xs text-gray-500 mt-2">
-                {activeTab === "resumes" 
-                  ? "Supported formats: PDF, DOC, DOCX (Max 400KB each)"
-                  : "Supported formats: CSV, XLSX, XLS (Max 5MB each)"
+                {activeTab === "resumes"
+                  ? "Supported formats: PDF, DOC, DOCX"
+                  : "Supported formats: CSV, XLSX, XLS"
                 }
               </p>
             </div>
@@ -762,228 +510,8 @@ const BulkUpload = () => {
           </motion.div>
         )}
 
-        {/* Uploaded Files List */}
-        {isLoadingFiles ? (
-          <div className="bg-white rounded-xl shadow-md p-8 text-center">
-            <FiRefreshCw className="mx-auto text-4xl text-gray-400 mb-4 animate-spin" />
-            <p className="text-gray-600">Loading files...</p>
-          </div>
-        ) : uploadedFiles.length > 0 ? (
-          <div className="bg-white rounded-xl shadow-md overflow-hidden">
-            <div className="p-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold" style={{ color: '#020330' }}>
-                Uploaded {activeTab === "resumes" ? "Resumes" : "Data Files"} ({uploadedFiles.length})
-              </h3>
-            </div>
-            
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="py-3 px-6 text-left text-sm font-medium text-gray-700">File</th>
-                    {activeTab === "resumes" && (
-                      <th className="py-3 px-6 text-left text-sm font-medium text-gray-700">Extracted Name</th>
-                    )}
-                    <th className="py-3 px-6 text-left text-sm font-medium text-gray-700">Size</th>
-                    <th className="py-3 px-6 text-left text-sm font-medium text-gray-700">Upload Date</th>
-                    <th className="py-3 px-6 text-left text-sm font-medium text-gray-700">Status</th>
-                    {activeTab === "csv" && (
-                      <th className="py-3 px-6 text-left text-sm font-medium text-gray-700">Rows</th>
-                    )}
-                    <th className="py-3 px-6 text-center text-sm font-medium text-gray-700">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {uploadedFiles.map((file, index) => (
-                    <motion.tr
-                      key={file._id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3, delay: index * 0.1 }}
-                      className="border-b border-gray-200 hover:bg-gray-50 transition-colors"
-                    >
-                      <td className="py-4 px-6">
-                        <div className="flex items-center space-x-3">
-                          {getFileIcon(file.fileCategory || activeTab)}
-                          <div>
-                            <p className="font-medium text-gray-900 truncate max-w-xs">
-                              {file.originalName}
-                            </p>
-                            {file.metadata?.processingNotes && (
-                              <p className="text-xs text-red-500 truncate max-w-xs">
-                                {file.metadata.processingNotes}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-                      {activeTab === "resumes" && (
-                        <td className="py-4 px-6">
-                          <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm font-medium">
-                            {file.candidateName || "Unknown"}
-                          </span>
-                        </td>
-                      )}
-                      <td className="py-4 px-6 text-sm text-gray-600">
-                        {formatFileSize(file.fileSize)}
-                      </td>
-                      <td className="py-4 px-6 text-sm text-gray-600">
-                        {new Date(file.uploadDate || file.createdAt).toLocaleDateString()}
-                      </td>
-                      <td className="py-4 px-6">
-                        {getStatusBadge(file.status)}
-                      </td>
-                      {activeTab === "csv" && (
-                        <td className="py-4 px-6 text-sm text-gray-600">
-                          {file.totalRows?.toLocaleString() || 0}
-                        </td>
-                      )}
-                      <td className="py-4 px-6">
-                        <div className="flex justify-center space-x-2">
-                          {canViewFile(file) && (
-                            <button
-                              onClick={() => viewFile(file)}
-                              className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                              title="View File"
-                            >
-                              <FiEye size={16} />
-                            </button>
-                          )}
-                          <button
-                            onClick={() => downloadFile(file)}
-                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="Download"
-                          >
-                            <FiDownload size={16} />
-                          </button>
-                          <button
-                            onClick={() => removeFile(file._id)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Remove"
-                          >
-                            <FiTrash2 size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </motion.tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        ) : (
-          <div className="bg-white rounded-xl shadow-md p-8 text-center">
-            <div className="text-gray-400 mb-4">
-              {activeTab === "resumes" ? <FiFileText size={48} /> : <FiDatabase size={48} />}
-            </div>
-            <p className="text-gray-600">
-              No {activeTab === "resumes" ? "resumes" : "data files"} uploaded yet
-            </p>
-          </div>
-        )}
       </div>
 
-      {/* Preview Modal */}
-      <AnimatePresence>
-        {previewModal.isOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-            onClick={() => setPreviewModal({ isOpen: false, file: null, data: null, type: null })}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] flex flex-col"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Modal Header */}
-              <div className="flex items-center justify-between p-6 border-b border-gray-200">
-                <div className="flex items-center space-x-3">
-                  <FiEye className="text-2xl" style={{ color: '#FF0000' }} />
-                  <div>
-                    <h3 className="text-xl font-semibold" style={{ color: '#020330' }}>
-                      File Preview
-                    </h3>
-                    <p className="text-sm text-gray-600">{previewModal.file?.originalName}</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setPreviewModal({ isOpen: false, file: null, data: null, type: null })}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <FiX className="text-xl text-gray-600" />
-                </button>
-              </div>
-
-              {/* Modal Content */}
-              <div className="flex-1 overflow-auto p-6">
-                {previewModal.data && previewModal.data.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200 border border-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          {previewModal.data[0].map((header, index) => (
-                            <th
-                              key={index}
-                              className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-r border-gray-200"
-                            >
-                              {header || `Column ${index + 1}`}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {previewModal.data.slice(1, 101).map((row, rowIndex) => (
-                          <tr key={rowIndex} className="hover:bg-gray-50">
-                            {row.map((cell, cellIndex) => (
-                              <td
-                                key={cellIndex}
-                                className="px-4 py-2 text-sm text-gray-900 border-r border-gray-200"
-                              >
-                                {cell}
-                              </td>
-                            ))}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    {previewModal.data.length > 101 && (
-                      <div className="mt-4 text-center text-sm text-gray-600">
-                        Showing first 100 rows of {previewModal.data.length - 1} total rows
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="text-center text-gray-500 py-8">
-                    No data to display
-                  </div>
-                )}
-              </div>
-
-              {/* Modal Footer */}
-              <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200">
-                <button
-                  onClick={() => downloadFile(previewModal.file)}
-                  className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <FiDownload />
-                  <span>Download</span>
-                </button>
-                <button
-                  onClick={() => setPreviewModal({ isOpen: false, file: null, data: null, type: null })}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-                >
-                  Close
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </motion.div>
   );
 };
