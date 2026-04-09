@@ -27,6 +27,9 @@ import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import PublicCompanyProfile from './pages/PublicCompanyProfile';
 import MyTeam from "./pages/MyTeam";
+import ContactUs from "./pages/ContactUs";
+import AboutUs from "./pages/AboutUs";
+import VisionMission from "./pages/VisionMission";
 
 // ✅ FIXED: Route Protection Component for Main Recruiter Only
 const ProtectFromSubUsers = ({ children }) => {
@@ -117,6 +120,9 @@ const App = () => {
         <Route path="/JobCategories" element={<JobCategories />} />
         <Route path="/JobListing" element={<JobListing />} />
         <Route path="/company/:id" element={<PublicCompanyProfile />} />
+        <Route path="/contact" element={<ContactUs />} />
+        <Route path="/about" element={<AboutUs />} />
+        <Route path="/vision-mission" element={<VisionMission />} />
 
         {/* DASHBOARD ROUTES - With Sub-User Protection */}
         <Route 

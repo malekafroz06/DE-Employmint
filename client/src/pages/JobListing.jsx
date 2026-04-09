@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate, useLocation } from "react-router-dom"; 
 import {Home, ChevronDown, ChevronUp} from "lucide-react";
 import Navbar from "../components/Navbar";
+import latestJobsHero from "../assets/Latest jobs.jpeg";
 
 // Job Channel Options
 const JobChannels = [
@@ -26,22 +27,24 @@ const JobChannels = [
 
 // Job Category Options
 const JobCategories = [
-  "Equity Broking",
-  "Commodity Broking", 
-  "Currency Broking",
-  "Fundamental Research",
-  "Technical Research",
-  "Data Analysis",
-  "Quant Analysis",
+  "Stock Market",
+  "Asset Management",
+  "Portfolio Management",
+  "Wealth Management",
+  "Alternative Investment",
+  "Investment Banking",
+  "Asset Finance Company (AFC)",
+  "Loan Company (LC)",
+  "Microfinance Institution (MFI)",
+  "Housing Finance Company (HFC)",
+  "Gold Loan NBFC",
+  "Retail NBFC (Consumer Finance)",
   "Life Insurance",
   "General Insurance",
-  "Asset Finance",
-  "Loan Companies",
-  "Microfinance",
-  "MFI",
-  "Housing Finance Co. (HFC)",
-  "Discretionary Portfolio Management",
-  "Non-Discretionary Advisory"
+  "Fundamental Analysis",
+  "Technical Analysis",
+  "Quant Analysis",
+  "Algo Trading",
 ];
 
 // Job Designations (predefined only)
@@ -455,13 +458,22 @@ const JobListing = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      
-      <div className="bg-white py-10 px-8">
-        <div className="max-w-6xl mx-auto text-center">
-          <p className="text-sm font-medium tracking-wider mb-4 text-red-600">
+
+      {/* Hero with text overlay */}
+      <div className="relative w-full h-48 sm:h-64 md:h-80 lg:h-96 overflow-hidden">
+        <img
+          src={latestJobsHero}
+          alt="Latest Jobs"
+          className="absolute inset-0 w-full h-full object-cover object-center"
+        />
+        {/* Dark overlay */}
+        <div className="absolute inset-0 bg-black/50" />
+        {/* Text */}
+        <div className="relative z-10 flex flex-col items-center justify-center h-full px-4 text-center">
+          <p className="text-xs sm:text-sm font-semibold tracking-widest uppercase text-red-400 mb-2 sm:mb-3">
             JOB LISTINGS
           </p>
-          <h1 className="text-4xl md:text-5xl font-bold mb-6" style={{ color: "#022030" }}>
+          <h1 className="text-2xl sm:text-4xl md:text-5xl font-bold text-white drop-shadow-lg">
             Latest Jobs
           </h1>
         </div>

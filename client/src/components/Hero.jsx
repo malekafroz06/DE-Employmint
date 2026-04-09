@@ -9,11 +9,12 @@ import img4 from '../assets/Dreamjob.jpeg';
 import img5 from '../assets/calltoaction.jpg';
 import img6 from '../assets/image-gall.jpg';
 import img7 from '../assets/app_main_img.png';
+import img11 from '../assets/hero-image.jpeg';
 import img8 from '../assets/DEEmploymint.png';
 import img9 from '../assets/backgroundimage.jpg';   // replace with your own image
 import img10 from '../assets/hero.jpeg';             // replace with your own image
 
-const slides = [img1, img2, img3, img4, img5, img6, img7, img8, img9, img10];
+const slides = [img1, img2, img3, img4, img5, img6, img7, img8, img9, img10, img11];
 
 const INTERVAL = 10000; // 10 seconds
 
@@ -53,8 +54,7 @@ const Hero = () => {
       transition={{ duration: 0.8, ease: "easeOut" }}
     >
       <section
-        className="relative overflow-hidden mx-2 sm:mx-4 my-4 sm:my-6 lg:mx-8 lg:my-10 rounded-2xl sm:rounded-3xl shadow-2xl"
-        style={{ minHeight: '500px', height: '60vh', maxHeight: '700px' }}
+        className="relative overflow-hidden mx-2 sm:mx-4 my-4 sm:my-6 lg:mx-8 lg:my-10 rounded-2xl sm:rounded-3xl shadow-2xl h-[55vw] min-h-[220px] max-h-[900px] sm:h-[60vh] sm:min-h-[380px] lg:h-[75vh] lg:min-h-[500px]"
       >
         {/* Slides */}
         <AnimatePresence initial={false} custom={direction}>
@@ -78,23 +78,23 @@ const Hero = () => {
         {/* Prev Button */}
         <button
           onClick={prev}
-          className="absolute left-3 sm:left-5 top-1/2 -translate-y-1/2 z-10 bg-white/20 hover:bg-white/40 backdrop-blur-sm text-white rounded-full p-2 sm:p-3 transition-all duration-200 shadow-lg"
+          className="absolute left-2 sm:left-5 top-1/2 -translate-y-1/2 z-10 bg-white/20 hover:bg-white/40 backdrop-blur-sm text-white rounded-full p-1.5 sm:p-3 transition-all duration-200 shadow-lg"
           aria-label="Previous slide"
         >
-          <ChevronLeft size={22} />
+          <ChevronLeft size={18} className="sm:w-6 sm:h-6" />
         </button>
 
         {/* Next Button */}
         <button
           onClick={next}
-          className="absolute right-3 sm:right-5 top-1/2 -translate-y-1/2 z-10 bg-white/20 hover:bg-white/40 backdrop-blur-sm text-white rounded-full p-2 sm:p-3 transition-all duration-200 shadow-lg"
+          className="absolute right-2 sm:right-5 top-1/2 -translate-y-1/2 z-10 bg-white/20 hover:bg-white/40 backdrop-blur-sm text-white rounded-full p-1.5 sm:p-3 transition-all duration-200 shadow-lg"
           aria-label="Next slide"
         >
-          <ChevronRight size={22} />
+          <ChevronRight size={18} className="sm:w-6 sm:h-6" />
         </button>
 
         {/* Dot indicators */}
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2">
+        <div className="absolute bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 sm:gap-2">
           {slides.map((_, i) => (
             <button
               key={i}
@@ -102,16 +102,11 @@ const Hero = () => {
               aria-label={`Go to slide ${i + 1}`}
               className={`rounded-full transition-all duration-300 ${
                 i === current
-                  ? "bg-white w-6 h-2.5"
-                  : "bg-white/50 hover:bg-white/75 w-2.5 h-2.5"
+                  ? "bg-white w-4 sm:w-6 h-1.5 sm:h-2.5"
+                  : "bg-white/50 hover:bg-white/75 w-1.5 sm:w-2.5 h-1.5 sm:h-2.5"
               }`}
             />
           ))}
-        </div>
-
-        {/* Slide counter */}
-        <div className="absolute top-4 right-5 z-10 bg-black/30 backdrop-blur-sm text-white text-xs font-medium px-3 py-1 rounded-full">
-          {current + 1} / {slides.length}
         </div>
 
         {/* Progress bar */}

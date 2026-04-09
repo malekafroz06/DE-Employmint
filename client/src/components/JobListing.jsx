@@ -26,22 +26,24 @@ const JobChannels = [
 
 // Job Category Options (without "Other")
 const JobCategories = [
-  "Equity Broking",
-  "Commodity Broking", 
-  "Currency Broking",
-  "Fundamental Research",
-  "Technical Research",
-  "Data Analysis",
-  "Quant Analysis",
+  "Stock Market",
+  "Asset Management",
+  "Portfolio Management",
+  "Wealth Management",
+  "Alternative Investment",
+  "Investment Banking",
+  "Asset Finance Company (AFC)",
+  "Loan Company (LC)",
+  "Microfinance Institution (MFI)",
+  "Housing Finance Company (HFC)",
+  "Gold Loan NBFC",
+  "Retail NBFC (Consumer Finance)",
   "Life Insurance",
   "General Insurance",
-  "Asset Finance",
-  "Loan Companies",
-  "Microfinance",
-  "MFI",
-  "Housing Finance Co. (HFC)",
-  "Discretionary Portfolio Management",
-  "Non-Discretionary Advisory"
+  "Fundamental Analysis",
+  "Technical Analysis",
+  "Quant Analysis",
+  "Algo Trading",
 ];
 
 // Job Designations (predefined only)
@@ -942,6 +944,7 @@ const JobListing = () => {
                       exit={{ opacity: 0, scale: 0.9 }}
                       transition={{ duration: 0.3 }}
                       layout
+                      className="h-full"
                     >
                       <JobCard job={job} />
                     </motion.div>

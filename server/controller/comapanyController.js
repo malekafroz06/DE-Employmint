@@ -636,10 +636,10 @@ export const getCompanyPostedJobs = async (req, res) => {
 
     const jobs = await Job.find({ companyId });
 
-    // Auto-expire jobs older than 15 days
-    const fifteenDaysAgo = Date.now() - 15 * 24 * 60 * 60 * 1000;
+    // Auto-expire jobs older than 30 days
+    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
     const expiredIds = jobs
-      .filter(job => job.visible && job.date < fifteenDaysAgo)
+      .filter(job => job.visible && job.date < thirtyDaysAgo)
       .map(job => job._id);
 
     if (expiredIds.length > 0) {

@@ -62,21 +62,22 @@ const JobCard = ({ job }) => {
       whileInView={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, ease: "easeOut" }}
       viewport={{ once: true }}
+      className="h-full"
     >
       <motion.div
         whileHover={{ scale: 1.01 }}
         transition={{ type: "spring", stiffness: 300 }}
-        className="relative group bg-white border border-gray-200 rounded-lg hover:border-gray-300 shadow-md hover:shadow-lg transition-all duration-300 p-6"
+        className="relative group bg-white border border-gray-200 rounded-lg hover:border-gray-300 shadow-md hover:shadow-lg transition-all duration-300 p-6 flex flex-col h-full"
       >
         {/* Header */}
         <div className="flex justify-between items-start mb-4">
-          <div className="flex-1">
-            <div className="flex justify-between items-start">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-1">
+          <div className="flex-1 min-w-0">
+            <div className="flex justify-between items-start gap-3">
+              <div className="min-w-0">
+                <h3 className="text-lg font-semibold text-gray-900 mb-1 line-clamp-2">
                   {job.title || "Job Title"}
                 </h3>
-                <p className="text-sm text-gray-800">
+                <p className="text-sm text-gray-800 truncate">
                   {job.companyId?.name || "Company"} - {job.location || "Remote"}
                 </p>
               </div>
@@ -98,15 +99,14 @@ const JobCard = ({ job }) => {
           </div>
         </div>
 
-        {/* Tags Row */}
-        <div className="flex flex-wrap gap-2 mb-4 text-xs">
+        {/* Tags Row — fixed 2-line height so cards stay aligned */}
+        <div className="flex flex-wrap gap-2 mb-4 text-xs min-h-[52px] content-start">
           <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded font-medium shadow-sm">
             {levelMap[job.level] || job.level || "Fresher"}
           </span>
           <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded font-medium shadow-sm">
             {job.type || "Full-Time"}
           </span>
-        
           {job.salary && (
             <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded font-medium shadow-sm">
               {formatSalary(job.salary)}
@@ -129,40 +129,8 @@ const JobCard = ({ job }) => {
           )}
         </div>
 
-        {/* Description */}
-        <div className="mb-4">
-          <p
-            className={`text-sm text-gray-600 leading-relaxed ${
-              isExpanded ? "" : "line-clamp-2"
-            } cursor-pointer hover:text-gray-900`}
-            onClick={() => setIsExpanded(!isExpanded)}
-            title="Click to expand"
-          >
-            {stripHtmlTags(job.description)}
-          </p>
-        </div>
-
-        {/* Skills */}
-        {job.skills?.length > 0 && (
-          <div className="mb-4">
-            <div className="flex flex-wrap gap-2">
-              {job.skills.slice(0, 3).map((skill, index) => (
-                <motion.span
-                  key={index}
-                  whileHover={{ scale: 1.05 }}
-                  className="px-2 py-1 text-xs rounded bg-gray-100 text-gray-700 font-medium shadow-sm"
-                >
-                  {skill}
-                </motion.span>
-              ))}
-              {job.skills.length > 3 && (
-                <span className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-500 shadow-sm">
-                  +{job.skills.length - 3} more
-                </span>
-              )}
-            </div>
-          </div>
-        )}
+        {/* Spacer pushes footer to bottom */}
+        <div className="flex-1" />
 
         {/* Footer */}
         <div className="mt-4">
