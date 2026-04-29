@@ -2,6 +2,7 @@ import React from "react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import aboutImage from "../assets/about us.jpeg";
+import { ClipboardList, Users, Users2, Zap, BarChart2, Globe, XCircle } from "lucide-react";
 
 const AboutUs = () => {
   return (
@@ -55,7 +56,7 @@ const AboutUs = () => {
                   key={item}
                   className="flex items-center gap-3 bg-red-50 border border-red-100 rounded-xl px-4 py-3"
                 >
-                  <span className="text-red-500 font-bold text-lg">✗</span>
+                  <XCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
                   <span className="text-gray-700 font-medium text-sm">{item}</span>
                 </li>
               ))}
@@ -95,18 +96,20 @@ const AboutUs = () => {
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {[
-                { icon: "📋", title: "Mandate Management", desc: "Streamline and track every mandate in one place." },
-                { icon: "👥", title: "Candidate Tracking", desc: "Never lose a candidate with our robust tracking system." },
-                { icon: "🤝", title: "Team Collaboration", desc: "Work seamlessly across your agency or team." },
-                { icon: "⚡", title: "Automation", desc: "Automate repetitive tasks and save hours every day." },
-                { icon: "📊", title: "Performance Analytics", desc: "Get deep insights into your recruitment performance." },
-                { icon: "🌐", title: "Digital Presence", desc: "Build your brand with a professional online presence." },
+                { icon: ClipboardList, title: "Mandate Management", desc: "Streamline and track every mandate in one place." },
+                { icon: Users, title: "Candidate Tracking", desc: "Never lose a candidate with our robust tracking system." },
+                { icon: Users2, title: "Team Collaboration", desc: "Work seamlessly across your agency or team." },
+                { icon: Zap, title: "Automation", desc: "Automate repetitive tasks and save hours every day." },
+                { icon: BarChart2, title: "Performance Analytics", desc: "Get deep insights into your recruitment performance." },
+                { icon: Globe, title: "Digital Presence", desc: "Build your brand with a professional online presence." },
               ].map((feature) => (
                 <div
                   key={feature.title}
                   className="bg-gray-50 border border-gray-100 rounded-2xl p-5 hover:shadow-md transition-shadow duration-300"
                 >
-                  <div className="text-3xl mb-3">{feature.icon}</div>
+                  <div className="w-10 h-10 rounded-xl bg-[#020330] flex items-center justify-center mb-3">
+                    <feature.icon className="w-5 h-5 text-white" />
+                  </div>
                   <h3 className="font-semibold text-gray-800 mb-1 text-sm">{feature.title}</h3>
                   <p className="text-gray-500 text-xs leading-relaxed">{feature.desc}</p>
                 </div>

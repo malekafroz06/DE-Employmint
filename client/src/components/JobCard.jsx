@@ -56,6 +56,19 @@ const JobCard = ({ job }) => {
     return "Salary not disclosed";
   };
 
+  // ✅ Get product tags — handles both new (array) and old (designation string) jobs
+  const getProductTags = () => {
+    if (Array.isArray(job.product) && job.product.length > 0) {
+      return job.product;
+    }
+    if (job.designation && job.designation.trim() !== "") {
+      return job.designation.split(",").map((d) => d.trim()).filter(Boolean);
+    }
+    return [];
+  };
+
+  const productTags = getProductTags();
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 30 }}
@@ -99,7 +112,7 @@ const JobCard = ({ job }) => {
           </div>
         </div>
 
-        {/* Tags Row — fixed 2-line height so cards stay aligned */}
+        {/* Tags Row */}
         <div className="flex flex-wrap gap-2 mb-4 text-xs min-h-[52px] content-start">
           <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded font-medium shadow-sm">
             {levelMap[job.level] || job.level || "Fresher"}
@@ -127,6 +140,16 @@ const JobCard = ({ job }) => {
               {job.jobcategory}
             </span>
           )}
+
+          {/* ✅ Product tags — works for both old (designation) and new (product array) jobs */}
+          {productTags.map((p, i) => (
+            <span
+              key={i}
+              className="px-2 py-1 bg-red-50 text-red-600 rounded font-medium shadow-sm"
+            >
+              {p}
+            </span>
+          ))}
         </div>
 
         {/* Spacer pushes footer to bottom */}
@@ -158,7 +181,7 @@ const JobCard = ({ job }) => {
             </button>
           </div>
 
-          {/* Copy Link (below) */}
+          {/* Copy Link */}
           <button
             onClick={() => {
               navigator.clipboard.writeText(
@@ -187,7 +210,8 @@ JobCard.defaultProps = {
     salary: null,
     type: "",
     description: "",
-    skills: [],
+    product: [],
+    designation: "",
     postedAt: null,
     noticeperiod: "",
     _id: "",

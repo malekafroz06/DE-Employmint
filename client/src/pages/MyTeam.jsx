@@ -18,17 +18,18 @@ const MyTeam = () => {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [createdMemberData, setCreatedMemberData] = useState(null);
-  const [formData, setFormData] = useState({
-    name: '', 
-    email: '', 
-    password: '', 
-    roleType: 'hr',
-    permissions: {
-      canPostJobs: false,
-      canManageBulkUpload: false,
-      canViewApplications: true
-    }
-  });
+ const [formData, setFormData] = useState({
+  name: '', 
+  email: '', 
+  password: '', 
+  roleType: 'hr',
+  permissions: {
+    canPostJobs: false,
+    canManageBulkUpload: false,
+    canViewApplications: true,  // ✅ always true
+    canAccessHome: true          // ✅ ADD THIS
+  }
+});
 
   const fetchSubUsers = async () => {
     try {
@@ -48,62 +49,70 @@ const MyTeam = () => {
     if (companyToken) fetchSubUsers();
   }, [companyToken]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!formData.name || !formData.email || !formData.password) {
-      toast.error('Please fill all fields');
-      return;
-    }
+ const handleSubmit = async (e) => {
+  e.preventDefault();
+  
+  if (!formData.name || !formData.email || !formData.password) {
+    toast.error('Please fill all fields');
+    return;
+  }
 
-    if (formData.password.length < 6) {
-      toast.error('Password must be at least 6 characters');
-      return;
-    }
+  if (formData.password.length < 6) {
+    toast.error('Password must be at least 6 characters');
+    return;
+  }
 
-    setLoading(true);
-    try {
-      const { data } = await axios.post(
-        `${backendUrl}/api/company/create-subuser`,
-        formData,
-        { headers: { token: companyToken } }
-      );
-      
-      if (data.success) {
-        setCreatedMemberData({
-          name: formData.name,
-          email: formData.email,
-          password: formData.password,
-          roleType: formData.roleType,
-          permissions: formData.permissions
-        });
-        
-        setShowSuccessModal(true);
-        
-        setFormData({ 
-          name: '', 
-          email: '', 
-          password: '', 
-          roleType: 'hr',
-          permissions: {
-            canPostJobs: false,
-            canManageBulkUpload: false,
-            canViewApplications: true
-          }
-        });
-        setShowAddForm(false);
-        
-        fetchSubUsers();
-      } else {
-        toast.error(data.message || 'Failed to add team member');
+  setLoading(true);
+  try {
+    // ✅ Force these permissions to always be true regardless of form state
+    const submissionData = {
+      ...formData,
+      permissions: {
+        ...formData.permissions,
+        canViewApplications: true,  // always true
+        canAccessHome: true          // always true — all roles can access home
       }
-    } catch (error) {
-      console.error('Add member error:', error);
-      toast.error(error.response?.data?.message || 'Failed to add team member');
-    } finally {
-      setLoading(false);
+    };
+
+    const { data } = await axios.post(
+      `${backendUrl}/api/company/create-subuser`,
+      submissionData,
+      { headers: { token: companyToken } }
+    );
+    
+    if (data.success) {
+      setCreatedMemberData({
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        roleType: formData.roleType,
+        permissions: submissionData.permissions
+      });
+      
+      setShowSuccessModal(true);
+      setFormData({ 
+        name: '', 
+        email: '', 
+        password: '', 
+        roleType: 'hr',
+        permissions: {
+          canPostJobs: false,
+          canManageBulkUpload: false,
+          canViewApplications: true,
+          canAccessHome: true   // ✅ reset with true
+        }
+      });
+      setShowAddForm(false);
+      fetchSubUsers();
+    } else {
+      toast.error(data.message || 'Failed to add team member');
     }
-  };
+  } catch (error) {
+    toast.error(error.response?.data?.message || 'Failed to add team member');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleDelete = async (id) => {
     if (!window.confirm('Remove this team member?')) return;
@@ -161,36 +170,42 @@ const MyTeam = () => {
     }
   };
 
-  const handleUpdatePermissions = async () => {
-    if (!selectedUser || !selectedUser._id) {
-      toast.error('Invalid user selected');
-      return;
-    }
+ const handleUpdatePermissions = async () => {
+  if (!selectedUser || !selectedUser._id) {
+    toast.error('Invalid user selected');
+    return;
+  }
 
-    try {
-      setLoading(true);
-      
-      const { data } = await axios.put(
-        `${backendUrl}/api/company/subuser/${selectedUser._id}/permissions`,
-        { permissions: selectedUser.permissions },
-        { headers: { token: companyToken } }
-      );
-      
-      if (data.success) {
-        toast.success('Permissions updated successfully');
-        setShowPermissionsModal(false);
-        setSelectedUser(null);
-        fetchSubUsers();
-      } else {
-        toast.error(data.message || 'Failed to update permissions');
-      }
-    } catch (error) {
-      console.error('Update permissions error:', error);
-      toast.error(error.response?.data?.message || 'Failed to update permissions');
-    } finally {
-      setLoading(false);
+  try {
+    setLoading(true);
+    
+    // ✅ Always keep these true when updating permissions
+    const updatedPermissions = {
+      ...selectedUser.permissions,
+      canViewApplications: true,
+      canAccessHome: true
+    };
+
+    const { data } = await axios.put(
+      `${backendUrl}/api/company/subuser/${selectedUser._id}/permissions`,
+      { permissions: updatedPermissions },
+      { headers: { token: companyToken } }
+    );
+    
+    if (data.success) {
+      toast.success('Permissions updated successfully');
+      setShowPermissionsModal(false);
+      setSelectedUser(null);
+      fetchSubUsers();
+    } else {
+      toast.error(data.message || 'Failed to update permissions');
     }
-  };
+  } catch (error) {
+    toast.error(error.response?.data?.message || 'Failed to update permissions');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const getRoleBadge = (role) => {
     const colors = {

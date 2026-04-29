@@ -13,6 +13,9 @@ import {
   toggleJobVisibility,
   getApplications,
   deleteApplication,
+  getInquiries,
+  replyToInquiry,
+  deleteInquiry,
 } from '../controller/adminController.js';
 
 const router = express.Router();
@@ -42,5 +45,10 @@ router.patch('/jobs/:id/visibility', toggleJobVisibility);
 // Applications
 router.get('/applications', getApplications);
 router.delete('/applications/:id', deleteApplication);
+
+// Inquiries
+router.get('/inquiries', getInquiries);
+router.post('/inquiries/:id/reply', replyToInquiry);
+router.delete('/inquiries/:id', deleteInquiry);
 
 export default router;

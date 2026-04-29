@@ -1,16 +1,19 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import contactImage from "../assets/contact us.jpeg";
+import axios from "axios";
+import { toast } from "react-toastify";
+import { AppContext } from "../context/AppContext";
+import { CheckCircle2, Mail, Phone, MapPin } from "lucide-react";
 
 const ContactUs = () => {
+  const { backendUrl } = useContext(AppContext);
   const [formData, setFormData] = useState({
     fullName: "",
     workEmail: "",
     phoneNumber: "",
-    talentsNeeded: "",
-    roles: "",
-    budget: "",
+    company: "",
     additionalInfo: "",
   });
   const [submitted, setSubmitted] = useState(false);
@@ -23,10 +26,18 @@ const ContactUs = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    // Simulate form submission
-    await new Promise((res) => setTimeout(res, 1000));
-    setLoading(false);
-    setSubmitted(true);
+    try {
+      const { data } = await axios.post(`${backendUrl}/api/contact`, formData);
+      if (data.success) {
+        setSubmitted(true);
+      } else {
+        toast.error(data.message || "Submission failed. Please try again.");
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -55,43 +66,14 @@ const ContactUs = () => {
           </p>
         </div>
 
-        {/* Trust Badges */}
-        <div className="flex flex-wrap justify-center gap-6 mb-10">
-          <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-5 py-3 shadow-sm">
-            <span className="text-blue-700 font-bold text-sm">in</span>
-            <div>
-              <p className="text-xs text-gray-500 leading-none">LinkedIn</p>
-              <p className="font-bold text-gray-800 text-sm">1 Million+</p>
-              <p className="text-xs text-gray-400">Followers</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-5 py-3 shadow-sm">
-            <span className="text-orange-500 font-bold text-sm">★★★★★</span>
-            <div>
-              <p className="text-xs text-gray-500 leading-none">Clutch</p>
-              <p className="font-bold text-gray-800 text-sm">126+</p>
-              <p className="text-xs text-gray-400">reviews</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-5 py-3 shadow-sm">
-            <span className="text-green-500 text-lg">✓</span>
-            <p className="text-sm text-gray-700 font-medium">Hire 10x faster</p>
-          </div>
-          <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-5 py-3 shadow-sm">
-            <span className="text-green-500 text-lg">✓</span>
-            <p className="text-sm text-gray-700 font-medium">Work with top talents</p>
-          </div>
-          <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-5 py-3 shadow-sm">
-            <span className="text-green-500 text-lg">✓</span>
-            <p className="text-sm text-gray-700 font-medium">Get twice the work done</p>
-          </div>
-        </div>
 
         {/* Form Card */}
         <div className="bg-[#f5f0e8] rounded-2xl shadow-lg p-6 sm:p-10">
           {submitted ? (
             <div className="text-center py-16">
-              <div className="text-5xl mb-4">🎉</div>
+              <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
+                <CheckCircle2 className="w-8 h-8 text-green-600" />
+              </div>
               <h3 className="text-2xl font-bold text-gray-800 mb-2">
                 Thank you for reaching out!
               </h3>
@@ -105,9 +87,7 @@ const ContactUs = () => {
                     fullName: "",
                     workEmail: "",
                     phoneNumber: "",
-                    talentsNeeded: "",
-                    roles: "",
-                    budget: "",
+                    company: "",
                     additionalInfo: "",
                   });
                 }}
@@ -148,30 +128,11 @@ const ContactUs = () => {
                   className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-400 transition"
                 />
                 <input
-                  type="number"
-                  name="talentsNeeded"
-                  value={formData.talentsNeeded}
-                  onChange={handleChange}
-                  placeholder="How many talents are you looking to hire? *"
-                  required
-                  min="1"
-                  className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-400 transition"
-                />
-                <input
                   type="text"
-                  name="roles"
-                  value={formData.roles}
+                  name="company"
+                  value={formData.company}
                   onChange={handleChange}
-                  placeholder="What are these role(s)? *"
-                  required
-                  className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-400 transition"
-                />
-                <input
-                  type="text"
-                  name="budget"
-                  value={formData.budget}
-                  onChange={handleChange}
-                  placeholder="What's your budget? *"
+                  placeholder="Are you from which company? *"
                   required
                   className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-400 transition"
                 />
@@ -203,18 +164,24 @@ const ContactUs = () => {
         {/* Contact Info */}
         <div className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-6 text-center">
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-            <div className="text-3xl mb-3">📧</div>
+            <div className="w-10 h-10 rounded-xl bg-[#020330] flex items-center justify-center mb-3 mx-auto">
+              <Mail className="w-5 h-5 text-white" />
+            </div>
             <h4 className="font-semibold text-gray-800 mb-1">Email Us</h4>
             <p className="text-sm text-gray-500">support@deemploymint.com</p>
           </div>
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-            <div className="text-3xl mb-3">📞</div>
+            <div className="w-10 h-10 rounded-xl bg-[#020330] flex items-center justify-center mb-3 mx-auto">
+              <Phone className="w-5 h-5 text-white" />
+            </div>
             <h4 className="font-semibold text-gray-800 mb-1">Call Us</h4>
             <p className="text-sm text-gray-500">+91 00000 00000</p>
           </div>
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-            <div className="text-3xl mb-3">📍</div>
-            <h4 className="font-semibold text-gray-800 mb-1">Visit Us</h4>
+            <div className="w-10 h-10 rounded-xl bg-[#020330] flex items-center justify-center mb-3 mx-auto">
+              <MapPin className="w-5 h-5 text-white" />
+            </div>
+            <h4 className="font-semibold text-gray-800 mb-1">Ahmedabad</h4>
             <p className="text-sm text-gray-500">India</p>
           </div>
         </div>

@@ -6,6 +6,7 @@ import {
   Building2,
   Briefcase,
   FileText,
+  MessageSquare,
   LogOut,
   Menu,
   X,
@@ -18,6 +19,7 @@ const navItems = [
   { to: '/companies', label: 'Companies', icon: Building2 },
   { to: '/jobs', label: 'Jobs', icon: Briefcase },
   { to: '/applications', label: 'Applications', icon: FileText },
+  { to: '/inquiries', label: 'Inquiries', icon: MessageSquare },
 ]
 
 export default function Layout() {

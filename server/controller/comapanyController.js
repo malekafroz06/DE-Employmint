@@ -572,12 +572,18 @@ export const verifyResetCode = async (req, res) => {
 // ==================== PART 2: JOB MANAGEMENT & PUBLIC ENDPOINTS ====================
 
 // Post a new Job
+// ✅ Updated postJob
 export const postJob = async (req, res) => {
-  const { title, description, location, salary, jobcategory, jobchannel, level, noticeperiod, designation } = req.body;
+  const { title, description, location, salary, jobcategory, jobchannel, level, noticeperiod, product, department } = req.body;
 
   const companyId = req.company._id;
 
   try {
+    // ✅ Convert comma-separated string to array
+    const productArray = typeof product === 'string'
+      ? product.split(',').map(p => p.trim()).filter(Boolean)
+      : Array.isArray(product) ? product : [product];
+
     const newJob = new Job({
       title,
       description,
@@ -589,23 +595,19 @@ export const postJob = async (req, res) => {
       jobcategory,
       jobchannel,
       noticeperiod,
-      designation,
+      product: productArray,   // ✅ saves as ["Term Plans", "Endowment Plan", "ULIPs"]
+      department: department || "",
     });
 
     const savedJob = await newJob.save();
-    
-    // ✅ FIXED: Use recordJobMatch instead of notifyJobAlerts
-    // This adds the job to matching job alerts' pendingJobs arrays
-    // Users will receive batch digest emails (daily/weekly) via cron job
     const matchedAlerts = await recordJobMatch(savedJob);
-    
     console.log(`📬 Job added to ${matchedAlerts} job alert queues for batch processing`);
 
     res.status(201).json({
       success: true,
       message: 'Job created successfully!',
       data: savedJob,
-      alertsQueued: matchedAlerts // How many alerts will include this in their next digest
+      alertsQueued: matchedAlerts
     });
 
   } catch (error) {
@@ -619,9 +621,12 @@ export const getCompanyJobApplicants = async (req, res) => {
   try {
     const companyId = req.company._id;
 
-    const applications = await JobApplication.find({ companyId })
-      .populate("userId") // Fetch ALL user fields by removing select
-      .populate("jobId", "title location designation jobcategory jobchannel level noticeperiod salary")
+    const applications = await JobApplication.find({
+      companyId,
+      status: { $nin: ["Accepted", "Rejected", "accepted", "rejected"] }
+    })
+      .populate("userId")
+      .populate("jobId", "title location product jobcategory jobchannel level noticeperiod salary")
       .exec();
 
     return res.json({ success: true, applications });
@@ -1197,12 +1202,12 @@ export const updateSubUserPermissions = async (req, res) => {
     }
 
     // Update permissions
-    subUser.permissions = {
-      canViewApplications: true, // Always true
-      canPostJobs: permissions.canPostJobs || false,
-      canManageBulkUpload: permissions.canManageBulkUpload || false
-    };
-
+   subUser.permissions = {
+  canViewApplications: true,    // always true
+  canAccessHome: true,           // ✅ always true — all roles see home
+  canPostJobs: permissions.canPostJobs || false,
+  canManageBulkUpload: permissions.canManageBulkUpload || false
+};
     await subUser.save();
 
     console.log('✅ Permissions updated for:', subUser.name);

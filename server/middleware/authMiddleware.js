@@ -1,99 +1,122 @@
-import { ClerkExpressRequireAuth } from "@clerk/clerk-sdk-node";
+import jwt from 'jsonwebtoken';
+import jwksClient from 'jwks-rsa';
+import { createClerkClient } from '@clerk/backend';
 
-// Updated auth middleware that properly extracts Clerk data
-export const authMiddleware = (req, res, next) => {
-  ClerkExpressRequireAuth({
-    onError: (error) => {
-      console.error('Clerk authentication error:', error);
-      return res.status(401).json({
-        success: false,
-        message: 'Authentication failed'
-      });
-    }
-  })(req, res, (err) => {
+const clerk = createClerkClient({
+  secretKey: process.env.CLERK_SECRET_KEY
+});
+
+// JWKS client to fetch Clerk's public keys for JWT verification
+const jwks = jwksClient({
+  jwksUri: `https://still-beagle-75.clerk.accounts.dev/.well-known/jwks.json`,
+  cache: true,
+  cacheMaxEntries: 5,
+  cacheMaxAge: 600000 // 10 minutes
+});
+
+const getSigningKey = (header, callback) => {
+  jwks.getSigningKey(header.kid, (err, key) => {
     if (err) {
-      console.error('Clerk auth middleware error:', err);
-      return res.status(401).json({
-        success: false,
-        message: 'Authentication failed'
-      });
+      callback(err);
+      return;
     }
-
-    // Log the complete auth object to debug
-    console.log('=== AUTH MIDDLEWARE DEBUG ===');
-    console.log('req.auth:', JSON.stringify(req.auth, null, 2));
-    
-    // Ensure we have the user ID
-    if (!req.auth || !req.auth.userId) {
-      return res.status(401).json({
-        success: false,
-        message: 'No valid user session found'
-      });
-    }
-
-    // The sessionClaims should contain all the user data
-    console.log('User ID:', req.auth.userId);
-    console.log('Session Claims:', JSON.stringify(req.auth.sessionClaims, null, 2));
-
-    next();
+    const signingKey = key.getPublicKey();
+    callback(null, signingKey);
   });
 };
 
-// Alternative middleware if the above doesn't work - uses Clerk's getAuth
-export const alternativeAuthMiddleware = async (req, res, next) => {
+const verifyJWT = (token) => {
+  return new Promise((resolve, reject) => {
+    jwt.verify(
+      token,
+      getSigningKey,
+      {
+        algorithms: ['RS256'],
+        issuer: 'https://still-beagle-75.clerk.accounts.dev',
+      },
+      (err, decoded) => {
+        if (err) reject(err);
+        else resolve(decoded);
+      }
+    );
+  });
+};
+
+export const authMiddleware = async (req, res, next) => {
   try {
-    const { getAuth } = await import('@clerk/clerk-sdk-node');
-    
-    // Get auth from Clerk
-    const auth = getAuth(req);
-    
-    console.log('=== ALTERNATIVE AUTH DEBUG ===');
-    console.log('Auth object:', JSON.stringify(auth, null, 2));
-    
-    if (!auth || !auth.userId) {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({
         success: false,
-        message: 'Authentication required'
+        message: 'No authorization token provided'
       });
     }
 
-    // Attach auth data to request
-    req.auth = auth;
-    
-    // Also try to get user data directly from Clerk
+    const token = authHeader.split(' ')[1];
+
+    // Verify JWT using Clerk's public keys
+    let payload;
     try {
-      const { clerkClient } = await import('@clerk/clerk-sdk-node');
-      const user = await clerkClient.users.getUser(auth.userId);
-      
-      console.log('=== CLERK USER DATA ===');
-      console.log('User object:', JSON.stringify(user, null, 2));
-      
-      // Attach user data to sessionClaims for consistency
-      req.auth.sessionClaims = {
-        ...req.auth.sessionClaims,
-        email: user.emailAddresses?.[0]?.emailAddress || user.primaryEmailAddress?.emailAddress,
-        username: user.username,
-        first_name: user.firstName,
-        last_name: user.lastName,
-        name: user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.username,
-        image_url: user.imageUrl,
-        email_addresses: user.emailAddresses,
-        ...user.publicMetadata,
-        ...user.privateMetadata,
-        ...user.unsafeMetadata
+      payload = await verifyJWT(token);
+      console.log('✅ Token verified for user:', payload.sub);
+    } catch (verifyError) {
+      console.error('Token verification failed:', verifyError.message);
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid or expired token'
+      });
+    }
+
+    if (!payload?.sub) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token payload'
+      });
+    }
+
+    // Fetch full user data from Clerk
+    try {
+      const user = await clerk.users.getUser(payload.sub);
+
+      req.auth = {
+        userId: payload.sub,
+        sessionId: payload.sid,
+        sessionClaims: {
+          ...payload,
+          email: user.emailAddresses?.[0]?.emailAddress,
+          username: user.username,
+          first_name: user.firstName,
+          last_name: user.lastName,
+          name: user.firstName && user.lastName
+            ? `${user.firstName} ${user.lastName}`
+            : user.username || '',
+          image_url: user.imageUrl,
+          email_addresses: user.emailAddresses,
+          ...user.publicMetadata,
+          ...user.unsafeMetadata
+        }
       };
-      
-      console.log('Enhanced session claims:', JSON.stringify(req.auth.sessionClaims, null, 2));
+
+      console.log('✅ Auth set for user:', req.auth.userId, '|', req.auth.sessionClaims.email);
     } catch (userError) {
-      console.error('Error fetching user data:', userError);
+      console.error('User fetch error (non-fatal):', userError.message);
+      req.auth = {
+        userId: payload.sub,
+        sessionId: payload.sid,
+        sessionClaims: { ...payload }
+      };
     }
 
     next();
+
   } catch (error) {
-    console.error('Alternative auth middleware error:', error);
+    console.error('Auth middleware error:', error.message);
     return res.status(401).json({
       success: false,
       message: 'Authentication failed'
     });
   }
 };
+
+export const alternativeAuthMiddleware = authMiddleware;

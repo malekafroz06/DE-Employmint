@@ -136,7 +136,7 @@ const BulkUpload = () => {
     }
   };
 
-const fetchStats = async () => {
+  const fetchStats = async () => {
     try {
       const { data } = await axios.get(`${backendUrl}/api/bulk-upload/stats`, {
         headers: { token: companyToken }
@@ -148,6 +148,24 @@ const fetchStats = async () => {
     } catch (error) {
       console.error("Error fetching stats:", error);
     }
+  };
+
+  const fetchUploadedFiles = async () => {
+    try {
+      await axios.get(`${backendUrl}/api/bulk-upload/files`, {
+        headers: { token: companyToken }
+      });
+    } catch (error) {
+      console.error("Error fetching uploaded files:", error);
+    }
+  };
+
+  const formatFileSize = (bytes) => {
+    if (!bytes || bytes === 0) return "0 B";
+    const k = 1024;
+    const sizes = ["B", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
   };
 
   if (!companyToken) {
@@ -427,8 +445,9 @@ const fetchStats = async () => {
 
               {activeTab === "csv" && (
                 <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg max-w-md w-full">
-                  <p className="text-sm text-blue-800 mb-2">
-                    📥 Please download the sample format file, fill in the details, and then upload
+                  <p className="text-sm text-blue-800 mb-2 flex items-center gap-2">
+                    <FiDownload className="flex-shrink-0" />
+                    Please download the sample format file, fill in the details, and then upload
                   </p>
                   <button
                     onClick={downloadSampleFormat}

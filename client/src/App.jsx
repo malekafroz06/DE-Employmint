@@ -30,6 +30,7 @@ import MyTeam from "./pages/MyTeam";
 import ContactUs from "./pages/ContactUs";
 import AboutUs from "./pages/AboutUs";
 import VisionMission from "./pages/VisionMission";
+import AssessmentPage from "./pages/AssessmentPage";
 
 // ✅ FIXED: Route Protection Component for Main Recruiter Only
 const ProtectFromSubUsers = ({ children }) => {
@@ -121,6 +122,7 @@ const App = () => {
         <Route path="/JobListing" element={<JobListing />} />
         <Route path="/company/:id" element={<PublicCompanyProfile />} />
         <Route path="/contact" element={<ContactUs />} />
+        <Route path="/assessment" element={<AssessmentPage />} />
         <Route path="/about" element={<AboutUs />} />
         <Route path="/vision-mission" element={<VisionMission />} />
 

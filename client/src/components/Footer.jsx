@@ -75,7 +75,7 @@ const Footer = () => {
 
         {/* Main Footer Links */}
         <div className="border-t border-gray-200 pt-10 sm:pt-14">
-          <div className="grid grid-cols-2 sm:grid-cols-2 gap-8 sm:gap-12 max-w-2xl mx-auto lg:max-w-none lg:flex lg:justify-center lg:gap-32">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 sm:gap-12">
 
             {/* Sectors We Serve */}
             <div>
@@ -84,6 +84,40 @@ const Footer = () => {
               </h3>
               <ul className="space-y-2 sm:space-y-3">
                 {["Life Insurance", "General Insurance", "Equity Broking", "Equity Research", "Wealth Management"].map((item) => (
+                  <li key={item}>
+                    <a href="/" className="text-gray-600 hover:text-red-500 transition-colors duration-300 flex items-center text-sm sm:text-base">
+                      <span className="text-red-500 mr-2 flex-shrink-0">→</span>
+                      {item}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Our Services */}
+            <div>
+              <h3 className="text-base sm:text-lg lg:text-xl font-semibold mb-4 sm:mb-6 pb-2 border-b border-gray-200" style={{ color: "#022030" }}>
+                Our Services
+              </h3>
+              <ul className="space-y-2 sm:space-y-3">
+                {["End to End Recruitment", "Payroll Processing", "Salary Bench Marking", "Training", "HCM System & Process Implemention"].map((item) => (
+                  <li key={item}>
+                    <a href="/" className="text-gray-600 hover:text-red-500 transition-colors duration-300 flex items-center text-sm sm:text-base">
+                      <span className="text-red-500 mr-2 flex-shrink-0">→</span>
+                      {item}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Solutions */}
+            <div>
+              <h3 className="text-base sm:text-lg lg:text-xl font-semibold mb-4 sm:mb-6 pb-2 border-b border-gray-200" style={{ color: "#022030" }}>
+                Solutions
+              </h3>
+              <ul className="space-y-2 sm:space-y-3">
+                {["Career Board & Sourcing", "HR Payroll Software", "On Boarding Solution", "Learning & Development Solutions", "Performance Management"].map((item) => (
                   <li key={item}>
                     <a href="/" className="text-gray-600 hover:text-red-500 transition-colors duration-300 flex items-center text-sm sm:text-base">
                       <span className="text-red-500 mr-2 flex-shrink-0">→</span>

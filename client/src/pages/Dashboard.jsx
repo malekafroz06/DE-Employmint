@@ -238,23 +238,20 @@ const Dashboard = () => {
                 className="h-12 sm:h-16 mb-6 sm:mb-8 cursor-pointer" 
                 onClick={() => navigate("/")} 
               />
-              
-              {/* Home Button - Only for main recruiters */}
-              {!isSubUser && (
-                <motion.button
-                  onClick={() => {
-                    navigate('/');
-                    if (isMobile) setIsSidebarOpen(false);
-                  }}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="w-full flex items-center px-3 sm:px-4 py-2 sm:py-2.5 gap-3 bg-gray-200 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-200 hover:border-gray-400 hover:text-gray-800 transition-all duration-200 shadow-lg hover:scale-[1.02]"
-                  style={{ marginBottom: "16px" }}
-                >
-                  <FiHome className="text-base sm:text-lg flex-shrink-0" />
-                  <span className="text-sm sm:text-base">Home</span>
-                </motion.button>
-              )}
+                            
+              <motion.button
+                onClick={() => {
+                  navigate('/');
+                  if (isMobile) setIsSidebarOpen(false);
+                }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.95 }}
+                className="w-full flex items-center px-3 sm:px-4 py-2 sm:py-2.5 gap-3 bg-gray-200 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-200 hover:border-gray-400 hover:text-gray-800 transition-all duration-200 shadow-lg hover:scale-[1.02]"
+                style={{ marginBottom: "16px" }}
+              >
+                <FiHome className="text-base sm:text-lg flex-shrink-0" />
+                <span className="text-sm sm:text-base">Home</span>
+              </motion.button>
 
               <div className="space-y-2 sm:space-y-3">
                 {navItems.map(({ path, label, icon }, i) => (

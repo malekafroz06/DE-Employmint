@@ -4,8 +4,16 @@ import Company from '../models/Company.js';
 import Job from '../models/Job.js';
 import JobApplication from '../models/JobApplication.js';
 import SubUser from '../models/SubUser.js';
+import ContactInquiry from '../models/ContactInquiry.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import SibApiV3Sdk from '@getbrevo/brevo';
+
+const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+apiInstance.setApiKey(
+  SibApiV3Sdk.TransactionalEmailsApiApiKeys.apiKey,
+  process.env.BREVO_API_KEY
+);
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
 
@@ -304,6 +312,97 @@ export const deleteApplication = async (req, res) => {
     res.json({ success: true, message: 'Application deleted successfully' });
   } catch (error) {
     console.error('Delete application error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// ─── Contact Inquiries ────────────────────────────────────────────────────────
+
+export const getInquiries = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const status = req.query.status || '';
+
+    const query = status ? { status } : {};
+
+    const total = await ContactInquiry.countDocuments(query);
+    const inquiries = await ContactInquiry.find(query)
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
+
+    res.json({
+      success: true,
+      inquiries,
+      pagination: { total, page, pages: Math.ceil(total / limit), limit },
+    });
+  } catch (error) {
+    console.error('Get inquiries error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+export const replyToInquiry = async (req, res) => {
+  try {
+    const { replyMessage } = req.body;
+    if (!replyMessage || !replyMessage.trim()) {
+      return res.status(400).json({ success: false, message: 'Reply message is required' });
+    }
+
+    const inquiry = await ContactInquiry.findById(req.params.id);
+    if (!inquiry) {
+      return res.status(404).json({ success: false, message: 'Inquiry not found' });
+    }
+
+    // Send reply email via Brevo
+    const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+    sendSmtpEmail.subject = 'Re: Your Inquiry to DE employmint';
+    sendSmtpEmail.to = [{ email: inquiry.workEmail, name: inquiry.fullName }];
+    sendSmtpEmail.sender = { name: 'DE employmint', email: process.env.SENDER_EMAIL || 'noreply@deemploymint.com' };
+    sendSmtpEmail.htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background: linear-gradient(135deg, #FF0000, #CC0000); padding: 24px; border-radius: 8px 8px 0 0; text-align: center;">
+          <h1 style="color: white; margin: 0; font-size: 24px;">DE employmint</h1>
+        </div>
+        <div style="background: #f9f9f9; padding: 32px; border-radius: 0 0 8px 8px; border: 1px solid #e5e7eb;">
+          <p style="color: #374151; font-size: 16px; margin-top: 0;">Dear <strong>${inquiry.fullName}</strong>,</p>
+          <p style="color: #374151; font-size: 15px;">Thank you for reaching out to us. Here is our response to your inquiry:</p>
+          <div style="background: white; border-left: 4px solid #FF0000; padding: 16px 20px; border-radius: 4px; margin: 20px 0;">
+            <p style="color: #1f2937; font-size: 15px; margin: 0; white-space: pre-line;">${replyMessage}</p>
+          </div>
+          <p style="color: #6b7280; font-size: 14px; margin-bottom: 0;">
+            If you have any further questions, feel free to reach out to us.<br/>
+            <strong>DE employmint Team</strong>
+          </p>
+        </div>
+      </div>
+    `;
+
+    await apiInstance.sendTransacEmail(sendSmtpEmail);
+
+    // Update inquiry status
+    inquiry.reply = replyMessage;
+    inquiry.status = 'replied';
+    inquiry.repliedAt = new Date();
+    await inquiry.save();
+
+    res.json({ success: true, message: 'Reply sent successfully', inquiry });
+  } catch (error) {
+    console.error('Reply inquiry error:', error);
+    res.status(500).json({ success: false, message: 'Failed to send reply' });
+  }
+};
+
+export const deleteInquiry = async (req, res) => {
+  try {
+    const inquiry = await ContactInquiry.findByIdAndDelete(req.params.id);
+    if (!inquiry) {
+      return res.status(404).json({ success: false, message: 'Inquiry not found' });
+    }
+    res.json({ success: true, message: 'Inquiry deleted successfully' });
+  } catch (error) {
+    console.error('Delete inquiry error:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };

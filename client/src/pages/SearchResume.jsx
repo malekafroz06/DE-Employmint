@@ -18,7 +18,8 @@ import {
   FiCalendar,
   FiBriefcase,
   FiTrendingUp,
-  FiCheckCircle
+  FiCheckCircle,
+  FiCheck
 } from "react-icons/fi";
 import { toast } from "react-toastify";
 
@@ -53,6 +54,21 @@ const SearchResume = () => {
   useEffect(() => {
     filterAndSortData();
   }, [combinedData, searchQuery, filterStatus, sortBy]);
+
+  // Listen for assessment tab completion → remove candidate from UI
+  useEffect(() => {
+    let bc;
+    try {
+      bc = new BroadcastChannel("application_updates");
+      bc.onmessage = (event) => {
+        if (event.data?.type === "APPLICATION_ACCEPTED" && event.data?.applicationId) {
+          setCombinedData(prev => prev.filter(c => c._id !== event.data.applicationId));
+          toast.success("Candidate accepted via assessment.");
+        }
+      };
+    } catch { /* BroadcastChannel not supported */ }
+    return () => { try { bc?.close(); } catch { } };
+  }, []);
 
   // Enhanced name extraction from resume filename
   const extractCandidateName = (text) => {
@@ -591,24 +607,6 @@ const SearchResume = () => {
     }
   };
 
-  const handleDelete = async (resumeId) => {
-    if (window.confirm("Are you sure you want to delete this resume?")) {
-      try {
-        const response = await axios.delete(
-          `${backendUrl}/api/bulk-upload/files/${resumeId}?type=resume`,
-          { headers: { token: companyToken } }
-        );
-
-        if (response.data.success) {
-          toast.success("Resume deleted successfully");
-          setCombinedData(combinedData.filter(item => item._id !== resumeId));
-        }
-      } catch (error) {
-        console.error("Delete error:", error);
-        toast.error("Failed to delete resume");
-      }
-    }
-  };
 
   const formatFileSize = (bytes) => {
     if (bytes === 0) return '0 Bytes';
@@ -792,12 +790,13 @@ const SearchResume = () => {
                       />
                     </th>
                     <th className="py-3 px-3 sm:px-4 text-left text-xs sm:text-sm font-medium text-gray-700 w-16">Sr. No.</th>
-                    <th className="py-3 px-3 sm:px-6 text-left text-xs sm:text-sm font-medium text-gray-700">Candidate</th>
-                    <th className="py-3 px-3 sm:px-6 text-left text-xs sm:text-sm font-medium text-gray-700">Email</th>
-                    <th className="py-3 px-3 sm:px-6 text-left text-xs sm:text-sm font-medium text-gray-700">Phone</th>
-                    <th className="py-3 px-3 sm:px-6 text-left text-xs sm:text-sm font-medium text-gray-700">City</th>
-                    <th className="py-3 px-3 sm:px-6 text-left text-xs sm:text-sm font-medium text-gray-700">Sector</th>
-                    <th className="py-3 px-3 sm:px-6 text-center text-xs sm:text-sm font-medium text-gray-700">Actions</th>
+                    <th className="py-3 px-3 sm:px-6 text-left text-xs sm:text-sm font-medium text-gray-700">Name</th>
+                    <th className="py-3 px-3 sm:px-6 text-left text-xs sm:text-sm font-medium text-gray-700">Designation</th>
+                    <th className="py-3 px-3 sm:px-6 text-left text-xs sm:text-sm font-medium text-gray-700">Department</th>
+                    <th className="py-3 px-3 sm:px-6 text-left text-xs sm:text-sm font-medium text-gray-700">Experience</th>
+                    <th className="py-3 px-3 sm:px-6 text-left text-xs sm:text-sm font-medium text-gray-700">CTC</th>
+                    <th className="py-3 px-3 sm:px-6 text-left text-xs sm:text-sm font-medium text-gray-700">Location</th>
+                    <th className="py-3 px-3 sm:px-6 text-center text-xs sm:text-sm font-medium text-gray-700">Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -820,6 +819,7 @@ const SearchResume = () => {
                       <td className="py-3 sm:py-4 px-3 sm:px-4 text-sm font-medium text-gray-700">
                         {index + 1}
                       </td>
+                      {/* Name */}
                       <td className="py-3 sm:py-4 px-3 sm:px-6">
                         <div className="flex items-center space-x-2 sm:space-x-3">
                           <div
@@ -838,49 +838,57 @@ const SearchResume = () => {
                           </div>
                         </div>
                       </td>
+                      {/* Designation */}
                       <td className="py-3 sm:py-4 px-3 sm:px-6 text-xs sm:text-sm text-gray-600">
-                        <div className="flex items-center gap-1 sm:gap-2">
-                          <FiMail size={14} className="text-gray-400 flex-shrink-0" />
-                          <span className="truncate">{candidate.email}</span>
-                        </div>
+                        <span className="truncate block">{candidate.currentDesignation || '—'}</span>
                       </td>
+                      {/* Department */}
                       <td className="py-3 sm:py-4 px-3 sm:px-6 text-xs sm:text-sm text-gray-600">
-                        <div className="flex items-center gap-1 sm:gap-2">
-                          <FiPhone size={14} className="text-gray-400 flex-shrink-0" />
-                          <span>{candidate.phone}</span>
-                        </div>
+                        <span className="truncate block">{candidate.currentDepartment || '—'}</span>
                       </td>
+                      {/* Experience */}
                       <td className="py-3 sm:py-4 px-3 sm:px-6 text-xs sm:text-sm text-gray-600">
-                        <span className="truncate block">{candidate.city}</span>
+                        <span className="truncate block">{candidate.totalExperience || '—'}</span>
                       </td>
+                      {/* CTC */}
                       <td className="py-3 sm:py-4 px-3 sm:px-6 text-xs sm:text-sm text-gray-600">
-                        <span className="truncate block">{candidate.sector}</span>
+                        <span className="truncate block">{candidate.currentCTC || '—'}</span>
+                      </td>
+                      {/* Location */}
+                      <td className="py-3 sm:py-4 px-3 sm:px-6 text-xs sm:text-sm text-gray-600">
+                        <span className="truncate block">{candidate.city || '—'}</span>
                       </td>
                       <td className="py-3 sm:py-4 px-3 sm:px-6">
-                        <div className="flex justify-center space-x-1 sm:space-x-2">
-                          <button
-                            onClick={() => {
-                              setSelectedCandidate(candidate);
-                              setShowDetailModal(true);
-                            }}
-                            className="p-1.5 sm:p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="View Details"
-                          >
-                            <FiEye size={16} />
-                          </button>
+                        <div className="flex justify-center items-center flex-wrap gap-1 sm:gap-2">
+                          {/* CV Download */}
                           <button
                             onClick={() => downloadResume(candidate.resumeFile)}
                             className="p-1.5 sm:p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                            title="Download"
+                            title="Download CV"
                           >
                             <FiDownload size={16} />
                           </button>
+                          {/* Accept → opens Assessment in new tab */}
                           <button
-                            onClick={() => handleDelete(candidate._id)}
-                            className="p-1.5 sm:p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Delete"
+                            onClick={() => {
+                              const url = `/assessment?email=${encodeURIComponent(candidate.email || '')}&name=${encodeURIComponent(candidate.candidateName || '')}&phone=${encodeURIComponent(candidate.phone || '')}&applicationId=${encodeURIComponent(candidate._id || '')}`;
+                              window.open(url, '_blank', 'noopener,noreferrer');
+                            }}
+                            className="p-1.5 sm:p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                            title="Accept (Open Assessment)"
                           >
-                            <FiTrash2 size={16} />
+                            <FiCheck size={16} />
+                          </button>
+                          {/* Reject → remove from UI */}
+                          <button
+                            onClick={() => {
+                              setCombinedData(prev => prev.filter(c => c._id !== candidate._id));
+                              toast.info(`${candidate.candidateName} rejected`);
+                            }}
+                            className="p-1.5 sm:p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Reject"
+                          >
+                            <FiX size={16} />
                           </button>
                         </div>
                       </td>

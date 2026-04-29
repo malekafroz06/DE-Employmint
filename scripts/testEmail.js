@@ -3,6 +3,8 @@ import dotenv from 'dotenv';
 import { sendTestEmail, verifyBrevoConfig } from '../services/emailService.js';
 
 dotenv.config();
+console.log('CLERK_SECRET_KEY loaded:', !!process.env.CLERK_SECRET_KEY);
+console.log('Key starts with:', process.env.CLERK_SECRET_KEY?.substring(0, 10));
 
 const testBrevo = async () => {
   try {

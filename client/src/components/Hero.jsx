@@ -1,26 +1,22 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-import img1 from '../assets/backgroundimage.jpg';
-import img2 from '../assets/bg-image-main.jpg';
-import img3 from '../assets/hero.jpeg';
-import img4 from '../assets/Dreamjob.jpeg';
-import img5 from '../assets/calltoaction.jpg';
-import img6 from '../assets/image-gall.jpg';
-import img7 from '../assets/app_main_img.png';
-import img11 from '../assets/hero-image.jpeg';
-import img8 from '../assets/DEEmploymint.png';
-import img9 from '../assets/backgroundimage.jpg';   // replace with your own image
-import img10 from '../assets/hero.jpeg';             // replace with your own image
+import img1 from '../assets/hero (1).jpeg';
+import img2 from '../assets/hero (2).jpeg';
+import img3 from '../assets/hero (3).jpeg';
+import img4 from '../assets/hero (4).jpeg';
+import img5 from '../assets/hero (5).jpeg';
 
-const slides = [img1, img2, img3, img4, img5, img6, img7, img8, img9, img10, img11];
+const slides = [img5, img1, img2, img3, img4];
 
 const INTERVAL = 10000; // 10 seconds
 
 const Hero = () => {
   const [current, setCurrent] = useState(0);
-  const [direction, setDirection] = useState(1); // 1 = forward, -1 = backward
+  const [direction, setDirection] = useState(1);
+  const [isVisible, setIsVisible] = useState(true); // 👈 track visibility
+  const sectionRef = useRef(null); // 👈 ref for the section
 
   const goTo = useCallback((index, dir = 1) => {
     setDirection(dir);
@@ -35,11 +31,29 @@ const Hero = () => {
     goTo((current - 1 + slides.length) % slides.length, -1);
   }, [current, goTo]);
 
-  // Auto-scroll every 10 seconds
+  // 👇 Observe when the section enters/leaves the viewport
   useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsVisible(entry.isIntersecting);
+      },
+      { threshold: 0.3 } // 30% of the section must be visible
+    );
+
+    if (sectionRef.current) {
+      observer.observe(sectionRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, []);
+
+  // 👇 Auto-scroll only when visible
+  useEffect(() => {
+    if (!isVisible) return; // pause if not visible
+
     const timer = setInterval(next, INTERVAL);
     return () => clearInterval(timer);
-  }, [next]);
+  }, [next, isVisible]);
 
   const variants = {
     enter: (dir) => ({ x: dir > 0 ? "100%" : "-100%", opacity: 0 }),
@@ -49,12 +63,13 @@ const Hero = () => {
 
   return (
     <motion.div
+      ref={sectionRef} // 👈 attach ref here
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.8, ease: "easeOut" }}
     >
       <section
-        className="relative overflow-hidden mx-2 sm:mx-4 my-4 sm:my-6 lg:mx-8 lg:my-10 rounded-2xl sm:rounded-3xl shadow-2xl h-[55vw] min-h-[220px] max-h-[900px] sm:h-[60vh] sm:min-h-[380px] lg:h-[75vh] lg:min-h-[500px]"
+        className="relative overflow-hidden mx-2 sm:mx-4 my-4 sm:my-6 lg:mx-8 lg:my-10 rounded-2xl sm:rounded-3xl shadow-2xl"
       >
         {/* Slides */}
         <AnimatePresence initial={false} custom={direction}>
@@ -68,11 +83,11 @@ const Hero = () => {
             animate="center"
             exit="exit"
             transition={{ duration: 0.7, ease: "easeInOut" }}
-            className="absolute inset-0 w-full h-full object-cover object-center"
+            className="w-full h-auto block"
           />
         </AnimatePresence>
 
-        {/* Dark overlay for better contrast */}
+        {/* Dark overlay */}
         <div className="absolute inset-0 bg-black/20 rounded-2xl sm:rounded-3xl pointer-events-none" />
 
         {/* Prev Button */}
@@ -112,11 +127,11 @@ const Hero = () => {
         {/* Progress bar */}
         <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20 z-10 rounded-b-3xl overflow-hidden">
           <motion.div
-            key={current}
+            key={`${current}-${isVisible}`} // 👈 reset bar when visibility changes
             className="h-full bg-white"
             initial={{ width: "0%" }}
-            animate={{ width: "100%" }}
-            transition={{ duration: INTERVAL / 1000, ease: "linear" }}
+            animate={isVisible ? { width: "100%" } : { width: "0%" }} // 👈 pause bar too
+            transition={isVisible ? { duration: INTERVAL / 1000, ease: "linear" } : { duration: 0 }}
           />
         </div>
       </section>

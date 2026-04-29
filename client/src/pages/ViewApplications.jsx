@@ -52,7 +52,13 @@ const ViewApplications = () => {
 
       if (data.success) {
         console.log("Fetched applications:", data.applications);
-        setApplicants(data.applications.reverse());
+        const pending = data.applications
+          .reverse()
+          .filter(a => {
+            const s = (a.status || "").toLowerCase();
+            return s !== "accepted" && s !== "rejected";
+          });
+        setApplicants(pending);
       } else {
         toast.error(data.message);
       }
@@ -81,11 +87,8 @@ const ViewApplications = () => {
       );
 
       if (data.success) {
-        setApplicants(prevApplicants => 
-          prevApplicants.map(applicant => 
-            applicant._id === id ? { ...applicant, status } : applicant
-          )
-        );
+        // Remove from UI list (status is persisted in DB)
+        setApplicants(prev => prev.filter(a => a._id !== id));
         toast.success(`Application ${status.toLowerCase()} successfully`);
         setActiveDropdown(null);
       } else {
@@ -97,6 +100,32 @@ const ViewApplications = () => {
       toast.error(error.response?.data?.message || error.message);
     }
   };
+
+  // Open assessment in new tab
+  const handleOpenAssessmentTab = (applicant) => {
+    const email  = applicant.userId?.email || "";
+    const name   = applicant.userId?.name  || "";
+    const phone  = applicant.userId?.phone || "";
+    const appId  = applicant._id || "";
+    const url    = `/assessment?email=${encodeURIComponent(email)}&name=${encodeURIComponent(name)}&phone=${encodeURIComponent(phone)}&applicationId=${encodeURIComponent(appId)}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+    setActiveDropdown(null);
+  };
+
+  // Listen for BroadcastChannel messages from assessment tab
+  useEffect(() => {
+    let bc;
+    try {
+      bc = new BroadcastChannel("application_updates");
+      bc.onmessage = (event) => {
+        if (event.data?.type === "APPLICATION_ACCEPTED" && event.data?.applicationId) {
+          setApplicants(prev => prev.filter(a => a._id !== event.data.applicationId));
+          toast.success("Application accepted via assessment.");
+        }
+      };
+    } catch { /* BroadcastChannel not supported */ }
+    return () => { try { bc?.close(); } catch { } };
+  }, []);
   const handleViewResume = (resumeUrl, applicantName) => {
     if (!resumeUrl || 
         resumeUrl.trim() === '' || 
@@ -306,52 +335,30 @@ const ViewApplications = () => {
             </div>
             
             {/* ✅ RESPONSIVE Filter Buttons */}
-           {/* ✅ FIXED RESPONSIVE Filter Buttons - Shows text on mobile */}
-<div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
-  <button 
+           {/* Filter Buttons */}
+<div className="flex flex-wrap gap-2">
+  <button
     onClick={() => setFilterStatus("all")}
     className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
-      filterStatus === "all" 
-        ? "text-white" 
+      filterStatus === "all"
+        ? "text-white"
         : "bg-gray-100 text-gray-700 hover:bg-gray-200"
     }`}
     style={filterStatus === "all" ? { backgroundColor: '#FF0000' } : {}}
   >
     All ({applicants.length})
   </button>
-  
-  <button 
+
+  <button
     onClick={() => setFilterStatus("pending")}
     className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
-      filterStatus === "pending" 
-        ? "text-white" 
+      filterStatus === "pending"
+        ? "text-white"
         : "bg-gray-100 text-gray-700 hover:bg-gray-200"
     }`}
     style={filterStatus === "pending" ? { backgroundColor: '#FF0000' } : {}}
   >
-    Pending ({applicants.filter(a => !a.status || a.status.toLowerCase() === "pending").length})
-  </button>
-  
-  <button 
-    onClick={() => setFilterStatus("accepted")}
-    className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
-      filterStatus === "accepted" 
-        ? "bg-emerald-100 text-emerald-600" 
-        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-    }`}
-  >
-    Accepted ({applicants.filter(a => a.status && a.status.toLowerCase() === "accepted").length})
-  </button>
-  
-  <button 
-    onClick={() => setFilterStatus("rejected")}
-    className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
-      filterStatus === "rejected" 
-        ? "bg-red-100 text-red-600" 
-        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-    }`}
-  >
-    Rejected ({applicants.filter(a => a.status && a.status.toLowerCase() === "rejected").length})
+    Pending ({applicants.length})
   </button>
 </div>
           </div>
@@ -513,10 +520,7 @@ const ViewApplications = () => {
                                       onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
-                                        setActiveDropdown(null);
-                                        setAcceptApplicationId(applicant._id);
-                                        setSelectedProfile(applicant.userId);
-                                        setAssessmentModalOpen(true);
+                                        handleOpenAssessmentTab(applicant);
                                       }}
                                       className="w-full px-3 sm:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-green-600 hover:bg-green-50 flex items-center gap-2 transition-colors border-b border-gray-100"
                                     >
@@ -574,17 +578,6 @@ const ViewApplications = () => {
           }}
         />
 
-        {/* Assessment Modal */}
-        <CandidateDetails
-          isOpen={assessmentModalOpen}
-          onClose={() => { setAssessmentModalOpen(false); setAcceptApplicationId(null); }}
-          profile={selectedProfile}
-          onAccept={acceptApplicationId ? () => {
-            changeJobApplicationStatus(acceptApplicationId, "Accepted");
-            setAssessmentModalOpen(false);
-            setAcceptApplicationId(null);
-          } : null}
-        />
 
         {/* Resume Not Available Modal */}
         <AnimatePresence>

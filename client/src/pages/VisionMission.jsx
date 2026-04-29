@@ -1,6 +1,7 @@
 import React from "react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import { ClipboardList, Users, Users2, BarChart2, Zap, Target, Rocket } from "lucide-react";
 
 const VisionMission = () => {
   return (
@@ -29,8 +30,8 @@ const VisionMission = () => {
           <div className="h-2 w-full" style={{ background: "linear-gradient(to right, #FF0000, #020330)" }}></div>
           <div className="p-8 sm:p-10 md:p-12">
             <div className="flex items-center gap-4 mb-6">
-              <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 text-2xl shadow-sm" style={{ backgroundColor: "#FF0000" }}>
-                🎯
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm" style={{ backgroundColor: "#FF0000" }}>
+                <Target className="w-6 h-6 text-white" />
               </div>
               <h2 className="text-2xl sm:text-3xl font-bold" style={{ color: "#020330" }}>
                 Vision
@@ -51,8 +52,8 @@ const VisionMission = () => {
           <div className="h-2 w-full" style={{ background: "linear-gradient(to right, #020330, #FF0000)" }}></div>
           <div className="p-8 sm:p-10 md:p-12">
             <div className="flex items-center gap-4 mb-6">
-              <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 text-2xl shadow-sm" style={{ backgroundColor: "#020330" }}>
-                🚀
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm" style={{ backgroundColor: "#020330" }}>
+                <Rocket className="w-6 h-6 text-white" />
               </div>
               <h2 className="text-2xl sm:text-3xl font-bold" style={{ color: "#020330" }}>
                 Mission
@@ -68,14 +69,16 @@ const VisionMission = () => {
             {/* Mission pillars */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
               {[
-                { icon: "📋", title: "Efficient Mandate Management", desc: "Streamline every mandate from start to close." },
-                { icon: "🧠", title: "Intelligent Candidate Tracking", desc: "Never lose a candidate with smart tracking." },
-                { icon: "🤝", title: "Seamless Collaboration", desc: "Work effortlessly across your team or agency." },
-                { icon: "📊", title: "Performance Analytics", desc: "Deep insights to drive better decisions." },
-                { icon: "⚡", title: "Process Automation", desc: "Automate repetitive tasks and save time." },
+                { icon: ClipboardList, title: "Efficient Mandate Management", desc: "Streamline every mandate from start to close." },
+                { icon: Users, title: "Intelligent Candidate Tracking", desc: "Never lose a candidate with smart tracking." },
+                { icon: Users2, title: "Seamless Collaboration", desc: "Work effortlessly across your team or agency." },
+                { icon: BarChart2, title: "Performance Analytics", desc: "Deep insights to drive better decisions." },
+                { icon: Zap, title: "Process Automation", desc: "Automate repetitive tasks and save time." },
               ].map((item) => (
                 <div key={item.title} className="flex items-start gap-3 bg-gray-50 border border-gray-100 rounded-2xl p-4">
-                  <span className="text-2xl flex-shrink-0">{item.icon}</span>
+                  <div className="w-9 h-9 rounded-lg bg-[#020330] flex items-center justify-center flex-shrink-0">
+                    <item.icon className="w-4 h-4 text-white" />
+                  </div>
                   <div>
                     <p className="font-semibold text-gray-800 text-sm">{item.title}</p>
                     <p className="text-gray-500 text-xs mt-0.5">{item.desc}</p>

@@ -24,7 +24,7 @@ const ADMIN_PASSWORD = 'Admin@123';
 
 async function createAdmin() {
   try {
-    await mongoose.connect(process.env.MONGODB_URI);
+    await mongoose.connect(`${process.env.MONGODB_URI}/job-portal`);
     console.log('Connected to MongoDB');
 
     const existing = await Admin.findOne({ email: ADMIN_EMAIL });

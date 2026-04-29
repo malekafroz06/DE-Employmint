@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   TrendingUp,
   BarChart3,
+  BarChart2,
   PieChart,
   Wallet,
   Gem,
@@ -18,7 +19,8 @@ import {
   LineChart,
   Calculator,
   Bot,
-  Briefcase
+  Briefcase,
+  Activity
 } from 'lucide-react';
 import { AppContext } from '../context/AppContext';
 import Navbar from './Navbar';
@@ -52,7 +54,8 @@ const JobCategories = () => {
 
   const sections = [
     {
-      label: "📊 Capital Market",
+      label: "Capital Market",
+      sectionIcon: BarChart2,
       color: "#020330",
       categories: [
         {
@@ -82,7 +85,8 @@ const JobCategories = () => {
       ]
     },
     {
-      label: "🏦 NBFC Sector",
+      label: "NBFC Sector",
+      sectionIcon: Landmark,
       color: "#1a3a5c",
       categories: [
         {
@@ -112,7 +116,8 @@ const JobCategories = () => {
       ]
     },
     {
-      label: "🛡️ Insurance Sector",
+      label: "Insurance Sector",
+      sectionIcon: Shield,
       color: "#7f1d1d",
       categories: [
         {
@@ -126,7 +131,8 @@ const JobCategories = () => {
       ]
     },
     {
-      label: "📈 Prop Trading",
+      label: "Prop Trading",
+      sectionIcon: Activity,
       color: "#14532d",
       categories: [
         {
@@ -165,10 +171,10 @@ const JobCategories = () => {
   };
 
   const sectionAccents = {
-    "📊 Capital Market":        { bg: "bg-blue-50",   icon: "bg-[#020330]",  border: "border-blue-100" },
-    "🏦 NBFC Sector":           { bg: "bg-emerald-50", icon: "bg-[#1a3a5c]",  border: "border-emerald-100" },
-    "🛡️ Insurance Sector":      { bg: "bg-red-50",    icon: "bg-[#7f1d1d]",  border: "border-red-100" },
-    "📈 Prop Trading":          { bg: "bg-green-50",  icon: "bg-[#14532d]",  border: "border-green-100" },
+    "Capital Market":   { bg: "bg-blue-50",    icon: "bg-[#020330]", border: "border-blue-100" },
+    "NBFC Sector":      { bg: "bg-emerald-50", icon: "bg-[#1a3a5c]", border: "border-emerald-100" },
+    "Insurance Sector": { bg: "bg-red-50",     icon: "bg-[#7f1d1d]", border: "border-red-100" },
+    "Prop Trading":     { bg: "bg-green-50",   icon: "bg-[#14532d]", border: "border-green-100" },
   };
 
   return (
@@ -203,6 +209,12 @@ const JobCategories = () => {
               <div key={section.label}>
                 {/* Section Header */}
                 <div className="flex items-center gap-3 mb-6">
+                  <div
+                    className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                    style={{ backgroundColor: section.color }}
+                  >
+                    <section.sectionIcon className="w-4 h-4 text-white" />
+                  </div>
                   <h2 className="text-xl sm:text-2xl font-bold" style={{ color: section.color }}>
                     {section.label}
                   </h2>

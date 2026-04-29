@@ -1,8 +1,9 @@
 // import './config/instrument.js';
+import 'dotenv/config';
+dotenv.config(); 
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import 'dotenv/config';
 import connectDB from "./config/db.js";
 // import * as Sentry from "@sentry/node";
 import { clerkWebhooks } from './controller/webhooks.js';
@@ -20,6 +21,7 @@ import { fileURLToPath } from 'url';
 import employerProfileRoutes from './routes/employerProfileRoutes.js';
 import bulkUpload from './routes/bulkUpload.js';
 import adminRoutes from './routes/adminRoutes.js';
+import contactRoutes from './routes/contactRoutes.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 import { sendDailyDigestAt9AM } from './services/jobNotificationService.js'; 
@@ -47,8 +49,9 @@ startJobAlertSystem();
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-app.use(clerkMiddleware());
-
+app.use(clerkMiddleware({
+  authorizedParties: [],  // leave empty for development
+}));
 // Serve static files
 app.use('/uploads', express.static(uploadsDir, {
   setHeaders: (res, path) => {
@@ -85,6 +88,7 @@ app.use('/api/employer', employerProfileRoutes);
 app.use('/api/job-alerts', jobAlertRoutes);
 app.use('/api/candidates', candidateRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/contact', contactRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

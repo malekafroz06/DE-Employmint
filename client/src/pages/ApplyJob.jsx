@@ -13,7 +13,8 @@ import { toast } from "react-toastify";
 import { useAuth } from "@clerk/clerk-react";
 import Calltoaction from "../components/Calltoaction";
 import { motion } from "framer-motion";
-import { FiMapPin, FiBriefcase, FiDollarSign, FiClock, FiCheckCircle, FiExternalLink } from "react-icons/fi";
+import { FiMapPin, FiBriefcase, FiClock, FiCheckCircle, FiExternalLink } from "react-icons/fi";
+import { TbCurrencyRupee } from "react-icons/tb";
 
 // Company Logo Component with loading state and fallback
 const CompanyLogo = ({ companyData }) => {
@@ -460,7 +461,7 @@ const ApplyJob = () => {
                         {jobData?.jobchannel}
                       </div>
                       <div className="flex items-center text-red-100">
-                        <FiDollarSign className="mr-2" />
+                        <TbCurrencyRupee className="mr-2" />
                         {jobData?.salary ? kConvert.convertTo(jobData.salary) : "Competitive"}
                       </div>
                       <div className="flex items-center text-red-100">

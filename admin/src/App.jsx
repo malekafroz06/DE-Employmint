@@ -12,6 +12,7 @@ import Users from './pages/Users'
 import Companies from './pages/Companies'
 import Jobs from './pages/Jobs'
 import Applications from './pages/Applications'
+import Inquiries from './pages/Inquiries'
 
 export default function App() {
   return (
@@ -33,6 +34,7 @@ export default function App() {
             <Route path="companies" element={<Companies />} />
             <Route path="jobs" element={<Jobs />} />
             <Route path="applications" element={<Applications />} />
+            <Route path="inquiries" element={<Inquiries />} />
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
