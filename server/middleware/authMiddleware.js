@@ -6,12 +6,12 @@ const clerk = createClerkClient({
   secretKey: process.env.CLERK_SECRET_KEY
 });
 
-// JWKS client to fetch Clerk's public keys for JWT verification
+// JWKS client — works for both dev and production via env variable
 const jwks = jwksClient({
-  jwksUri: `https://still-beagle-75.clerk.accounts.dev/.well-known/jwks.json`,
+  jwksUri: `${process.env.CLERK_ISSUER_URL}/.well-known/jwks.json`,
   cache: true,
   cacheMaxEntries: 5,
-  cacheMaxAge: 600000 // 10 minutes
+  cacheMaxAge: 600000
 });
 
 const getSigningKey = (header, callback) => {
@@ -32,7 +32,7 @@ const verifyJWT = (token) => {
       getSigningKey,
       {
         algorithms: ['RS256'],
-        issuer: 'https://still-beagle-75.clerk.accounts.dev',
+        issuer: process.env.CLERK_ISSUER_URL,
       },
       (err, decoded) => {
         if (err) reject(err);
@@ -55,7 +55,6 @@ export const authMiddleware = async (req, res, next) => {
 
     const token = authHeader.split(' ')[1];
 
-    // Verify JWT using Clerk's public keys
     let payload;
     try {
       payload = await verifyJWT(token);
@@ -75,7 +74,6 @@ export const authMiddleware = async (req, res, next) => {
       });
     }
 
-    // Fetch full user data from Clerk
     try {
       const user = await clerk.users.getUser(payload.sub);
 
