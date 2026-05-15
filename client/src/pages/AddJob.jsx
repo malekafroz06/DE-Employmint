@@ -10,37 +10,114 @@ const JobChannels = [
   "Agency Channel", "Bancassurance", "Direct Sales", "Digital/Online Sales",
   "Broker Channel", "Corporate / Group Channel", "POSP (Point of Sales Person)",
   "Worksite Marketing", "Alternate Channels", "Franchisee/Entrepreneurial",
-  "Sub Borker", "IAF", "DSA", "Other"
+  "Sub Broker", "IAF", "DSA", "Other"
 ];
 
 // Job Category Options
 const JobCategories = [
-  "Equity Broking", "Commodity Broking", "Currency Broking", "Fundamental Research",
-  "Technical Research", "Data Analysis", "Quant Analysis", "Life Insurance",
-  "General Insurance", "Asset Finance", "Loan Companies", "Microfiance", "MFI",
-  "Housing Finance Co. (HFC)", "Discretionary Portfolio Management",
-  "Non-Discretionary Advisory", "Other"
+  // Capital Market
+  "Stock Market",
+  "Asset Management",
+  "Portfolio Management",
+  "Wealth Management",
+  "Alternative Investment Fund",
+  "Investment Banking",
+
+  // NBFC Sector
+  "Asset Finance Company (AFC)",
+  "Loan Company (LC)",
+  "Microfinance Institution (MFI)",
+  "Housing Finance Company (HFC)",
+  "Gold Loan NBFC",
+  "Retail NBFC (Consumer Finance)",
+
+  // Insurance Sector
+  "Life Insurance",
+  "General Insurance",
+
+  // Prop Trading
+  "Fundamental Analysis",
+  "Technical Analysis",
+  "Quant Analysis",
+  "Algo Trading",
+
+  "Other"
 ];
 
 // Products per Category
 const CategoryProducts = {
-  "Equity Broking":                     ["Equity", "Commodity", "Currency", "Mutual Funds", "Insurance"],
-  "Commodity Broking":                  ["Equity", "Commodity", "Currency", "Mutual Funds", "Insurance"],
-  "Currency Broking":                   ["Equity", "Commodity", "Currency", "Mutual Funds", "Insurance"],
-  "Fundamental Research":               ["Buy Side", "Sell Side"],
-  "Technical Research":                 ["Derivative", "Non Derivative"],
-  "Data Analysis":                      ["Quant Modeling", "Algorithmic Trading Strategies"],
-  "Quant Analysis":                     ["Quant Modeling"],
-  "Life Insurance":                     ["Term Plans", "Endowment Plan", "ULIPs"],
-  "General Insurance":                  ["Motor Insurance", "Health Insurance", "Travel Insurance", "Property Insurance", "Fire Insurance", "Marine Insurance", "Burglory Insurance"],
-  "Asset Finance":                      ["Commercial Vehicle Loans", "Construction Equipment Loans", "Tractor Loan"],
-  "Loan Companies":                     ["Personal Loans", "Business Loans", "MSME Loans"],
-  "Microfiance":                        ["Group Loans", "Small Ticket Loans", "Micro Loans", "Women Group Lending", "Rural Credit"],
-  "MFI":                                ["Group Loans", "Small Ticket Loans", "Micro Loans", "Women Group Lending", "Rural Credit"],
-  "Housing Finance Co. (HFC)":          ["Home Loans", "Loan Against Property (LAP)", "Affordable Housing Loans"],
-  "Discretionary Portfolio Management": ["Buy Side", "Sell Side", "Quant Modeling"],
-  "Non-Discretionary Advisory":         ["Algorithmic Trading Strategies"],
-  "Other":                              []
+  // ── Capital Market ──────────────────────────────────────────────
+  "Stock Market": [
+    "Equity", "Commodity", "Currency"
+  ],
+  "Asset Management": [
+    "Mutual Fund", "SIP", "ETF"
+  ],
+  "Portfolio Management": [
+    "Discretionary Portfolio Management",
+    "Non-Discretionary Portfolio Management"
+  ],
+  "Wealth Management": [
+    "Wealth Planning", "Investment Advisory"
+  ],
+  "Alternative Investment Fund": [
+    "Private Equity", "Venture Capital", "Hedge Funds"
+  ],
+  "Investment Banking": [
+    "IPO Advisory", "M&A", "Capital Raising", "Debt Syndication"
+  ],
+
+  // ── NBFC Sector ─────────────────────────────────────────────────
+  "Asset Finance Company (AFC)": [
+    "Commercial Vehicle Loans",
+    "Construction Equipment Loans",
+    "Tractor Loan"
+  ],
+  "Loan Company (LC)": [
+    "Personal Loans", "Business Loans", "MSME Loans"
+  ],
+  "Microfinance Institution (MFI)": [
+    "Group Loans", "Small Ticket Loans", "Micro Loans",
+    "Women Group Lending", "Rural Credit"
+  ],
+  "Housing Finance Company (HFC)": [
+    "Home Loans",
+    "Loan Against Property (LAP)",
+    "Affordable Housing Loans"
+  ],
+  "Gold Loan NBFC": [
+    "Gold Loans (Secured Loans)"
+  ],
+  "Retail NBFC (Consumer Finance)": [
+    "Consumer Durable Loans"
+  ],
+
+  // ── Insurance Sector ─────────────────────────────────────────────
+  "Life Insurance": [
+    "Term Plans", "Endowment Plan", "ULIPs"
+  ],
+  "General Insurance": [
+    "Motor Insurance", "Health Insurance", "Travel Insurance",
+    "Property Insurance", "Fire Insurance", "Marine Insurance",
+    "Burglary Insurance"
+  ],
+
+  // ── Prop Trading ─────────────────────────────────────────────────
+  "Fundamental Analysis": [
+    "Buy Side", "Sell Side"
+  ],
+  "Technical Analysis": [
+    "Derivative", "Non Derivative"
+  ],
+  "Quant Analysis": [
+    "Quant Modeling"
+  ],
+  "Algo Trading": [
+    "Algorithmic Trading Strategies"
+  ],
+
+  // ── Fallback ──────────────────────────────────────────────────────
+  "Other": []
 };
 
 const AddJob = () => {

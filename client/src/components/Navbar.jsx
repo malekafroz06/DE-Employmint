@@ -516,7 +516,7 @@ const Navbar = () => {
         )}
       </div>
 
-      <style jsx>{`
+      <style>{`
         @keyframes slideDown {
           from {
             transform: translateY(-100%);

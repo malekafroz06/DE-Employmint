@@ -132,33 +132,54 @@ export default function AssessmentPage() {
     }
   };
 
-  const handleFinalSubmit = async () => {
-    const stepKey = "management";
-    const text    = remarks[stepKey]?.trim();
-    if (text) await handleStepSubmit(stepKey);
+const handleFinalSubmit = async () => {
+  const stepKey = "management";
+  const text    = remarks[stepKey]?.trim();
+  if (text) await handleStepSubmit(stepKey);
 
-    // Accept the application
-    if (applicationId && companyToken) {
-      try {
-        await axios.post(
-          `${BACKEND_URL}/api/company/change-status`,
-          { id: applicationId, status: "Accepted" },
-          { headers: { token: companyToken } }
-        );
-      } catch (err) {
-        console.error("Error accepting application:", err);
-      }
-    }
-
-    // Broadcast to parent tab so it removes the applicant from the list
+  // Mark as accepted in bulk-upload Resume model (persists eye icon in SearchResume)
+  if (applicationId && companyToken) {
     try {
-      const bc = new BroadcastChannel("application_updates");
-      bc.postMessage({ type: "APPLICATION_ACCEPTED", applicationId });
-      bc.close();
-    } catch { /* BroadcastChannel not supported */ }
+      await axios.post(
+        `${BACKEND_URL}/api/bulk-upload/accept/${applicationId}`,
+        {
+          assessmentData: {
+            candidateName,
+            candidateEmail,
+            candidatePhone,
+            remarks: savedRemarks,
+            submittedAt: new Date().toISOString(),
+          }
+        },
+        { headers: { token: companyToken } }
+      );
+    } catch (err) {
+      console.error("Error marking as accepted in bulk-upload:", err);
+    }
+  }
 
-    setSubmitted(true);
-  };
+  // Original status change
+  if (applicationId && companyToken) {
+    try {
+      await axios.post(
+        `${BACKEND_URL}/api/company/change-status`,
+        { id: applicationId, status: "Accepted" },
+        { headers: { token: companyToken } }
+      );
+    } catch (err) {
+      console.error("Error accepting application:", err);
+    }
+  }
+
+  // Broadcast to parent tab
+  try {
+    const bc = new BroadcastChannel("application_updates");
+    bc.postMessage({ type: "APPLICATION_ACCEPTED", applicationId });
+    bc.close();
+  } catch { /* BroadcastChannel not supported */ }
+
+  setSubmitted(true);
+};
 
   const stepObj     = STEPS[currentStep - 1];
   const isLastStep  = currentStep === STEPS.length;

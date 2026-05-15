@@ -14,6 +14,8 @@ const Footer = () => {
     }
   };
 
+  const scrollToTop = () => window.scrollTo(0, 0);
+
   return (
     <footer className="relative overflow-hidden pt-12 sm:pt-16 lg:pt-20 bg-white">
       {/* Decorative blobs */}
@@ -135,13 +137,21 @@ const Footer = () => {
               </h3>
               <ul className="space-y-2 sm:space-y-3">
                 <li>
-                  <Link to="/about" className="text-gray-600 hover:text-red-500 transition-colors duration-300 flex items-center text-sm sm:text-base">
+                  <Link
+                    to="/about"
+                    onClick={scrollToTop}
+                    className="text-gray-600 hover:text-red-500 transition-colors duration-300 flex items-center text-sm sm:text-base"
+                  >
                     <span className="text-red-500 mr-2 flex-shrink-0">→</span>
                     About DE employmint
                   </Link>
                 </li>
                 <li>
-                  <Link to="/vision-mission" className="text-gray-600 hover:text-red-500 transition-colors duration-300 flex items-center text-sm sm:text-base">
+                  <Link
+                    to="/vision-mission"
+                    onClick={scrollToTop}
+                    className="text-gray-600 hover:text-red-500 transition-colors duration-300 flex items-center text-sm sm:text-base"
+                  >
                     <span className="text-red-500 mr-2 flex-shrink-0">→</span>
                     Our Vision & Mission
                   </Link>
@@ -159,7 +169,11 @@ const Footer = () => {
                   </a>
                 </li>
                 <li>
-                  <Link to="/contact" className="text-gray-600 hover:text-red-500 transition-colors duration-300 flex items-center text-sm sm:text-base">
+                  <Link
+                    to="/contact"
+                    onClick={scrollToTop}
+                    className="text-gray-600 hover:text-red-500 transition-colors duration-300 flex items-center text-sm sm:text-base"
+                  >
                     <span className="text-red-500 mr-2 flex-shrink-0">→</span>
                     Contact Us
                   </Link>
@@ -182,7 +196,7 @@ const Footer = () => {
             </a>
 
             {/* LinkedIn */}
-            <a href="https://www.linkedin.com/company/101968826/admin/dashboard/" target="_blank" rel="noopener noreferrer"
+            <a href="https://www.linkedin.com/company/de-employmint/posts/?feedView=all&viewAsMember=true" target="_blank" rel="noopener noreferrer"
               className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gray-100 flex items-center justify-center group hover:bg-red-600 transition-all duration-300">
               <svg className="w-4 h-4 sm:w-5 sm:h-5 text-red-500 group-hover:text-white" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />

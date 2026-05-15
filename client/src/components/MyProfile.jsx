@@ -6,44 +6,110 @@ import { FileText, File, Edit, Download, User, Briefcase, Upload, Save, RefreshC
 import { AppContext } from "../context/AppContext";
 import { useNavigate, useLocation } from "react-router-dom";
 
+// ── Job Channel Options (from AddJob) ────────────────────────────────────────
+const JobChannels = [
+  "Agency Channel", "Bancassurance", "Direct Sales", "Digital/Online Sales",
+  "Broker Channel", "Corporate / Group Channel", "POSP (Point of Sales Person)",
+  "Worksite Marketing", "Alternate Channels", "Franchisee/Entrepreneurial",
+  "Sub Broker", "IAF", "DSA", "Other"
+];
+
+// ── Job Category Options (from AddJob) ───────────────────────────────────────
+const JobCategories = [
+  // Capital Market
+  "Stock Market",
+  "Asset Management",
+  "Portfolio Management",
+  "Wealth Management",
+  "Alternative Investment Fund",
+  "Investment Banking",
+  // NBFC Sector
+  "Asset Finance Company (AFC)",
+  "Loan Company (LC)",
+  "Microfinance Institution (MFI)",
+  "Housing Finance Company (HFC)",
+  "Gold Loan NBFC",
+  "Retail NBFC (Consumer Finance)",
+  // Insurance Sector
+  "Life Insurance",
+  "General Insurance",
+  // Prop Trading
+  "Fundamental Analysis",
+  "Technical Analysis",
+  "Quant Analysis",
+  "Algo Trading",
+  "Other"
+];
+
+// ── Products per Category (from AddJob) ──────────────────────────────────────
+const CategoryProducts = {
+  "Stock Market": ["Equity", "Commodity", "Currency"],
+  "Asset Management": ["Mutual Fund", "SIP", "ETF"],
+  "Portfolio Management": [
+    "Discretionary Portfolio Management",
+    "Non-Discretionary Portfolio Management"
+  ],
+  "Wealth Management": ["Wealth Planning", "Investment Advisory"],
+  "Alternative Investment Fund": ["Private Equity", "Venture Capital", "Hedge Funds"],
+  "Investment Banking": ["IPO Advisory", "M&A", "Capital Raising", "Debt Syndication"],
+  "Asset Finance Company (AFC)": [
+    "Commercial Vehicle Loans", "Construction Equipment Loans", "Tractor Loan"
+  ],
+  "Loan Company (LC)": ["Personal Loans", "Business Loans", "MSME Loans"],
+  "Microfinance Institution (MFI)": [
+    "Group Loans", "Small Ticket Loans", "Micro Loans", "Women Group Lending", "Rural Credit"
+  ],
+  "Housing Finance Company (HFC)": [
+    "Home Loans", "Loan Against Property (LAP)", "Affordable Housing Loans"
+  ],
+  "Gold Loan NBFC": ["Gold Loans (Secured Loans)"],
+  "Retail NBFC (Consumer Finance)": ["Consumer Durable Loans"],
+  "Life Insurance": ["Term Plans", "Endowment Plan", "ULIPs"],
+  "General Insurance": [
+    "Motor Insurance", "Health Insurance", "Travel Insurance",
+    "Property Insurance", "Fire Insurance", "Marine Insurance", "Burglary Insurance"
+  ],
+  "Fundamental Analysis": ["Buy Side", "Sell Side"],
+  "Technical Analysis": ["Derivative", "Non Derivative"],
+  "Quant Analysis": ["Quant Modeling"],
+  "Algo Trading": ["Algorithmic Trading Strategies"],
+  "Other": []
+};
+
 const MyProfile = () => {
   const { user } = useUser();
   const { getToken } = useAuth();
   const { backendUrl, userData, fetchUserData } = useContext(AppContext);
   const navigate = useNavigate();
   const location = useLocation();
-  
+
   // Resume states
   const [isEditResume, setIsEditResume] = useState(false);
   const [resume, setResume] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  
+
   // Section editing states
   const [isEditingPersonal, setIsEditingPersonal] = useState(false);
   const [isEditingProfessional, setIsEditingProfessional] = useState(false);
-  
+
   // Profile form states
   const [isLoading, setIsLoading] = useState(false);
   const [profileData, setProfileData] = useState({
-    // Personal Details - UPDATED FIELDS
+    // Personal Details
     fullName: '',
     gender: '',
     dob: '',
     mobileNo: '',
     emailId: '',
-    linkedinId: '',
     city: '',
     state: '',
     languages: '',
     maritalStatus: '',
-    instagramId: '',
-    facebookId: '',
-    
+
     // Professional Details
     currentDesignation: '',
     currentDepartment: '',
     currentCTC: '',
-    expectedCTC: '',
     noticePeriod: '',
     totalExperience: '',
     roleType: 'Full Time',
@@ -51,7 +117,13 @@ const MyProfile = () => {
     sector: '',
     category: '',
     otherSector: '',
-    otherCategory: ''
+    otherCategory: '',
+    // NEW: Product & Channel
+    jobCategory: '',
+    otherJobCategory: '',
+    selectedProducts: [],
+    jobChannel: '',
+    otherJobChannel: '',
   });
 
   // Circular Progress Component
@@ -65,7 +137,6 @@ const MyProfile = () => {
       <div className="flex flex-col items-center">
         <div className="relative" style={{ width: size, height: size }}>
           <svg width={size} height={size} className="transform -rotate-90">
-            {/* Background circle */}
             <circle
               cx={size / 2}
               cy={size / 2}
@@ -74,7 +145,6 @@ const MyProfile = () => {
               strokeWidth="8"
               fill="none"
             />
-            {/* Progress circle */}
             <motion.circle
               cx={size / 2}
               cy={size / 2}
@@ -102,7 +172,7 @@ const MyProfile = () => {
     );
   };
 
-  // Calculate completion percentages - UPDATED
+  // Calculate completion percentages
   const calculatePersonalCompletion = () => {
     const personalFields = [
       profileData.fullName,
@@ -114,8 +184,6 @@ const MyProfile = () => {
       profileData.state,
       profileData.languages,
       profileData.maritalStatus,
-      profileData.instagramId,
-      profileData.facebookId
     ];
     const filledFields = personalFields.filter(field => field && field.trim() !== '').length;
     return Math.round((filledFields / personalFields.length) * 100);
@@ -126,12 +194,14 @@ const MyProfile = () => {
       profileData.currentDesignation,
       profileData.currentDepartment,
       profileData.currentCTC,
-      profileData.expectedCTC,
       profileData.noticePeriod,
       profileData.totalExperience,
       profileData.jobChangeStatus,
       profileData.sector === 'Other' ? profileData.otherSector : profileData.sector,
-      profileData.category === 'Other' ? profileData.otherCategory : profileData.category
+      profileData.category === 'Other' ? profileData.otherCategory : profileData.category,
+      profileData.jobCategory === 'Other' ? profileData.otherJobCategory : profileData.jobCategory,
+      profileData.selectedProducts && profileData.selectedProducts.length > 0 ? 'filled' : '',
+      profileData.jobChannel === 'Other' ? profileData.otherJobChannel : profileData.jobChannel,
     ];
     const filledFields = professionalFields.filter(field => field && field.toString().trim() !== '').length;
     return Math.round((filledFields / professionalFields.length) * 100);
@@ -139,17 +209,16 @@ const MyProfile = () => {
 
   const personalCompletion = calculatePersonalCompletion();
   const professionalCompletion = calculateProfessionalCompletion();
-  
-  // More strict resume check
-  const hasResume = userData && userData.resume && 
-                   typeof userData.resume === 'string' && 
-                   userData.resume.trim() !== '' && 
-                   userData.resume !== 'undefined' &&
-                   userData.resume !== 'null';
-  
+
+  const hasResume = userData && userData.resume &&
+    typeof userData.resume === 'string' &&
+    userData.resume.trim() !== '' &&
+    userData.resume !== 'undefined' &&
+    userData.resume !== 'null';
+
   const resumeCompletion = hasResume ? 100 : 0;
   const isProfileIncomplete = personalCompletion < 100 || professionalCompletion < 100 || !hasResume;
-  
+
   console.log('=== Completion Debug ===');
   console.log('hasResume:', hasResume);
   console.log('resumeCompletion:', resumeCompletion);
@@ -157,19 +226,13 @@ const MyProfile = () => {
 
   // Resume utility functions
   const viewResumeFixed = async (resumePath) => {
-    if (!resumePath) {
-      toast.error('No resume URL provided');
-      return;
-    }
+    if (!resumePath) { toast.error('No resume URL provided'); return; }
     const fullUrl = `${backendUrl}${resumePath}`;
     window.open(fullUrl, '_blank');
   };
 
   const downloadResume = (resumePath, fileName = 'resume.pdf') => {
-    if (!resumePath) {
-      toast.error('No resume URL provided');
-      return;
-    }
+    if (!resumePath) { toast.error('No resume URL provided'); return; }
     const link = document.createElement('a');
     link.href = `${backendUrl}${resumePath}`;
     link.download = fileName;
@@ -179,65 +242,84 @@ const MyProfile = () => {
     document.body.removeChild(link);
   };
 
-  // Updated Sector options with Other
+  // Sector / Category options (legacy fields kept for backward compat)
   const sectorOptions = [
-    'Life Insurance',
-    'General Insurance',
-    'Equity Broking',
-    'Equity Research',
-    'Wealth Management',
-    'Other'
+    'Life Insurance', 'General Insurance', 'Equity Broking',
+    'Equity Research', 'Wealth Management', 'Other'
   ];
-
-  // Updated Category options with Other
   const categoryOptions = [
-    'Equity Broking',
-    'Commodity Broking',
-    'Currency Broking',
-    'Fundamental Research',
-    'Technical Research',
-    'Data Analysis',
-    'Quant Analysis',
-    'Life Insurance',
-    'General Insurance',
-    'Asset Finance',
-    'Loan Companies',
-    'Microfinance MFI',
-    'Housing Finance Co. (HFC)',
-    'Discretionary Portfolio Management',
-    'Non-Discretionary Advisory',
-    'Other'
+    'Equity Broking', 'Commodity Broking', 'Currency Broking',
+    'Fundamental Research', 'Technical Research', 'Data Analysis',
+    'Quant Analysis', 'Life Insurance', 'General Insurance',
+    'Asset Finance', 'Loan Companies', 'Microfinance MFI',
+    'Housing Finance Co. (HFC)', 'Discretionary Portfolio Management',
+    'Non-Discretionary Advisory', 'Other'
   ];
-
   const maritalStatusOptions = ['Single', 'Married'];
-  const genderOptions = ['Male', 'Female', 'Other']; // NEW
+  const genderOptions = ['Male', 'Female', 'Other'];
   const jobChangeStatusOptions = ['Actively Looking', 'Open to Offers', 'Not Looking'];
+
+  // ── Product helpers ───────────────────────────────────────────────────────
+  const handleProductToggle = (p) => {
+    setProfileData(prev => {
+      const current = prev.selectedProducts || [];
+      return {
+        ...prev,
+        selectedProducts: current.includes(p)
+          ? current.filter(x => x !== p)
+          : [...current, p]
+      };
+    });
+  };
+
+  const handleJobCategoryChange = (e) => {
+    const value = e.target.value;
+    const products = CategoryProducts[value] || [];
+    setProfileData(prev => ({
+      ...prev,
+      jobCategory: value,
+      otherJobCategory: '',
+      selectedProducts: products.length > 0 ? [products[0]] : [],
+    }));
+  };
+
+  const handleJobChannelChange = (e) => {
+    const value = e.target.value;
+    setProfileData(prev => ({
+      ...prev,
+      jobChannel: value,
+      otherJobChannel: '',
+    }));
+  };
 
   useEffect(() => {
     if (userData) {
       console.log('=== Resume Debug ===');
       console.log('userData.resume:', userData.resume);
-      console.log('resume type:', typeof userData.resume);
-      console.log('resume length:', userData.resume?.length);
-      console.log('is truthy:', !!userData.resume);
-      
+
+      // Parse stored selectedProducts (may be a comma-separated string or array)
+      let parsedProducts = [];
+      if (userData.selectedProducts) {
+        if (Array.isArray(userData.selectedProducts)) {
+          parsedProducts = userData.selectedProducts;
+        } else if (typeof userData.selectedProducts === 'string') {
+          parsedProducts = userData.selectedProducts.split(',').map(s => s.trim()).filter(Boolean);
+        }
+      }
+
       setProfileData({
         fullName: userData.fullName || '',
         gender: userData.gender || '',
-        dob: formatDateForInput(userData.dob), // Now formats: "2003-04-24"
+        dob: formatDateForInput(userData.dob),
         mobileNo: userData.mobileNo || '',
         emailId: userData.emailId || user?.primaryEmailAddress?.emailAddress || '',
-        linkedinId: userData.linkedinId || '',
         city: userData.city || '',
         state: userData.state || '',
         languages: userData.languages || '',
         maritalStatus: userData.maritalStatus || '',
-        instagramId: userData.instagramId || '',
-        facebookId: userData.facebookId || '',
         currentDesignation: userData.currentDesignation || '',
         currentDepartment: userData.currentDepartment || '',
         currentCTC: userData.currentCTC || '',
-        expectedCTC: userData.expectedCTC || '',
         noticePeriod: userData.noticePeriod || '',
         totalExperience: userData.totalExperience || '',
         roleType: userData.roleType || 'Full Time',
@@ -245,81 +327,65 @@ const MyProfile = () => {
         sector: userData.sector || '',
         category: userData.category || '',
         otherSector: userData.otherSector || '',
-        otherCategory: userData.otherCategory || ''
+        otherCategory: userData.otherCategory || '',
+        jobCategory: userData.jobCategory || '',
+        otherJobCategory: userData.otherJobCategory || '',
+        selectedProducts: parsedProducts,
+        jobChannel: userData.jobChannel || '',
+        otherJobChannel: userData.otherJobChannel || '',
       });
     }
   }, [userData, user]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setProfileData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setProfileData(prev => ({ ...prev, [name]: value }));
   };
 
   const formatDateForInput = (dateString) => {
-  if (!dateString) return '';
-  try {
-    const date = new Date(dateString);
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  } catch (error) {
-    console.error('Error formatting date:', error);
-    return '';
-  }
-};
+    if (!dateString) return '';
+    try {
+      const date = new Date(dateString);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return '';
+    }
+  };
 
   const handleResumeSelect = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    
     if (file.type !== 'application/pdf') {
       toast.error('Only PDF files are allowed for resume');
       e.target.value = '';
       return;
     }
-    
     if (file.size > 512000) {
       toast.error('Resume size must be less than 500KB');
       e.target.value = '';
       return;
     }
-    
     setResume(file);
   };
 
   const updateResume = async () => {
     try {
-      if (!user) {
-        toast.error("Please login to upload resume.");
-        return;
-      }
-
-      if (!resume) {
-        toast.error("Please select a resume file.");
-        return;
-      }
-
+      if (!user) { toast.error("Please login to upload resume."); return; }
+      if (!resume) { toast.error("Please select a resume file."); return; }
       const formData = new FormData();
       formData.append("resume", resume);
-
       const token = await getToken();
-      
-      if (!token) {
-        toast.error("Authentication failed. Please login again.");
-        return;
-      }
-
+      if (!token) { toast.error("Authentication failed. Please login again."); return; }
       const response = await fetch(`${backendUrl}/api/users/update-resume`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: formData
       });
       const data = await response.json();
-
       if (data.success) {
         toast.success(data.message);
         await fetchUserData();
@@ -329,31 +395,20 @@ const MyProfile = () => {
     } catch (error) {
       toast.error("Failed to update resume. Please try again.");
     }
-
     setIsEditResume(false);
     setResume(null);
   };
 
-  // Delete resume function
   const deleteResume = async () => {
-    if (!window.confirm("Are you sure you want to delete your resume? This action cannot be undone.")) {
-      return;
-    }
-    
+    if (!window.confirm("Are you sure you want to delete your resume? This action cannot be undone.")) return;
     setIsDeleting(true);
     try {
       const token = await getToken();
-
       const response = await fetch(`${backendUrl}/api/users/delete-resume`, {
         method: 'DELETE',
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
       });
-      
       const data = await response.json();
-
       if (data.success) {
         toast.success(data.message || "Resume deleted successfully!");
         await fetchUserData();
@@ -365,39 +420,27 @@ const MyProfile = () => {
       console.error("Delete resume error:", error);
       toast.error("Failed to delete resume. Please try again.");
     }
-    
     setIsDeleting(false);
   };
 
-  // Autofill from resume function - UPDATED
   const autofillFromResume = async () => {
     if (!userData?.resume) {
       toast.error("Please upload a resume first to autofill details.");
       return;
     }
-
     setIsLoading(true);
     try {
       const token = await getToken();
       const response = await fetch(`${backendUrl}/api/users/extract-resume-data`, {
         method: 'POST',
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ resumeUrl: userData.resume })
       });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
+      if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       const data = await response.json();
-      
       if (data.success && data.extractedData) {
         setProfileData(prev => ({
           ...prev,
-          // UPDATED - Use fullName instead of firstName/middleName/surname
           ...(data.extractedData.fullName && { fullName: data.extractedData.fullName }),
           ...(data.extractedData.gender && { gender: data.extractedData.gender }),
           ...(data.extractedData.dob && { dob: data.extractedData.dob }),
@@ -406,12 +449,10 @@ const MyProfile = () => {
           ...(data.extractedData.currentDesignation && { currentDesignation: data.extractedData.currentDesignation }),
           ...(data.extractedData.totalExperience && { totalExperience: data.extractedData.totalExperience }),
           ...(data.extractedData.currentDepartment && { currentDepartment: data.extractedData.currentDepartment }),
-          ...(data.extractedData.linkedinId && { linkedinId: data.extractedData.linkedinId }),
           ...(data.extractedData.city && { city: data.extractedData.city }),
           ...(data.extractedData.state && { state: data.extractedData.state }),
           ...(data.extractedData.languages && { languages: data.extractedData.languages })
         }));
-        
         setIsEditingPersonal(true);
         setIsEditingProfessional(true);
         toast.success(data.message || "Details autofilled from resume! Please review and save.");
@@ -422,36 +463,28 @@ const MyProfile = () => {
       console.error("Autofill error:", error);
       toast.error("Failed to extract data from resume.");
     }
-    
     setIsLoading(false);
   };
 
-  const savePersonalDetails = async () => {
-    if (!user) {
-      toast.error("Please login to save profile details.");
-      return;
-    }
+  // ── Save helpers ──────────────────────────────────────────────────────────
+  const buildSavePayload = () => ({
+    ...profileData,
+    // Serialize selectedProducts array as comma-separated string for backend
+    selectedProducts: (profileData.selectedProducts || []).join(', '),
+  });
 
+  const savePersonalDetails = async () => {
+    if (!user) { toast.error("Please login to save profile details."); return; }
     setIsLoading(true);
     try {
       const token = await getToken();
-      
-      if (!token) {
-        toast.error("Authentication failed. Please login again.");
-        return;
-      }
-
+      if (!token) { toast.error("Authentication failed. Please login again."); return; }
       const response = await fetch(`${backendUrl}/api/users/update-profile`, {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(profileData)
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(buildSavePayload())
       });
-      
       const data = await response.json();
-      
       if (data.success) {
         toast.success("Personal details updated successfully!");
         await fetchUserData();
@@ -466,31 +499,17 @@ const MyProfile = () => {
   };
 
   const saveProfessionalDetails = async () => {
-    if (!user) {
-      toast.error("Please login to save profile details.");
-      return;
-    }
-
+    if (!user) { toast.error("Please login to save profile details."); return; }
     setIsLoading(true);
     try {
       const token = await getToken();
-      
-      if (!token) {
-        toast.error("Authentication failed. Please login again.");
-        return;
-      }
-
+      if (!token) { toast.error("Authentication failed. Please login again."); return; }
       const response = await fetch(`${backendUrl}/api/users/update-profile`, {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(profileData)
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(buildSavePayload())
       });
-      
       const data = await response.json();
-      
       if (data.success) {
         toast.success("Professional details updated successfully!");
         await fetchUserData();
@@ -509,19 +528,15 @@ const MyProfile = () => {
     if (userData) {
       setProfileData(prev => ({
         ...prev,
-        // UPDATED - Reset fullName/gender/dob instead of firstName/middleName/surname
         fullName: userData.fullName || '',
         gender: userData.gender || '',
-       dob: formatDateForInput(userData.dob), // Now formats: "2003-04-24"
+        dob: formatDateForInput(userData.dob),
         mobileNo: userData.mobileNo || '',
         emailId: userData.emailId || user?.primaryEmailAddress?.emailAddress || '',
-        linkedinId: userData.linkedinId || '',
         city: userData.city || '',
         state: userData.state || '',
         languages: userData.languages || '',
         maritalStatus: userData.maritalStatus || '',
-        instagramId: userData.instagramId || '',
-        facebookId: userData.facebookId || ''
       }));
     }
   };
@@ -529,12 +544,19 @@ const MyProfile = () => {
   const cancelProfessionalEdit = () => {
     setIsEditingProfessional(false);
     if (userData) {
+      let parsedProducts = [];
+      if (userData.selectedProducts) {
+        if (Array.isArray(userData.selectedProducts)) {
+          parsedProducts = userData.selectedProducts;
+        } else if (typeof userData.selectedProducts === 'string') {
+          parsedProducts = userData.selectedProducts.split(',').map(s => s.trim()).filter(Boolean);
+        }
+      }
       setProfileData(prev => ({
         ...prev,
         currentDesignation: userData.currentDesignation || '',
         currentDepartment: userData.currentDepartment || '',
         currentCTC: userData.currentCTC || '',
-        expectedCTC: userData.expectedCTC || '',
         noticePeriod: userData.noticePeriod || '',
         totalExperience: userData.totalExperience || '',
         roleType: userData.roleType || 'Full Time',
@@ -542,22 +564,30 @@ const MyProfile = () => {
         sector: userData.sector || '',
         category: userData.category || '',
         otherSector: userData.otherSector || '',
-        otherCategory: userData.otherCategory || ''
+        otherCategory: userData.otherCategory || '',
+        jobCategory: userData.jobCategory || '',
+        otherJobCategory: userData.otherJobCategory || '',
+        selectedProducts: parsedProducts,
+        jobChannel: userData.jobChannel || '',
+        otherJobChannel: userData.otherJobChannel || '',
       }));
     }
   };
+
+  // Available products for current job category
+  const availableProducts = CategoryProducts[profileData.jobCategory] || [];
 
   return (
     <div className="min-h-screen bg-white relative overflow-hidden">
       {/* Animated background grid */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#f1f5f9_1px,transparent_1px),linear-gradient(to_bottom,#f1f5f9_1px,transparent_1px)] bg-[size:4rem_4rem] opacity-20"></div>
-      
+
       {/* Floating orbs */}
       <div className="absolute top-0 left-1/4 w-72 h-72 rounded-full blur-3xl animate-pulse" style={{ backgroundColor: 'rgba(255, 0, 0, 0.1)' }}></div>
       <div className="absolute bottom-0 right-1/4 w-72 h-72 rounded-full blur-3xl animate-pulse delay-1000" style={{ backgroundColor: 'rgba(2, 3, 48, 0.1)' }}></div>
-      
+
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
-        {/* Incomplete Profile Message - Simple one line */}
+        {/* Incomplete Profile Message */}
         {isProfileIncomplete && (
           <motion.div
             initial={{ opacity: 0, y: -20 }}
@@ -585,24 +615,18 @@ const MyProfile = () => {
             <h2 className="text-3xl font-bold mb-2" style={{ color: '#020330' }}>Profile Completion</h2>
             <p className="text-gray-600">Complete your profile to increase visibility to recruiters</p>
           </div>
-          
-          {/* Three Progress Circles in a Row */}
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* Personal Details Progress */}
             <div className="flex flex-col items-center">
               <CircularProgress percentage={personalCompletion} label="" size={140} />
               <h3 className="mt-4 text-lg font-semibold" style={{ color: '#020330' }}>Personal Details</h3>
               <p className="text-sm text-gray-500 text-center mt-1">Basic information</p>
             </div>
-            
-            {/* Professional Details Progress */}
             <div className="flex flex-col items-center">
               <CircularProgress percentage={professionalCompletion} label="" size={140} />
               <h3 className="mt-4 text-lg font-semibold" style={{ color: '#020330' }}>Professional Details</h3>
               <p className="text-sm text-gray-500 text-center mt-1">Work experience & preferences</p>
             </div>
-            
-            {/* Resume Progress */}
             <div className="flex flex-col items-center">
               <CircularProgress percentage={resumeCompletion} label="" size={140} />
               <h3 className="mt-4 text-lg font-semibold" style={{ color: '#020330' }}>Resume</h3>
@@ -619,14 +643,14 @@ const MyProfile = () => {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8 group relative"
         >
-          <div 
+          <div
             className="absolute inset-0 rounded-xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"
             style={{ background: 'linear-gradient(to right, rgba(255, 0, 0, 0.1), rgba(2, 3, 48, 0.1))' }}
           ></div>
           <div className="relative bg-white/80 backdrop-blur-sm border border-gray-200 rounded-xl p-6 shadow-lg">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
-                <div 
+                <div
                   className="w-10 h-10 rounded-lg flex items-center justify-center mr-4 shadow-lg"
                   style={{ background: "#FF0000" }}
                 >
@@ -643,11 +667,11 @@ const MyProfile = () => {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 className={`flex items-center px-6 py-3 font-medium rounded-lg transition-all duration-200 shadow-lg ${
-                  isLoading || !userData?.resume 
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                  isLoading || !userData?.resume
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     : 'text-white'
                 }`}
-                style={!isLoading && userData?.resume ? { 
+                style={!isLoading && userData?.resume ? {
                   background: "#FF0000",
                   boxShadow: '0 0 20px rgba(255, 0, 0, 0.25)'
                 } : {}}
@@ -669,13 +693,13 @@ const MyProfile = () => {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8 group relative"
         >
-          <div 
+          <div
             className="absolute inset-0 rounded-xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"
             style={{ background: 'linear-gradient(to right, rgba(255, 0, 0, 0.1), rgba(2, 3, 48, 0.1))' }}
           ></div>
           <div className="relative bg-white/80 backdrop-blur-sm border border-gray-200 rounded-xl p-6 shadow-lg">
             <div className="flex items-center mb-6">
-              <div 
+              <div
                 className="w-10 h-10 rounded-lg flex items-center justify-center mr-4 shadow-lg"
                 style={{ background: "#FF0000" }}
               >
@@ -686,7 +710,7 @@ const MyProfile = () => {
                 <p className="text-gray-600">Keep your profile updated</p>
               </div>
             </div>
-            
+
             <AnimatePresence mode="wait">
               {isEditResume || !hasResume ? (
                 <motion.div
@@ -710,16 +734,13 @@ const MyProfile = () => {
                       onChange={handleResumeSelect}
                     />
                   </label>
-                  
+
                   <motion.button
                     onClick={updateResume}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     className="px-6 py-3 text-white font-medium rounded-lg transition-all duration-200 shadow-lg"
-                    style={{ 
-                      background: "#FF0000",
-                      boxShadow: '0 0 20px rgba(255, 0, 0, 0.25)'
-                    }}
+                    style={{ background: "#FF0000", boxShadow: '0 0 20px rgba(255, 0, 0, 0.25)' }}
                   >
                     Save Resume
                   </motion.button>
@@ -732,7 +753,7 @@ const MyProfile = () => {
                   exit={{ opacity: 0, x: -20 }}
                   className="flex flex-wrap gap-4 items-center"
                 >
-                  <motion.button 
+                  <motion.button
                     onClick={() => viewResumeFixed(userData?.resume)}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
@@ -741,7 +762,7 @@ const MyProfile = () => {
                     <Download className="w-4 h-4 mr-2" />
                     View Resume
                   </motion.button>
-                  
+
                   <motion.button
                     onClick={() => setIsEditResume(true)}
                     whileHover={{ scale: 1.02 }}
@@ -758,15 +779,15 @@ const MyProfile = () => {
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     className={`flex items-center px-6 py-3 font-medium rounded-lg transition-all duration-200 shadow-lg ${
-                      isDeleting 
-                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                      isDeleting
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                         : 'bg-gradient-to-r from-red-600 to-red-700 text-white hover:from-red-700 hover:to-red-800 hover:shadow-red-500/25'
                     }`}
                   >
                     <Trash2 className="w-4 h-4 mr-2" />
                     {isDeleting ? 'Deleting...' : 'Delete Resume'}
                   </motion.button>
-                  
+
                   <p className="text-gray-600">Keep your profile updated (Max 500KB PDF)</p>
                 </motion.div>
               )}
@@ -780,18 +801,17 @@ const MyProfile = () => {
           animate={{ opacity: 1, y: 0 }}
           className="space-y-8"
         >
-          {/* Personal Details Section - UPDATED FIELDS */}
+          {/* ── Personal Details Section ── */}
           <div className="group relative">
-            <div 
+            <div
               className="absolute inset-0 rounded-xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"
               style={{ background: 'linear-gradient(to right, rgba(255, 0, 0, 0.1), rgba(2, 3, 48, 0.1))' }}
             ></div>
             <div className="relative bg-white/80 backdrop-blur-sm border border-gray-200 rounded-xl p-6 shadow-lg">
-              
-              {/* Section Header */}
+
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-4">
-                  <div 
+                  <div
                     className="w-12 h-12 rounded-lg flex items-center justify-center shadow-lg"
                     style={{ background: "#FF0000" }}
                   >
@@ -802,8 +822,7 @@ const MyProfile = () => {
                     <p className="text-sm text-gray-500 mt-1">Basic information about yourself</p>
                   </div>
                 </div>
-                
-                {/* Edit/Save Buttons */}
+
                 <div className="flex gap-2">
                   {!isEditingPersonal ? (
                     <motion.button
@@ -846,7 +865,7 @@ const MyProfile = () => {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {/* UPDATED - Full Name instead of First/Middle/Surname */}
+                {/* Full Name */}
                 <div className="md:col-span-2 lg:col-span-3">
                   <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
                   <input
@@ -860,7 +879,7 @@ const MyProfile = () => {
                   />
                 </div>
 
-                {/* UPDATED - Gender instead of Middle Name */}
+                {/* Gender */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Gender</label>
                   <select
@@ -877,7 +896,7 @@ const MyProfile = () => {
                   </select>
                 </div>
 
-                {/* UPDATED - Date of Birth instead of Surname */}
+                {/* Date of Birth */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Date of Birth</label>
                   <input
@@ -890,6 +909,7 @@ const MyProfile = () => {
                   />
                 </div>
 
+                {/* Mobile No */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Mobile No</label>
                   <input
@@ -902,6 +922,7 @@ const MyProfile = () => {
                   />
                 </div>
 
+                {/* Email ID */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Email ID</label>
                   <input
@@ -914,19 +935,7 @@ const MyProfile = () => {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">LinkedIn ID</label>
-                  <input
-                    type="url"
-                    name="linkedinId"
-                    value={profileData.linkedinId}
-                    onChange={handleInputChange}
-                    disabled={!isEditingPersonal}
-                    placeholder="https://linkedin.com/in/username"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  />
-                </div>
-
+                {/* City */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">City</label>
                   <input
@@ -939,6 +948,7 @@ const MyProfile = () => {
                   />
                 </div>
 
+                {/* State */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">State</label>
                   <input
@@ -951,6 +961,7 @@ const MyProfile = () => {
                   />
                 </div>
 
+                {/* Languages */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Languages</label>
                   <input
@@ -964,6 +975,7 @@ const MyProfile = () => {
                   />
                 </div>
 
+                {/* Marital Status */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Marital Status</label>
                   <select
@@ -979,48 +991,21 @@ const MyProfile = () => {
                     ))}
                   </select>
                 </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Instagram ID</label>
-                  <input
-                    type="url"
-                    name="instagramId"
-                    value={profileData.instagramId}
-                    onChange={handleInputChange}
-                    disabled={!isEditingPersonal}
-                    placeholder="https://instagram.com/username"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Facebook ID</label>
-                  <input
-                    type="url"
-                    name="facebookId"
-                    value={profileData.facebookId}
-                    onChange={handleInputChange}
-                    disabled={!isEditingPersonal}
-                    placeholder="https://facebook.com/username"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  />
-                </div>
               </div>
             </div>
           </div>
 
-          {/* Professional Details Section - NO CHANGES HERE */}
+          {/* ── Professional Details Section ── */}
           <div className="group relative">
-            <div 
+            <div
               className="absolute inset-0 rounded-xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"
               style={{ background: 'linear-gradient(to right, rgba(255, 0, 0, 0.1), rgba(2, 3, 48, 0.1))' }}
             ></div>
             <div className="relative bg-white/80 backdrop-blur-sm border border-gray-200 rounded-xl p-6 shadow-lg">
-              
-              {/* Section Header */}
+
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-4">
-                  <div 
+                  <div
                     className="w-12 h-12 rounded-lg flex items-center justify-center shadow-lg"
                     style={{ background: "#FF0000" }}
                   >
@@ -1031,8 +1016,7 @@ const MyProfile = () => {
                     <p className="text-sm text-gray-500 mt-1">Your work experience and career preferences</p>
                   </div>
                 </div>
-                
-                {/* Edit/Save Buttons */}
+
                 <div className="flex gap-2">
                   {!isEditingProfessional ? (
                     <motion.button
@@ -1075,6 +1059,7 @@ const MyProfile = () => {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {/* Current Designation */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Current Designation</label>
                   <input
@@ -1087,6 +1072,7 @@ const MyProfile = () => {
                   />
                 </div>
 
+                {/* Current Department */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Current Department</label>
                   <input
@@ -1099,6 +1085,7 @@ const MyProfile = () => {
                   />
                 </div>
 
+                {/* Current CTC */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Current CTC</label>
                   <input
@@ -1112,19 +1099,7 @@ const MyProfile = () => {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Expected CTC</label>
-                  <input
-                    type="text"
-                    name="expectedCTC"
-                    value={profileData.expectedCTC}
-                    onChange={handleInputChange}
-                    disabled={!isEditingProfessional}
-                    placeholder="e.g., 7 LPA"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  />
-                </div>
-
+                {/* Notice Period */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Notice Period</label>
                   <input
@@ -1138,6 +1113,7 @@ const MyProfile = () => {
                   />
                 </div>
 
+                {/* Total Experience */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Total Experience</label>
                   <input
@@ -1151,13 +1127,7 @@ const MyProfile = () => {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Role Type</label>
-                  <div className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-700 flex items-center">
-                    Full Time
-                  </div>
-                </div>
-
+                {/* Job Change Status */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Job Change Status</label>
                   <select
@@ -1174,6 +1144,7 @@ const MyProfile = () => {
                   </select>
                 </div>
 
+                {/* Sector */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Sector</label>
                   <select
@@ -1189,9 +1160,10 @@ const MyProfile = () => {
                     ))}
                   </select>
                 </div>
-                {/* Other Sector Input - Shows when "Other" is selected */}
+
+                {/* Other Sector */}
                 {profileData.sector === 'Other' && (
-                  <div className="md:col-span-2 lg:col-span-3">
+                  <div className="md:col-span-2 lg:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-2">Please specify your sector</label>
                     <input
                       type="text"
@@ -1205,6 +1177,7 @@ const MyProfile = () => {
                   </div>
                 )}
 
+                {/* Category */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
                   <select
@@ -1221,9 +1194,9 @@ const MyProfile = () => {
                   </select>
                 </div>
 
-                {/* Other Category Input - Shows when "Other" is selected */}
+                {/* Other Category */}
                 {profileData.category === 'Other' && (
-                  <div className="md:col-span-2 lg:col-span-3">
+                  <div className="md:col-span-2 lg:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-2">Please specify your category</label>
                     <input
                       type="text"
@@ -1234,6 +1207,127 @@ const MyProfile = () => {
                       placeholder="Enter your category"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                     />
+                  </div>
+                )}
+
+                {/* ── Channel (from AddJob) ── */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Channel</label>
+                  <select
+                    name="jobChannel"
+                    value={profileData.jobChannel}
+                    onChange={isEditingProfessional ? handleJobChannelChange : undefined}
+                    disabled={!isEditingProfessional}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  >
+                    <option value="">Select Channel</option>
+                    {JobChannels.map((ch, i) => (
+                      <option key={i} value={ch}>{ch}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Other Channel */}
+                {profileData.jobChannel === 'Other' && (
+                  <div className="md:col-span-2 lg:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Please specify your channel</label>
+                    <input
+                      type="text"
+                      name="otherJobChannel"
+                      value={profileData.otherJobChannel}
+                      onChange={handleInputChange}
+                      disabled={!isEditingProfessional}
+                      placeholder="Enter your channel"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    />
+                  </div>
+                )}
+
+                {/* ── Job Category (from AddJob) ── */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Job Category</label>
+                  <select
+                    value={profileData.jobCategory}
+                    onChange={isEditingProfessional ? handleJobCategoryChange : undefined}
+                    disabled={!isEditingProfessional}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  >
+                    <option value="">Select Job Category</option>
+                    {JobCategories.map((cat, i) => (
+                      <option key={i} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Other Job Category */}
+                {profileData.jobCategory === 'Other' && (
+                  <div className="md:col-span-2 lg:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Please specify your job category</label>
+                    <input
+                      type="text"
+                      name="otherJobCategory"
+                      value={profileData.otherJobCategory}
+                      onChange={handleInputChange}
+                      disabled={!isEditingProfessional}
+                      placeholder="Enter your job category"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    />
+                  </div>
+                )}
+
+                {/* ── Product (checkbox pill style, from AddJob) ── */}
+                {profileData.jobCategory && (
+                  <div className="md:col-span-2 lg:col-span-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Product
+                      <span className="ml-1 text-xs text-gray-400">(select all that apply)</span>
+                    </label>
+                    {availableProducts.length > 0 ? (
+                      <div className="flex flex-wrap gap-3">
+                        {availableProducts.map((p, i) => {
+                          const isSelected = (profileData.selectedProducts || []).includes(p);
+                          return (
+                            <button
+                              key={i}
+                              type="button"
+                              onClick={() => isEditingProfessional && handleProductToggle(p)}
+                              disabled={!isEditingProfessional}
+                              className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-medium transition-all duration-200 select-none ${
+                                !isEditingProfessional
+                                  ? 'cursor-not-allowed opacity-75'
+                                  : 'cursor-pointer'
+                              } ${
+                                isSelected
+                                  ? 'bg-red-600 border-red-600 text-white'
+                                  : 'bg-white border-gray-300 text-gray-700 hover:border-red-400'
+                              }`}
+                            >
+                              {isSelected && (
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                </svg>
+                              )}
+                              {p}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      // "Other" category — free-text product entry
+                      <input
+                        type="text"
+                        placeholder="Specify product"
+                        value={(profileData.selectedProducts || [])[0] || ""}
+                        onChange={(e) => setProfileData(prev => ({ ...prev, selectedProducts: [e.target.value] }))}
+                        disabled={!isEditingProfessional}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      />
+                    )}
+                    {(profileData.selectedProducts || []).length > 0 && (
+                      <p className="mt-2 text-xs text-gray-500">
+                        Selected: {(profileData.selectedProducts || []).join(", ")}
+                      </p>
+                    )}
                   </div>
                 )}
               </div>

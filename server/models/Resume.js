@@ -32,6 +32,18 @@ const resumeSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  rejected: {
+  type: Boolean,
+  default: false
+  },
+  accepted: {
+  type: Boolean,
+  default: false
+  },
+  assessmentData: {
+    type: Object,
+    default: {}
+  },
   parsedData: {
     name: { type: String, default: '' },
     email: { type: String, default: '' },

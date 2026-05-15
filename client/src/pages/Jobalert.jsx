@@ -13,7 +13,6 @@ const Toast = ({ message, type, onClose }) => {
     const timer = setTimeout(() => {
       onClose();
     }, 5000);
-
     return () => clearTimeout(timer);
   }, [onClose]);
 
@@ -55,6 +54,11 @@ const JobAlert = () => {
     designation: '',
     frequency: 'daily'
   });
+
+  // ✅ Dynamic data from DB
+  const [locations, setLocations] = useState([]);
+  const [designations, setDesignations] = useState([]);
+  const [loadingOptions, setLoadingOptions] = useState(true);
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState('');
@@ -62,10 +66,51 @@ const JobAlert = () => {
   const [toastConfig, setToastConfig] = useState({ message: '', type: 'success' });
   const { backendUrl, companyToken } = useContext(AppContext);
   
-  // Check if user is logged in with Clerk
   const isLoggedIn = isLoaded && user;
 
-  // Pre-fill email if user is logged in
+  // ✅ Fetch unique locations and products/designations from jobs
+  useEffect(() => {
+    const fetchOptions = async () => {
+      try {
+        setLoadingOptions(true);
+        const { data } = await axios.get(`${backendUrl}/api/jobs`);
+        
+        if (data.success && data.data) {
+          const jobs = data.data;
+
+          // ✅ Extract unique locations (split comma-separated too)
+          const allLocations = jobs.flatMap(job =>
+            job.location
+              ? job.location.split(',').map(l => l.trim()).filter(Boolean)
+              : []
+          );
+          const uniqueLocations = [...new Set(allLocations)].sort();
+          setLocations(uniqueLocations);
+
+          // ✅ Extract unique products/designations
+          const allDesignations = jobs.flatMap(job => {
+            if (Array.isArray(job.product) && job.product.length > 0) {
+              return job.product;
+            }
+            if (job.designation && job.designation.trim()) {
+              return job.designation.split(',').map(d => d.trim()).filter(Boolean);
+            }
+            return [];
+          });
+          const uniqueDesignations = [...new Set(allDesignations)].sort();
+          setDesignations(uniqueDesignations);
+        }
+      } catch (error) {
+        console.error('Failed to fetch job options:', error);
+      } finally {
+        setLoadingOptions(false);
+      }
+    };
+
+    fetchOptions();
+  }, [backendUrl]);
+
+  // ✅ Pre-fill email if user is logged in
   useEffect(() => {
     if (isLoggedIn && user.primaryEmailAddress) {
       setFormData(prev => ({
@@ -106,54 +151,11 @@ const JobAlert = () => {
     "Non-Discretionary Advisory"
   ];
 
-  const JobDesignation = [
-    "Branch Manager",
-    "Sr. Branch Manager",
-    "Area Manager",
-    "Cluster Manager",
-    "Regional Manager",
-    "Zonal Manager",
-    "National Head",
-    "Trader",
-    "Research Analyst",
-    "Senior Research Analyst",
-    "Operations Executive",
-    "Operations Manager",
-    "Head of Operations",
-    "Institutional Sales",
-    "Compliance Officer",
-    "Executive",
-    "Sr. Executive",
-    "Asst. Manager",
-    "Manager",
-    "Sr. Manager",
-    "Asst. Vice President(AVP)",
-    "Vice President(VP)",
-    "Chief Executive Officer(CEO)",
-    "Chief Operation Officer(COO)",
-    "Chief Finance Officer(CFO)",
-    "Chief Technical Officer(CTO)",
-    "Chief Marketing Officer(CMO)",
-    "Chief Revenue Officer(CRO)",
-    "Chief Human Resource Officer(CHRO)",
-    "Dealer-Equity",
-    "Dealer-Commodity",
-    "Dealer-Currency",
-    "Relationship Executive(RE)",
-    "Relationship Manager(RM)",
-    "Sales Manager",
-    "Sr. Sales Manager",
-    "Asst. Branch Manager(ABM)"
-  ];
-
-  const locations = [
-    "Mumbai", "Delhi", "Bangalore", "Hyderabad", "Chennai", "Kolkata", 
-    "Pune", "Ahmedabad", "Jaipur", "Lucknow", "Kanpur", "Nagpur",
-    "Indore", "Thane", "Bhopal", "Visakhapatnam", "Pimpri-Chinchwad",
-    "Patna", "Vadodara", "Ghaziabad", "Ludhiana", "Agra", "Nashik",
-  ];
-
   const experiences = [
+    "Fresher",
+    "1-3 years",
+    "3-5 years",
+    "Above 5 years",
     "Beginner Level",
     "Intermediate level", 
     "Senior level",
@@ -162,7 +164,6 @@ const JobAlert = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Check if user is logged in
     if (!isLoggedIn) {
       showToastNotification('Please login to create job alerts', 'error');
       setMessage('Please login to create job alerts');
@@ -172,7 +173,6 @@ const JobAlert = () => {
       return;
     }
 
-    // Validate required fields
     if (!formData.email) {
       setMessage('Email is required');
       showToastNotification('Email is required', 'error');
@@ -226,7 +226,6 @@ const JobAlert = () => {
       setMessage(successMessage);
       showToastNotification('Job alert created successfully!', 'success');
       
-      // Reset form but keep email
       setFormData({
         email: user.primaryEmailAddress?.emailAddress || '',
         phone: '',
@@ -258,13 +257,10 @@ const JobAlert = () => {
         />
       )}
 
-      {/* Header Section */}
       <Navbar />
       
-      {/* Hero Section with Form */}
       <div className="bg-white py-12 px-8">
         <div className="max-w-6xl mx-auto text-center">
-          {/* Header Content */}
           <div className="text-center mb-12">
             <p className="text-sm font-medium tracking-wider mb-4 text-red-600">
               STAY UPDATED
@@ -274,7 +270,7 @@ const JobAlert = () => {
             </h1>
           </div>
 
-          {/* Login Required Message (if not logged in) */}
+          {/* Login Required Message */}
           {!isLoggedIn && isLoaded && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 mb-8 max-w-2xl mx-auto">
               <div className="flex items-center justify-center gap-3 mb-4">
@@ -296,7 +292,6 @@ const JobAlert = () => {
           {/* Form Card */}
           <div className={`bg-white rounded-2xl shadow-xl border border-gray-200 p-8 md:p-12 ${!isLoggedIn ? 'opacity-50 pointer-events-none' : ''}`}>
             
-            {/* Success/Error Message */}
             {message && (
               <div className={`mb-8 p-4 rounded-xl ${
                 message.includes('successfully') 
@@ -308,7 +303,7 @@ const JobAlert = () => {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-8">
-              {/* Contact Information Section */}
+              {/* Contact Information */}
               <div className="space-y-6">
                 <h3 className="text-xl font-semibold text-gray-900 border-b border-gray-200 pb-3">
                   Contact Information
@@ -349,12 +344,13 @@ const JobAlert = () => {
                 </div>
               </div>
 
-              {/* Job Preferences Section */}
+              {/* Job Preferences */}
               <div className="space-y-6">
                 <h3 className="text-xl font-semibold text-gray-900 border-b border-gray-200 pb-3">
                   Job Preferences
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Category */}
                   <div>
                     <label htmlFor="category" className="block text-sm font-semibold text-gray-700 mb-3">
                       Job Category <span className="text-red-500">*</span>
@@ -370,13 +366,12 @@ const JobAlert = () => {
                     >
                       <option value="">Select a category</option>
                       {JobCategories.map((category, index) => (
-                        <option key={index} value={category}>
-                          {category}
-                        </option>
+                        <option key={index} value={category}>{category}</option>
                       ))}
                     </select>
                   </div>
 
+                  {/* ✅ Location from DB */}
                   <div>
                     <label htmlFor="location" className="block text-sm font-semibold text-gray-700 mb-3">
                       Preferred Location <span className="text-red-500">*</span>
@@ -388,17 +383,18 @@ const JobAlert = () => {
                       value={formData.location}
                       onChange={handleChange}
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-gray-50 focus:bg-white hover:border-gray-400 transition-colors duration-200"
-                      disabled={!isLoggedIn}
+                      disabled={!isLoggedIn || loadingOptions}
                     >
-                      <option value="">Select a location</option>
+                      <option value="">
+                        {loadingOptions ? 'Loading locations...' : 'Select a location'}
+                      </option>
                       {locations.map((location, index) => (
-                        <option key={index} value={location}>
-                          {location}
-                        </option>
+                        <option key={index} value={location}>{location}</option>
                       ))}
                     </select>
                   </div>
 
+                  {/* Experience Level */}
                   <div>
                     <label htmlFor="level" className="block text-sm font-semibold text-gray-700 mb-3">
                       Experience Level <span className="text-red-500">*</span>
@@ -414,13 +410,12 @@ const JobAlert = () => {
                     >
                       <option value="">Select experience level</option>
                       {experiences.map((exp, index) => (
-                        <option key={index} value={exp}>
-                          {exp}
-                        </option>
+                        <option key={index} value={exp}>{exp}</option>
                       ))}
                     </select>
                   </div>
 
+                  {/* ✅ Designation from DB */}
                   <div>
                     <label htmlFor="designation" className="block text-sm font-semibold text-gray-700 mb-3">
                       Job Designation <span className="text-red-500">*</span>
@@ -432,20 +427,20 @@ const JobAlert = () => {
                       value={formData.designation}
                       onChange={handleChange}
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-gray-50 focus:bg-white hover:border-gray-400 transition-colors duration-200"
-                      disabled={!isLoggedIn}
+                      disabled={!isLoggedIn || loadingOptions}
                     >
-                      <option value="">Select a designation</option>
-                      {JobDesignation.map((designation, index) => (
-                        <option key={index} value={designation}>
-                          {designation}
-                        </option>
+                      <option value="">
+                        {loadingOptions ? 'Loading designations...' : 'Select a designation'}
+                      </option>
+                      {designations.map((designation, index) => (
+                        <option key={index} value={designation}>{designation}</option>
                       ))}
                     </select>
                   </div>
                 </div>
               </div>
 
-              {/* Alert Settings Section */}
+              {/* Alert Settings */}
               <div className="space-y-6">
                 <h3 className="text-xl font-semibold text-gray-900 border-b border-gray-200 pb-3">
                   Alert Settings

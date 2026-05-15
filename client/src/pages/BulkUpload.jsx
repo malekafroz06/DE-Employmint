@@ -67,28 +67,25 @@ const BulkUpload = () => {
   const createLocalSampleFormat = () => {
     try {
       // Create sample data structure with the exact headings requested
-      const sampleData = [
+    const sampleData = [
         [
-          'Full Name', 'Gender', 'DOB', 'Mobile No', 'Email ID', 'Linkedin ID', 'Facebook ID', 
-          'Instagram ID', 'Snapchat', 'City', 'State', 'Languages', 'Marital Status', 'Sector', 
-          'Category', 'Product', 'Channel', 'Current Designation', 'Current Department', 
-          'Current CTC', 'Expected CTC', 'Notice Period', 'Total Experience', 'Status for Job Change'
+          'Full Name', 'Gender', 'DOB', 'Mobile No', 'Email ID', 'City', 'State',
+          'Languages', 'Marital Status', 'Sector', 'Category', 'Product', 'Channel',
+          'Current Designation', 'Current Department', 'Current CTC', 'Notice Period',
+          'Total Experience', 'Status for Job Change'
         ],
         [
-          'John Doe', 'Male', '15/01/1990', '9876543210', 'john.doe@example.com', 
-          'linkedin.com/in/johndoe', 'facebook.com/johndoe', 'instagram.com/johndoe', 
-          'johndoe_snap', 'Mumbai', 'Maharashtra', 'English, Hindi', 'Single', 
-          'IT Services', 'Software Development', 'Web Applications', 'Direct', 
-          'Senior Developer', 'Engineering', '12 LPA', '15 LPA', '2 Months', 
-          '5 Years', 'Actively Looking'
+          'John Doe', 'Male', '15/01/1990', '9876543210', 'john.doe@example.com',
+          'Mumbai', 'Maharashtra', 'English, Hindi', 'Single', 'Life Insurance',
+          'Agency Channel', 'Term Plan', 'Direct Sales', 'Senior Advisor',
+          'Sales', '12 LPA', '2 Months', '5 Years', 'Actively Looking'
         ],
         [
-          'Jane Smith', 'Female', '22/05/1992', '9876543211', 'jane.smith@example.com', 
-          'linkedin.com/in/janesmith', '', '', '', 'Delhi', 'Delhi', 'English, Hindi, Punjabi', 
-          'Married', 'Banking', 'Finance', 'Retail Banking', 'Branch', 'Branch Manager', 
-          'Operations', '10 LPA', '13 LPA', '1 Month', '7 Years', 'Open to Opportunities'
+          'Jane Smith', 'Female', '22/05/1992', '9876543211', 'jane.smith@example.com',
+          'Delhi', 'Delhi', 'English, Hindi, Punjabi', 'Married', 'Banking',
+          'Wealth Management', 'Mutual Funds', 'Bancassurance', 'Branch Manager',
+          'Operations', '10 LPA', '1 Month', '7 Years', 'Open to Opportunities'
         ],
-        ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
       ];
 
       // Create workbook and worksheet
@@ -97,31 +94,26 @@ const BulkUpload = () => {
 
       // Set column widths for better readability
       ws['!cols'] = [
-        { wch: 20 }, // Full Name
-        { wch: 10 }, // Gender
-        { wch: 12 }, // DOB
-        { wch: 15 }, // Mobile No
-        { wch: 30 }, // Email ID
-        { wch: 30 }, // Linkedin ID
-        { wch: 25 }, // Facebook ID
-        { wch: 25 }, // Instagram ID
-        { wch: 20 }, // Snapchat
-        { wch: 15 }, // City
-        { wch: 15 }, // State
-        { wch: 20 }, // Languages
-        { wch: 15 }, // Marital Status
-        { wch: 20 }, // Sector
-        { wch: 20 }, // Category
-        { wch: 20 }, // Product
-        { wch: 15 }, // Channel
-        { wch: 20 }, // Current Designation
-        { wch: 20 }, // Current Department
-        { wch: 12 }, // Current CTC
-        { wch: 12 }, // Expected CTC
-        { wch: 15 }, // Notice Period
-        { wch: 15 }, // Total Experience
-        { wch: 20 }, // Status for Job Change
-      ];
+      { wch: 20 }, // Full Name
+      { wch: 10 }, // Gender
+      { wch: 12 }, // DOB
+      { wch: 15 }, // Mobile No
+      { wch: 28 }, // Email ID
+      { wch: 15 }, // City
+      { wch: 15 }, // State
+      { wch: 22 }, // Languages
+      { wch: 15 }, // Marital Status
+      { wch: 18 }, // Sector
+      { wch: 20 }, // Category
+      { wch: 20 }, // Product
+      { wch: 18 }, // Channel
+      { wch: 22 }, // Current Designation
+      { wch: 22 }, // Current Department
+      { wch: 12 }, // Current CTC
+      { wch: 15 }, // Notice Period
+      { wch: 18 }, // Total Experience
+      { wch: 22 }, // Status for Job Change
+    ];
 
       // Add worksheet to workbook
       XLSX.utils.book_append_sheet(wb, ws, 'Candidate Data');

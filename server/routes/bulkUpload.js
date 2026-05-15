@@ -486,6 +486,65 @@ router.post('/upload-csv', verifyCompanyToken,requireBulkUploadPermission, (req,
     }
   });
 });
+// Reject a candidate (persist in DB)
+router.post('/reject/:id', verifyCompanyToken, requireBulkUploadPermission, async (req, res) => {
+  try {
+    const updated = await Resume.findOneAndUpdate(
+      { _id: req.params.id, companyId: req.companyId },
+      { rejected: true },
+      { new: true }
+    );
+
+    if (!updated) {
+      return res.status(404).json({ success: false, message: "Resume not found" });
+    }
+
+    res.json({ success: true, message: "Candidate rejected successfully" });
+  } catch (error) {
+    console.error('Reject candidate error:', error);
+    res.status(500).json({ success: false, message: "Internal server error: " + error.message });
+  }
+});
+
+// Undo reject
+router.post('/unreject/:id', verifyCompanyToken, requireBulkUploadPermission, async (req, res) => {
+  try {
+    const updated = await Resume.findOneAndUpdate(
+      { _id: req.params.id, companyId: req.companyId },
+      { rejected: false },
+      { new: true }
+    );
+
+    if (!updated) {
+      return res.status(404).json({ success: false, message: "Resume not found" });
+    }
+
+    res.json({ success: true, message: "Candidate unrejected successfully" });
+  } catch (error) {
+    console.error('Unreject candidate error:', error);
+    res.status(500).json({ success: false, message: "Internal server error: " + error.message });
+  }
+});
+
+// Mark candidate as accepted with assessment data
+router.post('/accept/:id', verifyCompanyToken, requireBulkUploadPermission, async (req, res) => {
+  try {
+    const updated = await Resume.findOneAndUpdate(
+      { _id: req.params.id, companyId: req.companyId },
+      { accepted: true, assessmentData: req.body.assessmentData || {} },
+      { new: true }
+    );
+
+    if (!updated) {
+      return res.status(404).json({ success: false, message: "Resume not found" });
+    }
+
+    res.json({ success: true, message: "Candidate accepted successfully" });
+  } catch (error) {
+    console.error('Accept candidate error:', error);
+    res.status(500).json({ success: false, message: "Internal server error: " + error.message });
+  }
+});
 
 // Get uploaded files for a company
 router.get('/files', verifyCompanyToken, requireBulkUploadPermission,async (req, res) => {

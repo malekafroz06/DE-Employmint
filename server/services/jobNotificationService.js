@@ -133,9 +133,11 @@ export const sendDailyDigestAt9AM = async () => {
         await sendJobMatchEmail(alert, relevantJobs);
         
         // Clear ALL pending jobs (they've been processed)
-        await JobAlert.findByIdAndUpdate(alert._id, {
-          $set: { pendingJobs: [] },
-          lastNotificationSent: new Date()
+       await JobAlert.findByIdAndUpdate(alert._id, {
+          $set: { 
+            pendingJobs: [],
+            lastNotificationSent: new Date()  
+          }
         });
         
         emailsSent++;
@@ -188,7 +190,9 @@ export const getPendingJobStats = async () => {
         $group: {
           _id: '$frequency',
           totalAlerts: { $sum: 1 },
-          totalPendingJobs: { $sum: { $size: '$pendingJobs' } }
+          totalPendingJobs: { 
+            $sum: { $size: { $ifNull: ['$pendingJobs', []] } }  // ← fix
+          }
         }
       }
     ]);

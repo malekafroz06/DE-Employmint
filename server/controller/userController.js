@@ -37,7 +37,6 @@ export const applyForJob = async (req, res) => {
       return res.status(400).json({ success: false, message: "Job ID is required" });
     }
     
-    // Check if user has resume
     if (!userData.resume) {
       return res.status(400).json({ 
         success: false, 
@@ -156,7 +155,7 @@ export const updateUserResume = async (req, res) => {
   }
 };
 
-// UPDATED: Profile update with new fields
+// Profile update
 export const updateUserProfile = async (req, res) => {
   try {
     const userId = req.auth?.userId;
@@ -183,49 +182,44 @@ export const updateUserProfile = async (req, res) => {
         email: profileData.emailId || profileData.email || '',
         ...profileData
       });
-      
       await user.save();
       console.log("New user created");
     } else {
       console.log("Updating existing user");
       
-      // UPDATED: Personal Details - New Fields
-      if (profileData.fullName !== undefined) user.fullName = profileData.fullName;
-      if (profileData.gender !== undefined) user.gender = profileData.gender;
-      if (profileData.dob !== undefined) user.dob = profileData.dob;
-      if (profileData.mobileNo !== undefined) user.mobileNo = profileData.mobileNo;
-      if (profileData.emailId !== undefined) user.emailId = profileData.emailId;
-      if (profileData.linkedinId !== undefined) user.linkedinId = profileData.linkedinId;
-      if (profileData.instagramId !== undefined) user.instagramId = profileData.instagramId;
-      if (profileData.facebookId !== undefined) user.facebookId = profileData.facebookId;
-      if (profileData.city !== undefined) user.city = profileData.city;
-      if (profileData.state !== undefined) user.state = profileData.state;
-      if (profileData.languages !== undefined) user.languages = profileData.languages;
+      // ── Personal Details ──────────────────────────────────────────
+      if (profileData.fullName !== undefined)     user.fullName     = profileData.fullName;
+      if (profileData.gender !== undefined)       user.gender       = profileData.gender;
+      if (profileData.dob !== undefined)          user.dob          = profileData.dob;
+      if (profileData.mobileNo !== undefined)     user.mobileNo     = profileData.mobileNo;
+      if (profileData.emailId !== undefined)      user.emailId      = profileData.emailId;
+      if (profileData.city !== undefined)         user.city         = profileData.city;
+      if (profileData.state !== undefined)        user.state        = profileData.state;
+      if (profileData.languages !== undefined)    user.languages    = profileData.languages;
       if (profileData.maritalStatus !== undefined) user.maritalStatus = profileData.maritalStatus;
-      
-      // Professional Details (no changes)
+
+      // ── Professional Details ──────────────────────────────────────
       if (profileData.currentDesignation !== undefined) user.currentDesignation = profileData.currentDesignation;
-      if (profileData.currentDepartment !== undefined) user.currentDepartment = profileData.currentDepartment;
-      if (profileData.currentCTC !== undefined) user.currentCTC = profileData.currentCTC;
-      if (profileData.expectedCTC !== undefined) user.expectedCTC = profileData.expectedCTC;
-      if (profileData.noticePeriod !== undefined) user.noticePeriod = profileData.noticePeriod;
-      if (profileData.totalExperience !== undefined) user.totalExperience = profileData.totalExperience;
-      if (profileData.roleType !== undefined) user.roleType = profileData.roleType;
-      if (profileData.jobChangeStatus !== undefined) user.jobChangeStatus = profileData.jobChangeStatus;
-      if (profileData.sector !== undefined) user.sector = profileData.sector;
-      if (profileData.category !== undefined) user.category = profileData.category;
-      if (profileData.otherSector !== undefined) user.otherSector = profileData.otherSector;
-      if (profileData.otherCategory !== undefined) user.otherCategory = profileData.otherCategory;
-      
-      // Update name if fullName changed
-      if (profileData.fullName) {
-        user.name = profileData.fullName;
-      }
-      
-      // BACKWARD COMPATIBILITY: Handle old firstName/middleName/surname fields
-      if (profileData.firstName !== undefined) user.firstName = profileData.firstName;
-      if (profileData.middleName !== undefined) user.middleName = profileData.middleName;
-      if (profileData.surname !== undefined) user.surname = profileData.surname;
+      if (profileData.currentDepartment !== undefined)  user.currentDepartment  = profileData.currentDepartment;
+      if (profileData.currentCTC !== undefined)         user.currentCTC         = profileData.currentCTC;
+      if (profileData.noticePeriod !== undefined)       user.noticePeriod       = profileData.noticePeriod;
+      if (profileData.totalExperience !== undefined)    user.totalExperience    = profileData.totalExperience;
+      if (profileData.roleType !== undefined)           user.roleType           = profileData.roleType;
+      if (profileData.jobChangeStatus !== undefined)    user.jobChangeStatus    = profileData.jobChangeStatus;
+      if (profileData.sector !== undefined)             user.sector             = profileData.sector;
+      if (profileData.category !== undefined)           user.category           = profileData.category;
+      if (profileData.otherSector !== undefined)        user.otherSector        = profileData.otherSector;
+      if (profileData.otherCategory !== undefined)      user.otherCategory      = profileData.otherCategory;
+
+      // ── NEW: Product & Channel ────────────────────────────────────
+      if (profileData.jobCategory !== undefined)     user.jobCategory     = profileData.jobCategory;
+      if (profileData.otherJobCategory !== undefined) user.otherJobCategory = profileData.otherJobCategory;
+      if (profileData.selectedProducts !== undefined) user.selectedProducts = profileData.selectedProducts;
+      if (profileData.jobChannel !== undefined)      user.jobChannel      = profileData.jobChannel;
+      if (profileData.otherJobChannel !== undefined)  user.otherJobChannel  = profileData.otherJobChannel;
+
+      // Keep name in sync with fullName
+      if (profileData.fullName) user.name = profileData.fullName;
       
       await user.save();
       console.log("User updated successfully");
@@ -245,7 +239,7 @@ export const updateUserProfile = async (req, res) => {
   }
 };
 
-// UPDATED: Resume parsing with new fields
+// Resume parsing
 const parseResumeInfo = (text) => {
   const originalText = text.replace(/\s+/g, ' ').trim();
   console.log("=== PDF TEXT ANALYSIS ===");
@@ -263,7 +257,6 @@ const parseResumeInfo = (text) => {
     console.log(`Line ${i + 1}: "${line}"`);
   });
   
-  // UPDATED: Initialize result with new fields
   const result = {
     fullName: '',
     gender: '',
@@ -275,7 +268,6 @@ const parseResumeInfo = (text) => {
     totalExperience: '',
     city: '',
     state: '',
-    linkedinId: '',
     languages: ''
   };
   
@@ -295,14 +287,12 @@ const parseResumeInfo = (text) => {
     console.log("Phone found:", result.mobileNo);
   }
   
-  // UPDATED: Extract full name instead of firstName/middleName/surname
+  // Extract full name
   let nameFound = false;
   for (let i = 0; i < Math.min(3, lines.length) && !nameFound; i++) {
     const line = lines[i].trim();
-    
     console.log(`Analyzing line ${i + 1} for name: "${line}"`);
     
-    // Skip lines that clearly aren't names
     if (line.includes('@') || 
         /\d/.test(line) || 
         line.length > 50 ||
@@ -315,14 +305,12 @@ const parseResumeInfo = (text) => {
     const words = line.split(/\s+/).filter(word => word.length > 0);
     console.log(`Line ${i + 1} words:`, words);
     
-    // Extract full name (2-4 words, properly capitalized)
     if (words.length >= 2 && words.length <= 4) {
       const isValidName = words.every(word => {
         const isProperlyCapitalized = /^[A-Z][a-z]+$/.test(word);
         const isReasonableLength = word.length >= 2 && word.length <= 15;
         const isOnlyLetters = /^[A-Za-z]+$/.test(word);
         const isNotCommonWord = !['The', 'And', 'For', 'With', 'From', 'To', 'In', 'On', 'At', 'By'].includes(word);
-        
         return isProperlyCapitalized && isReasonableLength && isOnlyLetters && isNotCommonWord;
       });
       
@@ -335,7 +323,7 @@ const parseResumeInfo = (text) => {
     }
   }
   
-  // Try to extract gender if mentioned
+  // Extract gender
   const genderRegex = /\b(male|female|m\/f|gender[:\s]*(male|female))\b/i;
   const genderMatch = originalText.match(genderRegex);
   if (genderMatch) {
@@ -348,7 +336,7 @@ const parseResumeInfo = (text) => {
     console.log("Gender found:", result.gender);
   }
   
-  // Try to extract date of birth
+  // Extract date of birth
   const dobRegex = /(?:dob|date of birth|born)[:\s]*(\d{1,2}[-\/]\d{1,2}[-\/]\d{2,4})/i;
   const dobMatch = originalText.match(dobRegex);
   if (dobMatch) {
@@ -370,13 +358,12 @@ const parseResumeInfo = (text) => {
   const filledFields = Object.entries(result).filter(([key, value]) => 
     value && value.toString().trim() !== ''
   ).length;
-  
   console.log(`Extracted ${filledFields} fields successfully`);
   
   return result;
 };
 
-// Enhanced extract resume data function - UPDATED
+// Extract resume data
 export const extractResumeData = async (req, res) => {
   let tempFilePath = null;
   
@@ -389,23 +376,16 @@ export const extractResumeData = async (req, res) => {
     console.log("Resume URL:", resumeUrl);
 
     if (!userId) {
-      return res.json({
-        success: false,
-        message: "User authentication failed"
-      });
+      return res.json({ success: false, message: "User authentication failed" });
     }
 
     if (!resumeUrl) {
-      return res.json({
-        success: false,
-        message: "Resume URL is required"
-      });
+      return res.json({ success: false, message: "Resume URL is required" });
     }
 
     console.log("Downloading PDF from:", resumeUrl);
 
     const response = await fetch(resumeUrl);
-    
     console.log("Download response status:", response.status);
     
     if (!response.ok) {
@@ -503,7 +483,6 @@ export const extractResumeData = async (req, res) => {
     const filledFields = Object.entries(extractedData).filter(([key, value]) => 
       value && value.toString().trim() !== ''
     ).length;
-    
     console.log("Extraction complete. Filled fields:", filledFields);
 
     if (tempFilePath && fs.existsSync(tempFilePath)) {
@@ -529,7 +508,6 @@ export const extractResumeData = async (req, res) => {
       }
     }
     
-    // UPDATED: Return empty fields with new structure
     const extractedData = {
       fullName: '',
       gender: '',
@@ -541,7 +519,6 @@ export const extractResumeData = async (req, res) => {
       totalExperience: '',
       city: '',
       state: '',
-      linkedinId: '',
       languages: ''
     };
 
@@ -553,11 +530,10 @@ export const extractResumeData = async (req, res) => {
   }
 };
 
-// Clerk sync - UPDATED with new fields
+// Clerk sync
 export const clerkSync = async (req, res) => {
   try {
     const { clerkUserId, email, name, firstName, lastName, profileImageUrl } = req.body;
-
     console.log("Clerk sync request:", { clerkUserId, email, name, firstName, lastName });
 
     if (!clerkUserId || !email) {
@@ -579,15 +555,19 @@ export const clerkSync = async (req, res) => {
           totalExperience: user.totalExperience,
           city: user.city,
           state: user.state,
-          // UPDATED: Handle both old and new field structures
           fullName: user.fullName || `${user.firstName || ''} ${user.surname || ''}`.trim(),
           gender: user.gender,
-          dob: user.dob
+          dob: user.dob,
+          // Carry over new fields if they exist
+          jobCategory: user.jobCategory,
+          otherJobCategory: user.otherJobCategory,
+          selectedProducts: user.selectedProducts,
+          jobChannel: user.jobChannel,
+          otherJobChannel: user.otherJobChannel,
         };
         
         await User.findByIdAndDelete(user._id);
         
-        // UPDATED: Create with fullName
         user = new User({
           _id: clerkUserId,
           name: name || user.name || 'User',
@@ -602,8 +582,6 @@ export const clerkSync = async (req, res) => {
         console.log("Successfully migrated user to Clerk ID");
       } else {
         console.log("Creating new user");
-        
-        // UPDATED: Create with fullName
         user = new User({
           _id: clerkUserId,
           name: name || `${firstName || ''} ${lastName || ''}`.trim() || 'User',
@@ -613,19 +591,16 @@ export const clerkSync = async (req, res) => {
           image: profileImageUrl || '/default-avatar.png',
           resume: ''
         });
-        
         await user.save();
         console.log("New user created successfully:", user._id);
       }
     } else {
       console.log("User found by Clerk ID, updating data:", user._id);
-      
       user.name = name || user.name || 'User';
       user.fullName = name || user.fullName || '';
       user.email = email;
       user.emailId = email;
       user.image = profileImageUrl || user.image || '/default-avatar.png';
-      
       await user.save();
       console.log("User updated successfully");
     }
@@ -648,29 +623,27 @@ export const clerkSync = async (req, res) => {
         currentDesignation: user.currentDesignation,
         totalExperience: user.totalExperience,
         city: user.city,
-        state: user.state
+        state: user.state,
+        jobCategory: user.jobCategory,
+        selectedProducts: user.selectedProducts,
+        jobChannel: user.jobChannel,
       },
       token
     });
 
   } catch (error) {
     console.error('Clerk sync error:', error);
-    
     if (error.code === 11000) {
       return res.json({ 
         success: false, 
         message: "User already exists. Please try refreshing the page."
       });
     }
-    
-    res.json({ 
-      success: false, 
-      message: `Clerk sync failed: ${error.message}`
-    });
+    res.json({ success: false, message: `Clerk sync failed: ${error.message}` });
   }
 };
 
-// Fix user data - UPDATED
+// Fix user data
 export const fixUserData = async (req, res) => {
   try {
     const userId = req.auth.userId;
@@ -680,12 +653,8 @@ export const fixUserData = async (req, res) => {
     console.log("User ID:", userId);
     
     let user = await User.findById(userId);
-    
     if (!user) {
-      return res.json({
-        success: false,
-        message: "User not found"
-      });
+      return res.json({ success: false, message: "User not found" });
     }
     
     const needsUpdate = user.name === "User" || user.email === "user@example.com";
@@ -708,35 +677,19 @@ export const fixUserData = async (req, res) => {
       
       console.log("Updating user with:", updateData);
       
-      user = await User.findByIdAndUpdate(
-        userId,
-        updateData,
-        { new: true, runValidators: true }
-      );
-      
-      res.json({
-        success: true,
-        message: "User data updated successfully",
-        user: user
-      });
+      user = await User.findByIdAndUpdate(userId, updateData, { new: true, runValidators: true });
+      res.json({ success: true, message: "User data updated successfully", user });
     } else {
-      res.json({
-        success: true,
-        message: "User data is already correct",
-        user: user
-      });
+      res.json({ success: true, message: "User data is already correct", user });
     }
     
   } catch (error) {
     console.error("Fix user data error:", error);
-    res.json({
-      success: false,
-      message: error.message
-    });
+    res.json({ success: false, message: error.message });
   }
 };
 
-// UPDATED getOrCreateUser helper
+// getOrCreateUser helper
 const getOrCreateUser = async (clerkUserId, claims) => {
   let user = await User.findById(clerkUserId);
   
@@ -765,12 +718,9 @@ const getOrCreateUser = async (clerkUserId, claims) => {
       name = "User";
     }
     
-    const image = claims?.image_url || 
-                  claims?.imageUrl || 
-                  "/default-avatar.png";
+    const image = claims?.image_url || claims?.imageUrl || "/default-avatar.png";
 
     try {
-      // UPDATED: Create with fullName
       user = new User({
         _id: clerkUserId,
         name: name,
@@ -791,7 +741,7 @@ const getOrCreateUser = async (clerkUserId, claims) => {
   return user;
 };
 
-// UPDATED getUserData
+// getUserData
 export const getUserData = async (req, res) => {
   try {
     const userId = req.auth.userId;
@@ -803,18 +753,14 @@ export const getUserData = async (req, res) => {
     
     if (!user) {
       const claims = req.auth.sessionClaims || {};
-      
       const email = claims.email || "temp@example.com";
       const username = claims.username || "";
       const fullName = claims.name || claims.full_name || "";
       const firstName = claims.first_name || "";
       const lastName = claims.last_name || "";
-      
       let name = username || fullName || `${firstName} ${lastName}`.trim() || "User";
-      
       const image = claims.image_url || claims.imageUrl || "/default-avatar.png";
       
-      // UPDATED: Create with fullName
       user = new User({
         _id: userId,
         name: name,
@@ -829,16 +775,10 @@ export const getUserData = async (req, res) => {
       console.log("New user created with name:", name, "email:", email);
     } 
     
-    res.json({
-      success: true,
-      user: user
-    });
+    res.json({ success: true, user: user });
   } catch (error) {
     console.error("getUserData error:", error);
-    res.json({
-      success: false,
-      message: error.message
-    });
+    res.json({ success: false, message: error.message });
   }
 };
 
@@ -847,10 +787,8 @@ export const debugClerkData = async (req, res) => {
   try {
     const userId = req.auth.userId;
     const claims = req.auth.sessionClaims || {};
-    
     console.log("=== CLERK DEBUG DATA ===");
     console.log("User ID:", userId);
-    
     res.json({
       success: true,
       debug: {
@@ -866,10 +804,7 @@ export const debugClerkData = async (req, res) => {
     });
   } catch (error) {
     console.error("Debug error:", error);
-    res.json({
-      success: false,
-      message: error.message
-    });
+    res.json({ success: false, message: error.message });
   }
 };
 
@@ -878,21 +813,16 @@ export const forceRefreshUserData = async (req, res) => {
   try {
     const userId = req.auth.userId;
     const claims = req.auth.sessionClaims || {};
-    
     console.log("=== FORCE REFRESH USER DATA ===");
     
     let user = await User.findById(userId);
     if (!user) {
-      return res.json({
-        success: false,
-        message: "User not found"
-      });
+      return res.json({ success: false, message: "User not found" });
     }
     
     const email = claims.email || user.email;
     const username = claims.username || "";
     const fullName = claims.name || claims.full_name || "";
-    
     let name = username || fullName || user.name;
     
     const updateData = {
@@ -904,23 +834,48 @@ export const forceRefreshUserData = async (req, res) => {
     
     console.log("Force updating user with:", updateData);
     
-    user = await User.findByIdAndUpdate(
-      userId,
-      updateData,
-      { new: true, runValidators: true }
-    );
+    user = await User.findByIdAndUpdate(userId, updateData, { new: true, runValidators: true });
     
-    res.json({
-      success: true,
-      message: "User data refreshed successfully",
-      user: user
-    });
+    res.json({ success: true, message: "User data refreshed successfully", user });
     
   } catch (error) {
     console.error("Force refresh error:", error);
+    res.json({ success: false, message: error.message });
+  }
+};
+
+// Delete resume
+export const deleteUserResume = async (req, res) => {
+  try {
+    const clerkUserId = getClerkUserId(req);
+    if (!clerkUserId) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
+    const userData = await getOrCreateUser(clerkUserId, req.auth.sessionClaims);
+
+    // Delete the physical file if it exists on disk
+    if (userData.resume) {
+      const filePath = path.join(__dirname, '..', userData.resume);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+        console.log("Deleted resume file:", filePath);
+      }
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userData._id,
+      { resume: '' },
+      { new: true }
+    );
+
     res.json({
-      success: false,
-      message: error.message
+      success: true,
+      message: "Resume deleted successfully",
+      user: updatedUser
     });
+  } catch (error) {
+    console.error("Error deleting resume:", error);
+    res.status(500).json({ success: false, message: error.message });
   }
 };

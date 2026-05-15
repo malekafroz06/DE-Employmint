@@ -36,9 +36,9 @@ const getNavItems = (isSubUser, subUserRole, permissions) => {
     { path: "add-job", label: "Post New Job", icon: <FiPlusCircle /> },
     { path: "bulk-upload", label: "Bulk Upload", icon: <FiUpload /> },
     { path: "search-resume", label: "Search Resume", icon: <FiSearch /> },
-    { path: "manage-package", label: "Manage Package", icon: <FiPackage /> },
-    { path: "my-team", label: "My Team", icon: <FiUsers /> },
-    { path: "main-dashboard", label: "Dashboard", icon: <FiUsers /> },
+    //{ path: "manage-package", label: "Manage Package", icon: <FiPackage /> },
+    //{ path: "my-team", label: "My Team", icon: <FiUsers /> },
+    //{ path: "main-dashboard", label: "Dashboard", icon: <FiUsers /> },
 
   ];
   

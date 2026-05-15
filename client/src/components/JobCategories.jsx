@@ -56,7 +56,6 @@ const JobCategories = () => {
     {
       label: "Capital Market",
       sectionIcon: BarChart2,
-      color: "#020330",
       categories: [
         {
           id: 1, name: "Stock Market", icon: TrendingUp, designation: "Stock Market",
@@ -87,7 +86,6 @@ const JobCategories = () => {
     {
       label: "NBFC Sector",
       sectionIcon: Landmark,
-      color: "#1a3a5c",
       categories: [
         {
           id: 7, name: "Asset Finance Company (AFC)", icon: Building2, designation: "Asset Finance Company (AFC)",
@@ -118,7 +116,6 @@ const JobCategories = () => {
     {
       label: "Insurance Sector",
       sectionIcon: Shield,
-      color: "#7f1d1d",
       categories: [
         {
           id: 13, name: "Life Insurance", icon: Shield, designation: "Life Insurance",
@@ -133,7 +130,6 @@ const JobCategories = () => {
     {
       label: "Prop Trading",
       sectionIcon: Activity,
-      color: "#14532d",
       categories: [
         {
           id: 15, name: "Fundamental Analysis", icon: Search, designation: "Fundamental Analysis",
@@ -170,13 +166,6 @@ const JobCategories = () => {
     });
   };
 
-  const sectionAccents = {
-    "Capital Market":   { bg: "bg-blue-50",    icon: "bg-[#020330]", border: "border-blue-100" },
-    "NBFC Sector":      { bg: "bg-emerald-50", icon: "bg-[#1a3a5c]", border: "border-emerald-100" },
-    "Insurance Sector": { bg: "bg-red-50",     icon: "bg-[#7f1d1d]", border: "border-red-100" },
-    "Prop Trading":     { bg: "bg-green-50",   icon: "bg-[#14532d]", border: "border-green-100" },
-  };
-
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
@@ -190,7 +179,7 @@ const JobCategories = () => {
         />
         <div className="absolute inset-0 bg-black/50" />
         <div className="relative z-10 flex flex-col items-center justify-center h-full px-4 text-center">
-          <p className="text-xs sm:text-sm font-semibold tracking-widest uppercase text-red-400 mb-2 sm:mb-3">
+          <p className="text-xs sm:text-sm font-semibold tracking-widest uppercase mb-2 sm:mb-3" style={{ color: "#ff0000" }}>
             JOB CATEGORIES
           </p>
           <h1 className="text-2xl sm:text-4xl md:text-5xl font-bold text-white drop-shadow-lg">
@@ -204,18 +193,17 @@ const JobCategories = () => {
         <div className="max-w-7xl mx-auto space-y-14">
 
           {sections.map((section) => {
-            const accent = sectionAccents[section.label] || { bg: "bg-gray-50", icon: "bg-gray-700", border: "border-gray-100" };
             return (
               <div key={section.label}>
                 {/* Section Header */}
                 <div className="flex items-center gap-3 mb-6">
                   <div
                     className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                    style={{ backgroundColor: section.color }}
+                    style={{ backgroundColor: "#022030" }}
                   >
                     <section.sectionIcon className="w-4 h-4 text-white" />
                   </div>
-                  <h2 className="text-xl sm:text-2xl font-bold" style={{ color: section.color }}>
+                  <h2 className="text-xl sm:text-2xl font-bold" style={{ color: "#022030" }}>
                     {section.label}
                   </h2>
                   <div className="flex-1 h-px bg-gray-200" />
@@ -232,19 +220,26 @@ const JobCategories = () => {
                     return (
                       <div
                         key={category.id}
-                        className={`bg-white border ${accent.border} rounded-2xl p-5 cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-1 group`}
+                        className="bg-white rounded-2xl p-5 cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-1 group"
+                        style={{ border: "1px solid #e5e7eb" }}
                         onClick={() => handleCategoryClick(category.designation)}
                       >
                         {/* Top row: Icon + Job count */}
                         <div className="flex items-start justify-between mb-4">
-                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform duration-300 ${accent.icon}`}>
+                          <div
+                            className="w-12 h-12 rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform duration-300"
+                            style={{ backgroundColor: "#022030" }}
+                          >
                             <IconComponent className="w-6 h-6 text-white" />
                           </div>
-                          <div className="w-12 h-12 rounded-full border-2 border-gray-200 flex flex-col items-center justify-center">
+                          <div
+                            className="w-12 h-12 rounded-full flex flex-col items-center justify-center"
+                            style={{ border: "2px solid #022030" }}
+                          >
                             <span className="text-sm font-bold leading-none" style={{ color: "#022030" }}>
                               {jobCount}
                             </span>
-                            <span className="text-xs text-gray-400 leading-none mt-0.5">Jobs</span>
+                            <span className="text-xs leading-none mt-0.5" style={{ color: "#022030" }}>Jobs</span>
                           </div>
                         </div>
 
@@ -256,11 +251,16 @@ const JobCategories = () => {
                         {/* Products */}
                         {category.products.length > 0 && (
                           <div>
-                            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Products</p>
+                            <p className="text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: "#ff0000" }}>
+                              Products
+                            </p>
                             <ul className="space-y-1">
                               {category.products.map((product, idx) => (
-                                <li key={idx} className="text-xs text-gray-400 flex items-center gap-1.5">
-                                  <span className="w-1 h-1 rounded-full bg-gray-300 inline-block flex-shrink-0" />
+                                <li key={idx} className="text-xs text-gray-500 flex items-center gap-1.5">
+                                  <span
+                                    className="w-1 h-1 rounded-full inline-block flex-shrink-0"
+                                    style={{ backgroundColor: "#ff0000" }}
+                                  />
                                   {product}
                                 </li>
                               ))}
@@ -277,15 +277,19 @@ const JobCategories = () => {
 
           {/* Other Categories card */}
           <div
-            className="bg-blue-50 border border-blue-200 rounded-2xl p-5 cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-1 flex items-center gap-4 max-w-sm"
+            className="bg-white rounded-2xl p-5 cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-1 flex items-center gap-4 max-w-sm"
+            style={{ border: "1px solid #022030" }}
             onClick={() => handleCategoryClick("Other", true)}
           >
-            <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-blue-500">
+            <div
+              className="w-12 h-12 rounded-xl flex items-center justify-center"
+              style={{ backgroundColor: "#022030" }}
+            >
               <Briefcase className="w-6 h-6 text-white" />
             </div>
             <div>
               <h3 className="text-base font-bold" style={{ color: "#022030" }}>Other Categories</h3>
-              <p className="text-xs text-gray-400 mt-0.5">
+              <p className="text-xs mt-0.5" style={{ color: "#ff0000" }}>
                 {jobs.filter(isOtherJob).length} Jobs
               </p>
             </div>
