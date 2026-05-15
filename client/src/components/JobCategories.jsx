@@ -171,22 +171,15 @@ const JobCategories = () => {
       <Navbar />
 
       {/* Hero with text overlay */}
-      <div className="relative w-full h-48 sm:h-64 md:h-80 lg:h-96 overflow-hidden">
-        <img
-          src={categoriesHero}
-          alt="Job Categories"
-          className="absolute inset-0 w-full h-full object-cover object-center"
-        />
-        <div className="absolute inset-0 bg-black/50" />
-        <div className="relative z-10 flex flex-col items-center justify-center h-full px-4 text-center">
-          <p className="text-xs sm:text-sm font-semibold tracking-widest uppercase mb-2 sm:mb-3" style={{ color: "#ff0000" }}>
-            JOB CATEGORIES
-          </p>
-          <h1 className="text-2xl sm:text-4xl md:text-5xl font-bold text-white drop-shadow-lg">
-            Find Jobs by Categories
-          </h1>
+     <section className="relative overflow-hidden mx-2 sm:mx-4 my-4 sm:my-6 lg:mx-8 lg:my-10 rounded-2xl sm:rounded-3xl border-2 border-gray-300">
+        <div className="relative w-full" style={{ paddingBottom: "42%" }}>
+          <img
+            src={categoriesHero}
+            alt="Job Categories"
+            className="absolute inset-0 w-full h-full object-cover object-center"
+          />
         </div>
-      </div>
+      </section>
 
       {/* Sections */}
       <div className="py-12 px-4 sm:px-8">

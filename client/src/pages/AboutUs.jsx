@@ -9,14 +9,16 @@ const AboutUs = () => {
     <div className="min-h-screen bg-gray-50">
       <Navbar />
 
-      {/* Hero Image */}
-      <div className="w-full h-64 sm:h-80 md:h-[420px] overflow-hidden">
-        <img
-          src={aboutImage}
-          alt="About DE Employmint"
-          className="w-full h-full object-cover"
-        />
-      </div>
+    {/* Hero Image */}
+      <section className="relative overflow-hidden mx-2 sm:mx-4 my-4 sm:my-6 lg:mx-8 lg:my-10 rounded-2xl sm:rounded-3xl border-2 border-gray-300">
+        <div className="relative w-full" style={{ paddingBottom: "42%" }}>
+          <img
+            src={aboutImage}
+            alt="About DE Employmint"
+            className="absolute inset-0 w-full h-full object-cover object-center"
+          />
+        </div>
+      </section>
 
       {/* Content Section */}
       <div className="max-w-5xl mx-auto px-4 py-14 sm:py-20">

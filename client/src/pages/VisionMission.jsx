@@ -2,24 +2,23 @@ import React from "react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { ClipboardList, Users, Users2, BarChart2, Zap, Target, Rocket } from "lucide-react";
+import visionImage from "../assets/vision and mission.jpeg";
 
 const VisionMission = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
 
-      {/* Page Header */}
-      <div className="bg-white border-b border-gray-100 py-12 sm:py-16 px-4">
-        <div className="max-w-4xl mx-auto text-center">
-          <p className="text-sm font-semibold tracking-widest text-red-500 uppercase mb-3">
-            Who We Are
-          </p>
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold leading-tight" style={{ color: "#020330" }}>
-            Our Vision &amp; Mission
-          </h1>
-          <div className="mx-auto mt-4 h-1 w-20 rounded-full" style={{ backgroundColor: "#FF0000" }}></div>
-        </div>
-      </div>
+    {/* Hero Image */}
+        <section className="relative overflow-hidden mx-2 sm:mx-4 my-4 sm:my-6 lg:mx-8 lg:my-10 rounded-2xl sm:rounded-3xl border-2 border-gray-300">
+          <div className="relative w-full" style={{ paddingBottom: "42%" }}>
+            <img
+              src={visionImage}
+              alt="Vision and Mission"
+              className="absolute inset-0 w-full h-full object-cover object-center"
+            />
+          </div>
+        </section>
 
       {/* Cards */}
       <div className="max-w-5xl mx-auto px-4 py-12 sm:py-16 space-y-8">

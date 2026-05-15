@@ -5,8 +5,9 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import img1 from '../assets/hero (1).jpeg';
 import img2 from '../assets/hero (2).jpeg';
 import img3 from '../assets/hero (3).jpeg';
+import img4 from '../assets/hero (4).jpeg';
 
-const slides = [img1, img2, img3];
+const slides = [img3, img4, img1, img2];
 
 const INTERVAL = 10000; // 10 seconds
 

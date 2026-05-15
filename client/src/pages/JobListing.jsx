@@ -369,16 +369,12 @@ const JobListing = () => {
     <div className="min-h-screen bg-gray-50">
       <Navbar />
 
-      <div className="relative w-full h-48 sm:h-64 md:h-80 lg:h-96 overflow-hidden">
-        <img src={latestJobsHero} alt="Latest Jobs" className="absolute inset-0 w-full h-full object-cover object-center" />
-        <div className="absolute inset-0 bg-black/50" />
-        <div className="relative z-10 flex flex-col items-center justify-center h-full px-4 text-center">
-          <p className="text-xs sm:text-sm font-semibold tracking-widest uppercase text-red-400 mb-2 sm:mb-3">JOB LISTINGS</p>
-          <h1 className="text-2xl sm:text-4xl md:text-5xl font-bold text-white drop-shadow-lg">Latest Jobs</h1>
+      <section className="relative overflow-hidden mx-2 sm:mx-4 my-4 sm:my-6 lg:mx-8 lg:my-10 rounded-2xl sm:rounded-3xl border-2 border-gray-300">
+        <div className="relative w-full" style={{ paddingBottom: "42%" }}>
+          <img src={latestJobsHero} alt="Latest Jobs" className="absolute inset-0 w-full h-full object-cover object-center" />
         </div>
-      </div>
-
-      <div className="py-8"> 
+      </section>
+       <div className="py-8"> 
         <div className="container mx-auto flex flex-col lg:flex-row max-lg:space-y-8 px-4 lg:px-8">
           
           <motion.div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10" variants={containerVariants} initial="hidden" animate="visible"></motion.div>

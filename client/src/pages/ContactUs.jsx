@@ -44,14 +44,16 @@ const ContactUs = () => {
     <div className="min-h-screen bg-gray-50">
       <Navbar />
 
-      {/* Hero Image */}
-      <div className="w-full h-64 sm:h-80 md:h-96 overflow-hidden">
-        <img
-          src={contactImage}
-          alt="Contact Us"
-          className="w-full h-full object-cover"
-        />
-      </div>
+     {/* Hero Image */}
+          <section className="relative overflow-hidden mx-2 sm:mx-4 my-4 sm:my-6 lg:mx-8 lg:my-10 rounded-2xl sm:rounded-3xl border-2 border-gray-300">
+            <div className="relative w-full" style={{ paddingBottom: "42%" }}>
+              <img
+                src={contactImage}
+                alt="Contact Us"
+                className="absolute inset-0 w-full h-full object-cover object-center"
+              />
+            </div>
+          </section>
 
       {/* Contact Section */}
       <div className="max-w-5xl mx-auto px-4 py-12 sm:py-16">
@@ -175,7 +177,7 @@ const ContactUs = () => {
               <Phone className="w-5 h-5 text-white" />
             </div>
             <h4 className="font-semibold text-gray-800 mb-1">Call Us</h4>
-            <p className="text-sm text-gray-500">+91 00000 00000</p>
+            <p className="text-sm text-gray-500">+91 915780 8887</p>
           </div>
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
             <div className="w-10 h-10 rounded-xl bg-[#020330] flex items-center justify-center mb-3 mx-auto">
