@@ -70,36 +70,52 @@ const ViewApplications = () => {
     }
   };
 
-  const changeJobApplicationStatus = async (id, status, remarks = "") => {
-    // ✅ Prevent sub-users from accepting/rejecting
-    if (isSubUser) {
-      toast.error(`${subUserRole.toUpperCase()} users cannot accept/reject applications. Only view and assess.`);
-      return;
-    }
+ const changeJobApplicationStatus = async (id, status, remarks = "") => {
+  // ✅ Prevent sub-users from accepting/rejecting
+  if (isSubUser) {
+    toast.error(`${subUserRole.toUpperCase()} users cannot accept/reject applications. Only view and assess.`);
+    return;
+  }
 
-    try {
-      console.log("Changing status for application:", id, "to:", status);
+  try {
+    console.log("Changing status for application:", id, "to:", status);
 
-      const { data } = await axios.post(
-        `${backendUrl}/api/company/change-status`,
-        { id, status, remarks },
-        { headers: { token: companyToken } }
-      );
+    const { data } = await axios.post(
+      `${backendUrl}/api/company/change-status`,
+      { id, status, remarks },
+      { headers: { token: companyToken } }
+    );
 
-      if (data.success) {
-        // Remove from UI list (status is persisted in DB)
-        setApplicants(prev => prev.filter(a => a._id !== id));
-        toast.success(`Application ${status.toLowerCase()} successfully`);
-        setActiveDropdown(null);
-      } else {
-        console.error("Status change failed:", data.message);
-        toast.error(data.message);
+    if (data.success) {
+      // Remove from UI list (status is persisted in DB)
+      setApplicants(prev => prev.filter(a => a._id !== id));
+      toast.success(`Application ${status.toLowerCase()} successfully`);
+      setActiveDropdown(null);
+
+      // ✅ Broadcast to SearchResume page so it reflects accepted/rejected instantly
+        try {
+        const bc = new BroadcastChannel("application_updates");
+        bc.postMessage({
+          type: status.toLowerCase() === "rejected"
+            ? "APPLICATION_REJECTED"
+            : "APPLICATION_ACCEPTED",
+          applicationId: id,
+          candidateEmail: applicants.find(a => a._id === id)?.userId?.email || "", // ← ADD THIS
+        });
+        bc.close();
+      } catch {
+        // BroadcastChannel not supported in this environment — silently skip
       }
-    } catch (error) {
-      console.error("Error changing status:", error);
-      toast.error(error.response?.data?.message || error.message);
+
+    } else {
+      console.error("Status change failed:", data.message);
+      toast.error(data.message);
     }
-  };
+  } catch (error) {
+    console.error("Error changing status:", error);
+    toast.error(error.response?.data?.message || error.message);
+  }
+};
 
   // Open assessment in new tab
   const handleOpenAssessmentTab = (applicant) => {
@@ -122,10 +138,20 @@ const ViewApplications = () => {
           setApplicants(prev => prev.filter(a => a._id !== event.data.applicationId));
           toast.success("Application accepted via assessment.");
         }
-      };
-    } catch { /* BroadcastChannel not supported */ }
-    return () => { try { bc?.close(); } catch { } };
-  }, []);
+      if (event.data?.type === "APPLICATION_REJECTED" && event.data?.applicationId) {
+        setCombinedData(prev =>
+          prev.map(c =>
+            c._id === event.data.applicationId
+              ? { ...c, rejected: true }
+              : c
+          )
+        );
+        toast.info("Candidate rejected.");
+      }
+    };
+  } catch { /* BroadcastChannel not supported */ }
+  return () => { try { bc?.close(); } catch { } };
+}, []);
   const handleViewResume = (resumeUrl, applicantName) => {
     if (!resumeUrl || 
         resumeUrl.trim() === '' || 
@@ -490,66 +516,37 @@ const ViewApplications = () => {
                       </td>
                       
                       {/* ✅ Only show status column for main recruiters */}
-                      {!isSubUser && (
-                        <td className="py-3 sm:py-4 px-3 sm:px-5 relative">
-                          {(!applicant.status || applicant.status.toLowerCase() === "pending") ? (
-                            <div className="relative" ref={dropdownRef}>
-                              <button 
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  setActiveDropdown(activeDropdown === index ? null : index);
-                                }}
-                                className="px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors flex items-center gap-1 text-white hover:opacity-90 whitespace-nowrap"
-                                style={{ backgroundColor: '#FF0000' }}
-                              >
-                                <span>Pending</span>
-                                <MoreHorizontal size={14} className="sm:w-4 sm:h-4" />
-                              </button>
-                              
-                              <AnimatePresence>
-                                {activeDropdown === index && (
-                                  <motion.div 
-                                    initial={{ opacity: 0, y: -10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: -10 }}
-                                    transition={{ duration: 0.2 }}
-                                    className="absolute right-0 bottom-full mb-1 z-50 w-32 sm:w-36 bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden"
-                                  >
-                                    <button
-                                      onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        handleOpenAssessmentTab(applicant);
-                                      }}
-                                      className="w-full px-3 sm:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-green-600 hover:bg-green-50 flex items-center gap-2 transition-colors border-b border-gray-100"
-                                    >
-                                      <Check size={14} className="sm:w-4 sm:h-4" />
-                                      Accept
-                                    </button>
-                                    <button
-                                      onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        setActiveDropdown(null);
-                                        setRejectApplicationId(applicant._id);
-                                        setRejectCandidateName(applicant.userId?.name || "Candidate");
-                                        setRejectModalOpen(true);
-                                      }}
-                                      className="w-full px-3 sm:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors"
-                                    >
-                                      <X size={14} className="sm:w-4 sm:h-4" />
-                                      Reject
-                                    </button>
-                                  </motion.div>
-                                )}
-                              </AnimatePresence>
-                            </div>
-                          ) : (
-                            getStatusBadge(applicant.status)
-                          )}
-                        </td>
-                      )}
+                    {!isSubUser && (
+                      <td className="py-3 sm:py-4 px-3 sm:px-5">
+                        {(!applicant.status || applicant.status.toLowerCase() === "pending") ? (
+                          <div className="flex items-center gap-1 sm:gap-2">
+                            {/* Accept → opens assessment tab */}
+                            <button
+                              onClick={() => handleOpenAssessmentTab(applicant)}
+                              className="p-1.5 sm:p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                              title="Accept (Open Assessment)"
+                            >
+                              <Check size={16} />
+                            </button>
+
+                            {/* Reject → opens remarks modal */}
+                            <button
+                              onClick={() => {
+                                setRejectApplicationId(applicant._id);
+                                setRejectCandidateName(applicant.userId?.name || "Candidate");
+                                setRejectModalOpen(true);
+                              }}
+                              className="p-1.5 sm:p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Reject"
+                            >
+                              <X size={16} />
+                            </button>
+                          </div>
+                        ) : (
+                          getStatusBadge(applicant.status)
+                        )}
+                      </td>
+                    )}
                     </motion.tr>
                   ))
                 )}
@@ -558,26 +555,25 @@ const ViewApplications = () => {
           </div>
         </motion.div>
         
-        {/* Profile Modal */}
-        <CandidateProfileModal
-          isOpen={profileModalOpen}
-          onClose={() => setProfileModalOpen(false)}
-          profile={selectedProfile}
-          backendUrl={backendUrl}
-        />
+              {/* Profile Modal */}
+              <CandidateProfileModal
+                isOpen={profileModalOpen}
+                onClose={() => setProfileModalOpen(false)}
+                profile={selectedProfile}
+                backendUrl={backendUrl}
+              />
 
-        {/* Reject Remarks Modal */}
-        <RejectRemarksModal
-          isOpen={rejectModalOpen}
-          onClose={() => { setRejectModalOpen(false); setRejectApplicationId(null); }}
-          candidateName={rejectCandidateName}
-          onConfirm={(remarks) => {
-            changeJobApplicationStatus(rejectApplicationId, "Rejected", remarks);
-            setRejectModalOpen(false);
-            setRejectApplicationId(null);
-          }}
-        />
-
+            {/* Reject Remarks Modal */}
+            <RejectRemarksModal
+              isOpen={rejectModalOpen}
+              onClose={() => { setRejectModalOpen(false); setRejectApplicationId(null); }}
+              candidateName={rejectCandidateName}
+              onConfirm={(remarks) => {
+                changeJobApplicationStatus(rejectApplicationId, "Rejected", remarks);
+                setRejectModalOpen(false);
+                setRejectApplicationId(null);
+              }}
+            />
 
         {/* Resume Not Available Modal */}
         <AnimatePresence>

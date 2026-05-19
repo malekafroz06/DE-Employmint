@@ -10,7 +10,7 @@ import JobCard from "../components/JobCard";
 import Footer from "../components/Footer";
 import axios from "axios";
 import { toast } from "react-toastify";
-import { useAuth } from "@clerk/clerk-react";
+import { useAuth, useClerk } from "@clerk/clerk-react";
 import Calltoaction from "../components/Calltoaction";
 import { motion } from "framer-motion";
 import { FiMapPin, FiBriefcase, FiClock, FiCheckCircle, FiExternalLink } from "react-icons/fi";
@@ -79,6 +79,7 @@ const CompanyLogo = ({ companyData }) => {
 };
 const ApplyJob = () => {
   const { id } = useParams();
+  const { openSignIn } = useClerk(); 
   const { getToken } = useAuth();
   const [jobData, setJobData] = useState(null);
   const [isAlreadyApplied, setAlreadyApplied] = useState(false);
@@ -192,6 +193,7 @@ const ApplyJob = () => {
       console.log('jobData:', jobData);
       
       if (!userData) {
+        openSignIn(); 
         return toast.error("Please login to apply.");
       }
 

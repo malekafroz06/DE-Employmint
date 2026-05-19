@@ -55,11 +55,6 @@ const JobAlert = () => {
     frequency: 'daily'
   });
 
-  // ✅ Dynamic data from DB
-  const [locations, setLocations] = useState([]);
-  const [designations, setDesignations] = useState([]);
-  const [loadingOptions, setLoadingOptions] = useState(true);
-  
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState('');
   const [showToast, setShowToast] = useState(false);
@@ -67,48 +62,6 @@ const JobAlert = () => {
   const { backendUrl, companyToken } = useContext(AppContext);
   
   const isLoggedIn = isLoaded && user;
-
-  // ✅ Fetch unique locations and products/designations from jobs
-  useEffect(() => {
-    const fetchOptions = async () => {
-      try {
-        setLoadingOptions(true);
-        const { data } = await axios.get(`${backendUrl}/api/jobs`);
-        
-        if (data.success && data.data) {
-          const jobs = data.data;
-
-          // ✅ Extract unique locations (split comma-separated too)
-          const allLocations = jobs.flatMap(job =>
-            job.location
-              ? job.location.split(',').map(l => l.trim()).filter(Boolean)
-              : []
-          );
-          const uniqueLocations = [...new Set(allLocations)].sort();
-          setLocations(uniqueLocations);
-
-          // ✅ Extract unique products/designations
-          const allDesignations = jobs.flatMap(job => {
-            if (Array.isArray(job.product) && job.product.length > 0) {
-              return job.product;
-            }
-            if (job.designation && job.designation.trim()) {
-              return job.designation.split(',').map(d => d.trim()).filter(Boolean);
-            }
-            return [];
-          });
-          const uniqueDesignations = [...new Set(allDesignations)].sort();
-          setDesignations(uniqueDesignations);
-        }
-      } catch (error) {
-        console.error('Failed to fetch job options:', error);
-      } finally {
-        setLoadingOptions(false);
-      }
-    };
-
-    fetchOptions();
-  }, [backendUrl]);
 
   // ✅ Pre-fill email if user is logged in
   useEffect(() => {
@@ -133,22 +86,25 @@ const JobAlert = () => {
   };
 
   const JobCategories = [
-    "Equity Broking",
-    "Commodity Broking",
-    "Currency Broking",
-    "Fundamental Research",
-    "Technical Research",
-    "Data Analysis",
-    "Quant Analysis",
+    "Stock Market",
+    "Asset Management",
+    "Portfolio Management",
+    "Wealth Management",
+    "Alternative Investment Fund",
+    "Investment Banking",
+    "Asset Finance Company (AFC)",
+    "Loan Company (LC)",
+    "Microfinance Institution (MFI)",
+    "Housing Finance Company (HFC)",
+    "Gold Loan NBFC",
+    "Retail NBFC (Consumer Finance)",
     "Life Insurance",
     "General Insurance",
-    "Asset Finance",
-    "Loan Companies",
-    "Microfiance",
-    "MFI",
-    "Housing Finance Co. (HFC)",
-    "Discretionary Portfolio Management",
-    "Non-Discretionary Advisory"
+    "Fundamental Analysis",
+    "Technical Analysis",
+    "Quant Analysis",
+    "Algo Trading",
+    "Other"
   ];
 
   const experiences = [
@@ -372,27 +328,22 @@ const JobAlert = () => {
                   </div>
 
                   {/* ✅ Location from DB */}
-                  <div>
-                    <label htmlFor="location" className="block text-sm font-semibold text-gray-700 mb-3">
-                      Preferred Location <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      name="location"
-                      id="location"
-                      required
-                      value={formData.location}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-gray-50 focus:bg-white hover:border-gray-400 transition-colors duration-200"
-                      disabled={!isLoggedIn || loadingOptions}
-                    >
-                      <option value="">
-                        {loadingOptions ? 'Loading locations...' : 'Select a location'}
-                      </option>
-                      {locations.map((location, index) => (
-                        <option key={index} value={location}>{location}</option>
-                      ))}
-                    </select>
-                  </div>
+                <div>
+                  <label htmlFor="location" className="block text-sm font-semibold text-gray-700 mb-3">
+                    Preferred Location <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="location"
+                    name="location"
+                    required
+                    value={formData.location}
+                    onChange={handleChange}
+                    placeholder="e.g. Mumbai, Delhi, Bangalore"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 hover:border-gray-400 transition-colors duration-200 bg-gray-50 focus:bg-white"
+                    disabled={!isLoggedIn}
+                  />
+                </div>
 
                   {/* Experience Level */}
                   <div>
@@ -420,22 +371,17 @@ const JobAlert = () => {
                     <label htmlFor="designation" className="block text-sm font-semibold text-gray-700 mb-3">
                       Job Designation <span className="text-red-500">*</span>
                     </label>
-                    <select
-                      name="designation"
+                    <input
+                      type="text"
                       id="designation"
+                      name="designation"
                       required
                       value={formData.designation}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-gray-50 focus:bg-white hover:border-gray-400 transition-colors duration-200"
-                      disabled={!isLoggedIn || loadingOptions}
-                    >
-                      <option value="">
-                        {loadingOptions ? 'Loading designations...' : 'Select a designation'}
-                      </option>
-                      {designations.map((designation, index) => (
-                        <option key={index} value={designation}>{designation}</option>
-                      ))}
-                    </select>
+                      placeholder="e.g. Branch Manager, Sales Executive"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 hover:border-gray-400 transition-colors duration-200 bg-gray-50 focus:bg-white"
+                      disabled={!isLoggedIn}
+                    />
                   </div>
                 </div>
               </div>

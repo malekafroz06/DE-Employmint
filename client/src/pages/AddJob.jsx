@@ -121,19 +121,16 @@ const CategoryProducts = {
 };
 
 const AddJob = () => {
-  const [title, setTitle] = useState("");
-
+  const [designation, setDesignation] = useState("");
   // --- Multi-location state ---
   const [locations, setLocations] = useState([]);
   const [locationInput, setLocationInput] = useState("");
 
   const [level, setLevel] = useState("Fresher");
   const [jobchannel, setJobChannel] = useState("Agency Channel");
-  const [jobcategory, setJobCategory] = useState("Equity Broking");
-
-  // --- Multi-product (checkbox) state ---
+  const [jobcategory, setJobCategory] = useState("Stock Market");
   const [selectedProducts, setSelectedProducts] = useState(
-    CategoryProducts["Equity Broking"] ? [CategoryProducts["Equity Broking"][0]] : []
+    [CategoryProducts["Stock Market"][0]]
   );
 
   const [noticeperiod, setNoticeperiod] = useState("Immediate Joiner");
@@ -214,7 +211,7 @@ const AddJob = () => {
       const description = quillRef.current ? quillRef.current.root.innerHTML : "";
       const salaryNum = Number(salary);
 
-      if (!title.trim()) { toast.error("Job title is required"); setFormStep(1); return; }
+      if (!designation.trim()) { toast.error("Designation is required"); setFormStep(1); return; }
       if (salaryNum <= 0 || isNaN(salaryNum)) { toast.error("Please enter a valid salary"); setFormStep(1); return; }
       if (locations.length === 0) { toast.error("Please add at least one location"); setFormStep(1); return; }
       if (jobchannel === "Other" && !otherChannel.trim()) { toast.error("Please specify the channel"); setFormStep(2); return; }
@@ -227,13 +224,14 @@ const AddJob = () => {
       const finalChannel = jobchannel === "Other" ? otherChannel.trim() : jobchannel;
       const finalCategory = jobcategory === "Other" ? otherCategory.trim() : jobcategory;
 
-      const { data } = await axios.post(
+     const { data } = await axios.post(
         backendUrl + "/api/company/post-job",
         {
-          title: title.trim(),
+          title: designation.trim(),      // ← keep 'title' key for backend compatibility
+          designation: designation.trim(), // ← also save as designation
           description,
-          location: locations.join(", "),   // send as comma-separated string (or send array if your API supports it)
-          product: selectedProducts.join(", "),
+          location: locations.join(", "),
+          product: selectedProducts,       // ← send as array, not joined string
           level,
           jobchannel: finalChannel,
           jobcategory: finalCategory,
@@ -244,19 +242,25 @@ const AddJob = () => {
         { headers: { token: companyToken, "Content-Type": "application/json" } }
       );
 
-      if (data.success) {
-        toast.success("Job posted successfully!");
-        setTitle(""); setSalary(""); setLocations([]); setLocationInput("");
-        setLevel("Fresher"); setJobChannel("Agency Channel");
-        setJobCategory("Equity Broking");
-        setSelectedProducts([CategoryProducts["Equity Broking"][0]]);
-        setNoticeperiod("Immediate Joiner");
-        setShowOtherChannel(false); setOtherChannel("");
-        setShowOtherCategory(false); setOtherCategory("");
-        setDepartment("");
-        if (quillRef.current) quillRef.current.root.innerHTML = "";
-        setFormStep(1);
-      } else {
+     if (data.success) {
+      toast.success("Job posted successfully!");
+      setDesignation("");  // ← was setTitle("") - this was causing the error
+      setSalary("");
+      setLocations([]);
+      setLocationInput("");
+      setLevel("Fresher");
+      setJobChannel("Agency Channel");
+      setJobCategory("Stock Market");  // ← also fix this, "Equity Broking" doesn't exist in JobCategories
+      setSelectedProducts([CategoryProducts["Stock Market"][0]]);  // ← match above
+      setNoticeperiod("Immediate Joiner");
+      setShowOtherChannel(false);
+      setOtherChannel("");
+      setShowOtherCategory(false);
+      setOtherCategory("");
+      setDepartment("");
+      if (quillRef.current) quillRef.current.root.innerHTML = "";
+      setFormStep(1);
+    } else {
         toast.error(data.message || "Failed to post job");
       }
     } catch (error) {
@@ -311,7 +315,7 @@ const AddJob = () => {
   const getDisplayCategory = () => (jobcategory === "Other" ? otherCategory : jobcategory);
 
   const isStep1Valid =
-    title.trim() && Number(salary) > 0 && !isNaN(Number(salary)) && locations.length > 0;
+  designation.trim() && Number(salary) > 0 && !isNaN(Number(salary)) && locations.length > 0;
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -348,25 +352,25 @@ const AddJob = () => {
             </div>
 
             <div className="space-y-6">
-              {/* Job Title */}
+              {/* Job Designation */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Job Title <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder="e.g. Senior Sales Manager"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all duration-200"
-                  />
-                  {title && (
-                    <span className="absolute right-3 top-3 text-green-500">✔</span>
-                  )}
-                </div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Designation <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="e.g. Branch Manager, Zonal Head, Sales Executive"
+                  value={designation}
+                  onChange={(e) => setDesignation(e.target.value)}
+                  required
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all duration-200"
+                />
+                {designation && (
+                  <span className="absolute right-3 top-3 text-green-500">✔</span>
+                )}
               </div>
+            </div>
 
               {/* Salary */}
               <div>
@@ -625,7 +629,7 @@ const AddJob = () => {
             <div className="p-6 border border-dashed border-gray-300 rounded-xl bg-gray-50">
               <div className="flex justify-between items-start mb-4">
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900">{title || "Job Title"}</h3>
+                  <h3 className="text-xl font-bold text-gray-900">{designation || "Designation"}</h3>
                   <div className="flex flex-wrap gap-2 mt-2">
                     {locations.map((loc) => (
                       <span key={loc} className="px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">{loc}</span>

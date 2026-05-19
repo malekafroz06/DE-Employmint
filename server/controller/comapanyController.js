@@ -4,7 +4,6 @@ import jwt from "jsonwebtoken";
 import generateToken from "../utils/generateToken.js";
 import Job from "../models/Job.js";
 import JobApplication from "../models/JobApplication.js";
-// ✅ FIXED: Import the correct function name
 import { recordJobMatch } from '../services/jobNotificationService.js';
 import EmployerProfile from '../models/EmployerProfile.js';
 import crypto from 'crypto';
@@ -13,7 +12,7 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { OAuth2Client } from 'google-auth-library';
-import SubUser from "../models/SubUser.js"; // ✅ ADD THIS at the top
+import SubUser from "../models/SubUser.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -574,34 +573,46 @@ export const verifyResetCode = async (req, res) => {
 // Post a new Job
 // ✅ Updated postJob
 export const postJob = async (req, res) => {
-  const { title, description, location, salary, jobcategory, jobchannel, level, noticeperiod, product, department } = req.body;
-
-  const companyId = req.company._id;
-
   try {
-    // ✅ Convert comma-separated string to array
-    const productArray = typeof product === 'string'
-      ? product.split(',').map(p => p.trim()).filter(Boolean)
-      : Array.isArray(product) ? product : [product];
-
-    const newJob = new Job({
+    const {
       title,
+      designation,
       description,
       location,
       salary,
+      jobcategory,
+      jobchannel,
+      level,
+      noticeperiod,
+      product,
+      department
+    } = req.body;
+
+    const companyId = req.company._id;
+
+    const productArray = typeof product === 'string'
+      ? product.split(',').map(p => p.trim()).filter(Boolean)
+      : Array.isArray(product) ? product : product ? [product] : [];
+
+    const newJob = new Job({
+      title,
+      designation: designation || "",
+      description,
+      location,
+      salary: Number(salary),
       companyId,
       date: Date.now(),
       level,
-      jobcategory,
-      jobchannel,
-      noticeperiod,
-      product: productArray,   // ✅ saves as ["Term Plans", "Endowment Plan", "ULIPs"]
+      jobcategory: jobcategory || "Not specified",
+      jobchannel: jobchannel || "Not specified",
+      noticeperiod: noticeperiod || "Not specified",
+      product: productArray,
       department: department || "",
     });
 
     const savedJob = await newJob.save();
     const matchedAlerts = await recordJobMatch(savedJob);
-    console.log(`📬 Job added to ${matchedAlerts} job alert queues for batch processing`);
+    console.log(`📬 Job added to ${matchedAlerts} job alert queues`);
 
     res.status(201).json({
       success: true,
@@ -611,6 +622,7 @@ export const postJob = async (req, res) => {
     });
 
   } catch (error) {
+    console.error('postJob error:', error);
     res.json({ success: false, message: error.message });
   }
 };

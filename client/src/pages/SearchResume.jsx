@@ -82,25 +82,52 @@ const SearchResume = () => {
   }, [combinedData, searchQuery, filterStatus, sortBy]);
 
   // Listen for assessment tab completion → mark candidate as accepted in UI immediately
-  useEffect(() => {
-    let bc;
-    try {
-      bc = new BroadcastChannel("application_updates");
-      bc.onmessage = (event) => {
-        if (event.data?.type === "APPLICATION_ACCEPTED" && event.data?.applicationId) {
-          setCombinedData(prev =>
-            prev.map(c =>
-              c._id === event.data.applicationId
-                ? { ...c, accepted: true }
-                : c
-            )
-          );
-          toast.success("Candidate accepted via assessment.");
-        }
-      };
-    } catch { /* BroadcastChannel not supported */ }
-    return () => { try { bc?.close(); } catch { } };
-  }, []);
+ useEffect(() => {
+  let bc;
+  try {
+    bc = new BroadcastChannel("application_updates");
+    bc.onmessage = (event) => {
+
+      if (event.data?.type === "APPLICATION_ACCEPTED") {
+        const { applicationId, candidateEmail } = event.data;
+
+        setCombinedData(prev =>
+          prev.map(c => {
+            // Match by bulk-upload _id (SearchResume candidates)
+            if (applicationId && c._id === applicationId) {
+              return { ...c, accepted: true };
+            }
+            // Match by email (when coming from ViewApplications assessment tab)
+            if (candidateEmail && c.email?.toLowerCase() === candidateEmail.toLowerCase()) {
+              return { ...c, accepted: true };
+            }
+            return c;
+          })
+        );
+        toast.success("Candidate accepted via assessment.");
+      }
+
+      if (event.data?.type === "APPLICATION_REJECTED") {
+        const { applicationId, candidateEmail } = event.data;
+
+        setCombinedData(prev =>
+          prev.map(c => {
+            if (applicationId && c._id === applicationId) {
+              return { ...c, rejected: true };
+            }
+            if (candidateEmail && c.email?.toLowerCase() === candidateEmail.toLowerCase()) {
+              return { ...c, rejected: true };
+            }
+            return c;
+          })
+        );
+        toast.info("Candidate rejected.");
+      }
+
+    };
+  } catch { /* BroadcastChannel not supported */ }
+  return () => { try { bc?.close(); } catch { } };
+}, []);
 
   // ─── Name helpers ────────────────────────────────────────────────────────────
 

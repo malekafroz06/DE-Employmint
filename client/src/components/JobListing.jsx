@@ -86,7 +86,7 @@ const JobListing = () => {
   const JobDesignationsPredefined = useMemo(() => {
     const allDesigs = jobs.flatMap(job =>
       job.designation && job.designation.trim()
-        ? job.designation.split(',').map(d => d.trim()).filter(Boolean)
+        ? [job.designation.trim()]  // ← don't split, keep whole value
         : []
     );
     return [...new Set(allDesigs)].sort();
@@ -182,14 +182,11 @@ const JobListing = () => {
   useEffect(() => {
     const filterJobsFn = () => {
       const matchesDesignation = (job) => {
-        if (selectedCategory.length === 0) return true;
-        if (job.designation) {
-          return selectedCategory.some(cat =>
-            job.designation.split(',').map(d => d.trim()).includes(cat)
-          );
-        }
-        return false;
-      };
+      if (selectedCategory.length === 0) return true;
+      if (!job.designation) return false;
+      // ← exact match, no comma splitting
+      return selectedCategory.includes(job.designation.trim());
+    };
 
       const matchesProduct = (job) => {
         if (selectedProduct.length === 0) return true;

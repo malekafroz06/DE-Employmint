@@ -160,15 +160,16 @@ router.post('/assessment', async (req, res) => {
       console.log('Assessment updated successfully:');
       
       return res.json({
-        success: true,
-        message: 'Assessment updated successfully',
-        data: {
-          id: updatedAssessment._id,
-          candidateName: updatedAssessment.candidateName,
-          lastUpdated: updatedAssessment.lastUpdated,
-          lastContactedDate: updatedAssessment.lastContactedDate
-        }
-      });
+      success: true,
+      message: 'Assessment updated successfully',
+      data: {
+        id: updatedAssessment._id,
+        candidateName: updatedAssessment.candidateName,
+        lastUpdated: updatedAssessment.lastUpdated,
+        lastContactedDate: updatedAssessment.lastContactedDate,
+        remarks: updatedAssessment.remarks 
+      }
+    });
     }
 
     console.log('Creating new assessment...');
@@ -210,15 +211,16 @@ router.post('/assessment', async (req, res) => {
     console.log('Assessment saved successfully:');
 
     res.status(201).json({
-      success: true,
-      message: 'Assessment submitted successfully',
-      data: {
-        id: savedAssessment._id,
-        candidateName: savedAssessment.candidateName,
-        submittedAt: savedAssessment.submittedAt,
-        lastContactedDate: savedAssessment.lastContactedDate
-      }
-    });
+    success: true,
+    message: 'Assessment submitted successfully',
+    data: {
+      id: savedAssessment._id,
+      candidateName: savedAssessment.candidateName,
+      submittedAt: savedAssessment.submittedAt,
+      lastContactedDate: savedAssessment.lastContactedDate,
+      remarks: savedAssessment.remarks  
+    }
+  });
 
   } catch (error) {
     console.error('Error creating/updating assessment:', error);
