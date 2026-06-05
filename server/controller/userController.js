@@ -80,30 +80,32 @@ export const applyForJob = async (req, res) => {
   }
 };
 
-// Get User applied applications
 export const getUserJobApplications = async (req, res) => {
   try {
-    console.log("=== getUserJobApplications Debug ===");
-    
     const clerkUserId = getClerkUserId(req);
     if (!clerkUserId) {
-      return res.status(401).json({ 
-        success: false, 
-        message: "Unauthorized - No user ID found" 
-      });
+      return res.status(401).json({ success: false, message: "Unauthorized - No user ID" });
     }
 
-    const userData = await getOrCreateUser(clerkUserId, req.auth.sessionClaims);
-    console.log("Fetching applications for user:", userData._id);
-    
+    // ← add this guard
+    let userData;
+    try {
+      userData = await getOrCreateUser(clerkUserId, req.auth.sessionClaims);
+    } catch (e) {
+      console.error("getOrCreateUser failed:", e.message);
+      return res.status(500).json({ success: false, message: "Failed to resolve user: " + e.message });
+    }
+
+    if (!userData?._id) {
+      return res.status(500).json({ success: false, message: "User could not be created or found" });
+    }
+
     const applications = await JobApplication.find({ userId: userData._id })
       .populate("companyId", "name email image")
       .populate("jobId", "title description location jobcategory jobchannel level noticeperiod salary")
       .sort({ date: -1 })
       .exec();
-    
-    console.log("Found applications:", applications?.length || 0);
-    
+
     res.json({ success: true, applications: applications || [] });
   } catch (error) {
     console.error("Error fetching applications:", error);
@@ -691,91 +693,102 @@ export const fixUserData = async (req, res) => {
 
 // getOrCreateUser helper
 const getOrCreateUser = async (clerkUserId, claims) => {
+  if (!clerkUserId) throw new Error("clerkUserId is required");
+
+  // ── 1. Try find by Clerk ID first (fastest path) ──────────────────
   let user = await User.findById(clerkUserId);
-  
-  if (!user) {
-    console.log("Creating new user for Clerk ID:", clerkUserId);
+  if (user) return user;
 
-    const email = claims?.email || 
-                 claims?.email_addresses?.[0]?.email_address || 
-                 "temp@example.com";
-    
-    const username = claims?.username || "";
-    const fullName = claims?.name || claims?.full_name || "";
-    const firstName = claims?.first_name || "";
-    const lastName = claims?.last_name || "";
-    
-    let name = "";
-    if (username) {
-      name = username;
-    } else if (fullName) {
-      name = fullName;
-    } else if (firstName || lastName) {
-      name = `${firstName} ${lastName}`.trim();
-    } else if (email && email !== "temp@example.com") {
-      name = email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-    } else {
-      name = "User";
-    }
-    
-    const image = claims?.image_url || claims?.imageUrl || "/default-avatar.png";
+  // ── 2. Extract email safely ────────────────────────────────────────
+  const email = claims?.email ||
+                claims?.email_addresses?.[0]?.email_address ||
+                null;
 
-    try {
-      user = new User({
-        _id: clerkUserId,
-        name: name,
-        email: email,
-        emailId: email,
-        fullName: name,
-        image: image,
-        resume: "",
-      });
-      await user.save();
-      console.log("Created user with name:", name, "and email:", email);
-    } catch (createError) {
-      console.error("Error creating user:", createError);
-      throw createError;
+  // ── 3. If email exists, check for doc under a different _id ────────
+  if (email) {
+    const existingByEmail = await User.findOne({ email });
+    if (existingByEmail) {
+      if (existingByEmail._id.toString() === clerkUserId) {
+        // Already correct — just return it
+        return existingByEmail;
+      }
+      // Wrong _id — migrate: copy data, delete old, create under Clerk ID
+      console.log("Migrating user from old ID to Clerk ID:", email);
+      const oldData = existingByEmail.toObject();
+      delete oldData._id;
+      delete oldData.__v;
+      await User.findByIdAndDelete(existingByEmail._id);
+      try {
+        user = await User.create({ ...oldData, _id: clerkUserId });
+        return user;
+      } catch (e) {
+        if (e.code === 11000) {
+          // Another request beat us — just fetch
+          user = await User.findById(clerkUserId);
+          if (user) return user;
+        }
+        throw e;
+      }
     }
   }
-  
-  return user;
-};
 
+  // ── 4. Build name ──────────────────────────────────────────────────
+  const username  = claims?.username   || "";
+  const fullName  = claims?.name       || claims?.full_name || "";
+  const firstName = claims?.first_name || "";
+  const lastName  = claims?.last_name  || "";
+  const image     = claims?.image_url  || claims?.imageUrl  || "/default-avatar.png";
+
+  let name = username || fullName ||
+    `${firstName} ${lastName}`.trim() ||
+    (email
+      ? email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+      : "User");
+
+  // ── 5. Unique email — never use a shared fallback ──────────────────
+  // Each Clerk user gets a unique placeholder so the unique index never conflicts
+  const safeEmail = email || `noemail.${clerkUserId}@placeholder.internal`;
+
+  // ── 6. Create with duplicate-key guard ────────────────────────────
+  try {
+    user = await User.create({
+      _id:      clerkUserId,
+      name:     name,
+      email:    safeEmail,
+      emailId:  email || "",
+      fullName: name,
+      image:    image,
+      resume:   "",
+    });
+    return user;
+  } catch (createError) {
+    if (createError.code === 11000) {
+      // Parallel request already created it — fetch and return
+      console.log("Race condition on create, fetching existing:", clerkUserId);
+      user = await User.findById(clerkUserId);
+      if (user) return user;
+      if (email) {
+        user = await User.findOne({ email });
+        if (user) return user;
+      }
+      // Still null — throw with a clear message
+      throw new Error(`User not found after duplicate key conflict for: ${clerkUserId}`);
+    }
+    throw createError;
+  }
+};
 // getUserData
 export const getUserData = async (req, res) => {
   try {
     const userId = req.auth.userId;
-    
-    console.log("=== getUserData Debug ===");
-    console.log("User ID:", userId);
-    
     let user = await User.findById(userId);
-    
+
     if (!user) {
-      const claims = req.auth.sessionClaims || {};
-      const email = claims.email || "temp@example.com";
-      const username = claims.username || "";
-      const fullName = claims.name || claims.full_name || "";
-      const firstName = claims.first_name || "";
-      const lastName = claims.last_name || "";
-      let name = username || fullName || `${firstName} ${lastName}`.trim() || "User";
-      const image = claims.image_url || claims.imageUrl || "/default-avatar.png";
-      
-      user = new User({
-        _id: userId,
-        name: name,
-        email: email,
-        emailId: email,
-        fullName: name,
-        image: image,
-        resume: ""
-      });
-      
-      await user.save();
-      console.log("New user created with name:", name, "email:", email);
-    } 
-    
-    res.json({ success: true, user: user });
+      // Use getOrCreateUser so duplicate-key logic is centralised
+      user = await getOrCreateUser(userId, req.auth.sessionClaims || {});
+    }
+
+    res.json({ success: true, user });
   } catch (error) {
     console.error("getUserData error:", error);
     res.json({ success: false, message: error.message });

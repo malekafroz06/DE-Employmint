@@ -131,24 +131,28 @@ const SearchResume = () => {
 
   // ─── Name helpers ────────────────────────────────────────────────────────────
 
-  const extractCandidateName = (text) => {
-    if (!text) return "";
-    let name = text.replace(/\.(pdf|doc|docx)$/i, "");
-    name = name.replace(/[-_]/g, " ");
-    const keywordsToRemove = [
-      'resume','cv','curriculum','vitae','qa','qe','engineer',
-      'developer','manager','analyst','tester','consultant',
-      'updated','latest','new','final','v1','v2','v3'
-    ];
-    keywordsToRemove.forEach(kw => {
-      name = name.replace(new RegExp(`\\b${kw}\\b`, 'gi'), '');
-    });
-    name = name.replace(/\s+/g, " ").replace(/\d+/g, "").trim();
-    return name.split(' ')
-      .filter(w => w.length > 0)
-      .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-      .join(' ');
-  };
+ const extractCandidateName = (text) => {
+  if (!text) return "";
+  let name = text.replace(/\.(pdf|doc|docx)$/i, "");
+  name = name.replace(/[-_]/g, " ");
+
+  // Split CamelCase words: "MalekAfroz" → "Malek Afroz"
+  name = name.replace(/([a-z])([A-Z])/g, '$1 $2');
+
+  const keywordsToRemove = [
+    'resume','cv','curriculum','vitae','qa','qe','engineer',
+    'developer','manager','analyst','tester','consultant',
+    'updated','latest','new','final','v1','v2','v3'
+  ];
+  keywordsToRemove.forEach(kw => {
+    name = name.replace(new RegExp(`\\b${kw}\\b`, 'gi'), '');
+  });
+  name = name.replace(/\s+/g, " ").replace(/\d+/g, "").trim();
+  return name.split(' ')
+    .filter(w => w.length > 0)
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(' ');
+};
 
   const normalizeName = (name) => {
     if (!name) return "";
@@ -156,50 +160,70 @@ const SearchResume = () => {
   };
 
   const namesMatch = (name1, name2) => {
-    const n1 = normalizeName(name1);
-    const n2 = normalizeName(name2);
-    if (n1 === n2) return true;
-    if (n1.includes(n2) || n2.includes(n1)) {
-      if (Math.abs(n1.length - n2.length) <= 3) return true;
+  const n1 = normalizeName(name1);
+  const n2 = normalizeName(name2);
+
+  // 1. Exact full-name match
+  if (n1 === n2) return true;
+
+  // 2. Substring match ONLY if length difference is very small (typo tolerance)
+  if (n1.includes(n2) || n2.includes(n1)) {
+    if (Math.abs(n1.length - n2.length) <= 2) return true; // tighter: was 3
+  }
+
+  // 3. First + Last name must BOTH match (not just first name alone)
+    const w1 = name1.toLowerCase().split(/\s+/).filter(w => w.length > 1);
+    const w2 = name2.toLowerCase().split(/\s+/).filter(w => w.length > 1);
+
+    if (w1.length >= 2 && w2.length >= 2) {
+      const firstMatch = normalizeName(w1[0]) === normalizeName(w2[0]);
+      const lastMatch  = normalizeName(w1[w1.length - 1]) === normalizeName(w2[w2.length - 1]);
+      if (firstMatch && lastMatch) return true;
     }
-    const w1 = name1.toLowerCase().split(/\s+/).filter(w => w.length > 0);
-    const w2 = name2.toLowerCase().split(/\s+/).filter(w => w.length > 0);
-    if (w1.length > 0 && w2.length > 0) {
+
+    // 4. Single-name candidates: only match if name is long enough (≥6 chars) to be unique
+    if (w1.length === 1 && w2.length >= 1) {
       const f1 = normalizeName(w1[0]);
       const f2 = normalizeName(w2[0]);
-      if (f1 === f2) return true;
-      if (f1.length >= 4 && f2.length >= 4) {
-        if (f1.startsWith(f2) || f2.startsWith(f1)) return true;
-      }
+      if (f1 === f2 && f1.length >= 6) return true;
     }
+
     return false;
   };
 
-  const getCsvDataByName = (candidateName, csvFile) => {
-    if (!csvFile?.data || !Array.isArray(csvFile.data)) return null;
-    return csvFile.data.find((row, index) => {
-      if (!row || row.length < 1) return false;
-      if (index === 0 && row[0]?.toLowerCase().includes('full')) return false;
-      return namesMatch(candidateName, row[0] || '');
-    }) || null;
-  };
+    const getCsvDataByName = (candidateName, csvFile) => {
+      if (!csvFile?.data || !Array.isArray(csvFile.data)) return null;
+      const headerIndex = csvFile.data.findIndex(row =>
+        row && row[0] && String(row[0]).toLowerCase().includes('full')
+      );
+      const dataRows = headerIndex >= 0 ? csvFile.data.slice(headerIndex + 1) : csvFile.data;
+      return dataRows.find(row => {
+        if (!row || row.length < 1 || !row[0]) return false;
+        return namesMatch(candidateName, String(row[0]));
+      }) || null;
+    };
+// Add this helper — call it once after parsing csvFile.data
+const buildHeaderMap = (csvFile) => {
+  if (!csvFile?.data || csvFile.data.length === 0) return [];
+  // Find the header row (row containing "Full Name")
+  const headerRow = csvFile.data.find(row =>
+    row && row[0] && String(row[0]).toLowerCase().includes('full')
+  );
+  return headerRow ? headerRow.map(h => String(h || '').trim()) : [];
+};
 
-  const parseCsvRow = (row) => {
-    if (!row) return {};
-    const headers = [
-      'Full Name','Gender','DOB','Mobile No',
-      'Email ID','Linkedin ID','Facebook ID','Instagram ID','Snapchat',
-      'City','State','Languages','Marital Status',
-      'Sector','Category','Product','Channel',
-      'Current Designation','Current Department','Current CTC','Expected CTC',
-      'Notice Period','Total Experience','Status for Job Change'
-    ];
-    const data = {};
-    row.forEach((value, i) => {
-      if (i < headers.length) data[headers[i]] = value || "N/A";
-    });
-    return data;
-  };
+// Replace parseCsvRow with this version that takes headers as a parameter
+const parseCsvRow = (row, headers) => {
+  if (!row || !headers || headers.length === 0) return {};
+  const data = {};
+  headers.forEach((header, i) => {
+    const val = row[i];
+    data[header] = (val !== undefined && val !== null && val !== '') 
+      ? String(val).trim() 
+      : "N/A";
+  });
+  return data;
+};
 
   // ─── Fetch ────────────────────────────────────────────────────────────────────
 
@@ -265,7 +289,8 @@ const SearchResume = () => {
             if (csvMatchedData) { csvMatch = csvFile; break; }
           }
 
-          const parsedCsv = csvMatchedData ? parseCsvRow(csvMatchedData) : null;
+          const csvHeaders = csvMatch ? buildHeaderMap(csvMatch) : [];
+          const parsedCsv  = csvMatchedData ? parseCsvRow(csvMatchedData, csvHeaders) : null;
 
           return {
             _id:            resume._id,

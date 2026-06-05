@@ -87,27 +87,20 @@ const EmployerProfile = () => {
       setFormData(newFormData);
       
       // Set logo preview with URL encoding for spaces
-      if (companyData.logo) {
-        const logoPath = companyData.logo.startsWith('/') 
-          ? companyData.logo.substring(1) 
-          : companyData.logo;
-        
-        // Encode the filename part to handle spaces
-        const pathParts = logoPath.split('/');
-        const filename = pathParts[pathParts.length - 1];
-        const encodedFilename = encodeURIComponent(filename);
-        const directory = pathParts.slice(0, -1).join('/');
-        
-        const previewUrl = directory 
-          ? `${backendUrl}/${directory}/${encodedFilename}`
-          : `${backendUrl}/${encodedFilename}`;
-        
-        setLogoPreview(previewUrl);
-        console.log('Logo preview set to:', previewUrl);
-      } else {
-        setLogoPreview(null);
-      }
-      
+   // In the useEffect that initializes form data:
+        if (companyData.logo) {
+          // If it's already a full URL, use it directly — no encoding needed
+          if (companyData.logo.startsWith('http')) {
+            setLogoPreview(companyData.logo);
+          } else {
+            const logoPath = companyData.logo.startsWith('/')
+              ? companyData.logo.substring(1)
+              : companyData.logo;
+            setLogoPreview(`${backendUrl}/${logoPath}`);
+          }
+        } else {
+          setLogoPreview(null);
+        }
       setDataLoaded(true);
       console.log('Form data initialized with:', newFormData);
     }
@@ -298,55 +291,30 @@ const EmployerProfile = () => {
   };
 
   // Get logo URL for display
-  const getLogoUrl = () => {
-    console.log('=== GET LOGO URL DEBUG ===');
-    console.log('logoPreview:', logoPreview);
-    console.log('companyData?.logo:', companyData?.logo);
-    console.log('companyData?.image:', companyData?.image);
-    console.log('backendUrl:', backendUrl);
-    
-    // If there's a preview (during edit), use it
-    if (logoPreview) {
-      console.log('Using logoPreview:', logoPreview);
-      return logoPreview;
-    }
-    
-    // Check if there's a logo in companyData
-    if (companyData?.logo) {
-      // If logo is a full URL (starts with http), use it directly
-      if (companyData.logo.startsWith('http')) {
-        console.log('Logo is full URL:', companyData.logo);
-        return companyData.logo;
+    const getLogoUrl = () => {
+      // If there's a preview (during edit or from base64), use it
+      if (logoPreview) {
+        return logoPreview;
       }
-      // Otherwise, construct the URL with backend
-      // Remove leading slash if present to avoid double slashes
-      const logoPath = companyData.logo.startsWith('/') 
-        ? companyData.logo.substring(1) 
-        : companyData.logo;
       
-      // Split path and filename, encode the filename part to handle spaces
-      const pathParts = logoPath.split('/');
-      const filename = pathParts[pathParts.length - 1];
-      const encodedFilename = encodeURIComponent(filename);
-      const directory = pathParts.slice(0, -1).join('/');
-      
-      const fullUrl = directory 
-        ? `${backendUrl}/${directory}/${encodedFilename}`
-        : `${backendUrl}/${encodedFilename}`;
-      
-      console.log('Constructed logo URL:', fullUrl);
-      return fullUrl;
-    }
-    
-    // Fallback to company image if no logo
-    if (companyData?.image) {
-      console.log('Using fallback company image:', companyData.image);
-      return companyData.image;
-    }
-    
-    console.log('No logo found, returning null');
-    return null;
-  };
+      // Check if there's a logo in companyData - use it directly if it's a full URL
+      if (companyData?.logo) {
+        if (companyData.logo.startsWith('http')) {
+          return companyData.logo; // ✅ Already a full URL, use as-is
+        }
+        // Only construct URL if it's a relative path
+        const logoPath = companyData.logo.startsWith('/')
+          ? companyData.logo.substring(1)
+          : companyData.logo;
+        return `${backendUrl}/${logoPath}`;
+      }
+
+      if (companyData?.image) {
+        return companyData.image;
+      }
+
+      return null;
+    };
 
   return (
     <motion.div

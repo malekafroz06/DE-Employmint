@@ -31,12 +31,12 @@ import ContactUs from "./pages/ContactUs";
 import AboutUs from "./pages/AboutUs";
 import VisionMission from "./pages/VisionMission";
 import AssessmentPage from "./pages/AssessmentPage";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
 
 // ✅ FIXED: Route Protection Component for Main Recruiter Only
 const ProtectFromSubUsers = ({ children }) => {
   const { companyData } = useContext(AppContext);
   
-  // Check if user is a sub-user
   if (companyData?.isSubUser) {
     toast.error(`${companyData.roleType?.toUpperCase() || 'Sub-user'} users can only access Applications page`);
     return <Navigate to="/dashboard/view-applications" replace />;
@@ -49,12 +49,10 @@ const ProtectFromSubUsers = ({ children }) => {
 const PermissionProtectedRoute = ({ children, permission }) => {
   const { companyData } = useContext(AppContext);
   
-  // Main recruiter always has all permissions
   if (!companyData?.isSubUser) {
     return children;
   }
   
-  // Check if sub-user has the required permission
   const hasPermission = companyData?.permissions?.[permission];
   
   if (!hasPermission) {
@@ -125,6 +123,7 @@ const App = () => {
         <Route path="/assessment" element={<AssessmentPage />} />
         <Route path="/about" element={<AboutUs />} />
         <Route path="/vision-mission" element={<VisionMission />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
 
         {/* DASHBOARD ROUTES - With Sub-User Protection */}
         <Route 

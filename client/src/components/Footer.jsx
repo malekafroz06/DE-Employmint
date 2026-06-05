@@ -163,10 +163,14 @@ const Footer = () => {
                   </a>
                 </li>
                 <li>
-                  <a href="/" className="text-gray-600 hover:text-red-500 transition-colors duration-300 flex items-center text-sm sm:text-base">
+                  <Link
+                    to="/privacy-policy"
+                    onClick={scrollToTop}
+                    className="text-gray-600 hover:text-red-500 transition-colors duration-300 flex items-center text-sm sm:text-base"
+                  >
                     <span className="text-red-500 mr-2 flex-shrink-0">→</span>
-                    Join Our Team
-                  </a>
+                    Privacy Policy
+                  </Link>
                 </li>
                 <li>
                   <Link
