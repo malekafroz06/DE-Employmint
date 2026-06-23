@@ -65,6 +65,7 @@ export const applyForJob = async (req, res) => {
       companyId: companyId || jobData.companyId,
       userId: userData._id,
       jobId,
+      jobTitle: jobData.title,
       date: Date.now(),
       status: "Pending"
     };

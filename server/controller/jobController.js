@@ -1,4 +1,5 @@
 import Job from "../models/Job.js";
+import JobApplication from "../models/JobApplication.js";
 import EmployerProfile from "../models/EmployerProfile.js";
 
 // Helper: merge EmployerProfile logos into jobs
@@ -62,16 +63,19 @@ export const getJobById = async (req, res) => {
 export const deleteJob = async (req, res) => {
     try {
         const { id } = req.params;
-        
-        // Find and delete the job
-        const job = await Job.findByIdAndDelete(id);
-        
+
+        const job = await Job.findById(id);
         if (!job) {
             return res.status(404).json({
                 success: false,
                 message: "Job not found"
             });
         }
+
+        // Preserve the job title in all linked applications before deleting
+        await JobApplication.updateMany({ jobId: id }, { $set: { jobTitle: job.title } });
+
+        await job.deleteOne();
 
         res.json({
             success: true,

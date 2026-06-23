@@ -26,7 +26,6 @@ const createUploadDirs = async () => {
   }
 };
 
-// Initialize upload directories
 await createUploadDirs();
 
 // Storage configuration
@@ -42,13 +41,12 @@ const storage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const ext = path.extname(file.originalname);
     const sanitizedName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
     cb(null, uniqueSuffix + '-' + sanitizedName);
   }
 });
 
-// File filter - UPDATED to support Excel files
+// File filter
 const fileFilter = (req, file, cb) => {
   if (file.fieldname === 'resumes') {
     const allowedTypes = /pdf|doc|docx/;
@@ -56,14 +54,12 @@ const fileFilter = (req, file, cb) => {
     const mimetype = allowedTypes.test(file.mimetype) || 
                     file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
                     file.mimetype === 'application/msword';
-    
     if (mimetype && extname) {
       return cb(null, true);
     } else {
       cb(new Error('Only PDF, DOC, and DOCX files are allowed for resumes'));
     }
   } else if (file.fieldname === 'csvFiles') {
-    // Support CSV and Excel files
     const allowedTypes = /csv|xlsx|xls/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
     const mimetype = file.mimetype === 'text/csv' || 
@@ -71,7 +67,6 @@ const fileFilter = (req, file, cb) => {
                     file.mimetype === 'text/plain' ||
                     file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
                     file.mimetype === 'application/vnd.ms-excel';
-    
     if (mimetype && extname) {
       return cb(null, true);
     } else {
@@ -82,17 +77,16 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-// UPDATED: Increased file size limit for CSV/Excel files
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB per file (increased for Excel files)
-    files: 20 // Maximum 20 files at once
+    fileSize: 15 * 1024 * 1024,
+    files: 20
   },
   fileFilter: fileFilter
 });
 
-// Middleware to verify company token
+// ─── Middleware: Verify Company Token ────────────────────────────────────────
 const verifyCompanyToken = async (req, res, next) => {
   try {
     const token = req.headers.token;
@@ -100,29 +94,23 @@ const verifyCompanyToken = async (req, res, next) => {
       return res.status(401).json({ success: false, message: "Authentication required. Please login." });
     }
 
-    // Verify JWT token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
-    // ✅ NEW: Check if it's a sub-user
     if (decoded.isSubUser) {
-      // This is a sub-user
       req.companyId = new mongoose.Types.ObjectId(decoded.parentCompanyId);
       req.companyIdString = decoded.parentCompanyId.toString();
       req.isSubUser = true;
       req.subUserId = decoded.id;
       req.subUserRole = decoded.roleType;
-      
       console.log('Verified sub-user:', req.subUserRole, 'Parent company ID:', req.companyId);
       return next();
     }
     
-    // ✅ ORIGINAL: Main company login
     const companyIdString = decoded.id || decoded._id;
     if (!companyIdString) {
       return res.status(401).json({ success: false, message: "Invalid token format" });
     }
     
-    // Convert to ObjectId and store both formats
     req.companyId = new mongoose.Types.ObjectId(companyIdString);
     req.companyIdString = companyIdString.toString();
     req.isSubUser = false;
@@ -139,83 +127,64 @@ const verifyCompanyToken = async (req, res, next) => {
     res.status(401).json({ success: false, message: "Authentication failed" });
   }
 };
+
+// ─── Middleware: Require Bulk Upload Permission ───────────────────────────────
 const requireBulkUploadPermission = async (req, res, next) => {
-  // Main company always has permission
   if (!req.isSubUser) {
     return next();
   }
-
-  // Check sub-user permission
   try {
     const subUser = await SubUser.findById(req.subUserId);
-    
     if (!subUser) {
-      return res.status(403).json({
-        success: false,
-        message: 'Sub-user not found'
-      });
+      return res.status(403).json({ success: false, message: 'Sub-user not found' });
     }
-
     if (!subUser.permissions?.canManageBulkUpload) {
       return res.status(403).json({
         success: false,
         message: `${req.subUserRole?.toUpperCase()} users need "Bulk Upload & Search Resume" permission. Contact your admin to grant access.`
       });
     }
-
     next();
   } catch (error) {
     console.error('Permission check error:', error);
     res.status(500).json({ success: false, message: 'Error checking permissions' });
   }
 };
-// Bulk Resume Upload
-router.post('/upload-resumes', verifyCompanyToken,requireBulkUploadPermission, (req, res) => {
+
+// ─── Helper: Build $or query for companyId (handles ObjectId vs String mismatch) ─
+const companyIdQuery = (companyId) => ({
+  $or: [
+    { companyId: companyId },
+    { companyId: companyId.toString() }
+  ]
+});
+
+// ─── POST /upload-resumes ─────────────────────────────────────────────────────
+router.post('/upload-resumes', verifyCompanyToken, requireBulkUploadPermission, (req, res) => {
   upload.array('resumes', 20)(req, res, async (err) => {
-    // Enhanced error logging
     console.log('=== Resume Upload Request ===');
     console.log('Files received:', req.files?.length || 0);
-   
-    
+
     if (err instanceof multer.MulterError) {
       console.error('Multer error:', err);
       if (err.code === 'LIMIT_FILE_SIZE') {
-        return res.status(400).json({ 
-          success: false, 
-          message: "File size exceeds 400KB limit" 
-        });
+        return res.status(400).json({ success: false, message: "File size exceeds 15MB limit" });
       }
       if (err.code === 'LIMIT_FILE_COUNT') {
-        return res.status(400).json({ 
-          success: false, 
-          message: "Maximum 20 files allowed at once" 
-        });
+        return res.status(400).json({ success: false, message: "Maximum 20 files allowed at once" });
       }
       if (err.code === 'LIMIT_UNEXPECTED_FILE') {
-        return res.status(400).json({ 
-          success: false, 
-          message: "Unexpected field in upload. Use 'resumes' as the field name." 
-        });
+        return res.status(400).json({ success: false, message: "Unexpected field in upload. Use 'resumes' as the field name." });
       }
-      return res.status(400).json({ 
-        success: false, 
-        message: err.message 
-      });
+      return res.status(400).json({ success: false, message: err.message });
     } else if (err) {
       console.error('Upload error:', err);
-      return res.status(400).json({ 
-        success: false, 
-        message: err.message 
-      });
+      return res.status(400).json({ success: false, message: err.message });
     }
 
     try {
       if (!req.files || req.files.length === 0) {
-        console.log('No files in request');
-        return res.status(400).json({ 
-          success: false, 
-          message: "No files uploaded. Please select resume files to upload." 
-        });
+        return res.status(400).json({ success: false, message: "No files uploaded. Please select resume files to upload." });
       }
 
       const uploadBatch = Date.now().toString();
@@ -223,10 +192,8 @@ router.post('/upload-resumes', verifyCompanyToken,requireBulkUploadPermission, (
       let processedCount = 0;
       let failedCount = 0;
 
-      // Process each uploaded resume
       for (const file of req.files) {
         try {
-          // Extract text from resume
           const fileExt = path.extname(file.originalname).substring(1).toLowerCase();
           let extractedText = '';
           let parsedData = {};
@@ -238,25 +205,51 @@ router.post('/upload-resumes', verifyCompanyToken,requireBulkUploadPermission, (
             console.error('Error parsing resume:', file.originalname, parseError);
           }
 
-          // Save to database with ObjectId companyId
-          const resume = new Resume({
-            companyId: req.companyId,
-            fileName: file.filename,
-            originalName: file.originalname,
-            fileSize: file.size,
-            fileType: fileExt,
-            filePath: file.path,
-            extractedText,
-            parsedData,
-            status: 'processed',
-            metadata: {
-              uploadBatch
-            }
+          // Deduplication: check for existing resume with same name for this company
+          const existing = await Resume.findOne({
+            ...companyIdQuery(req.companyId),
+            originalName: file.originalname
           });
 
-          await resume.save();
+          let resume;
+          if (existing) {
+            const oldFilePath = existing.filePath;
+            resume = await Resume.findOneAndUpdate(
+              { _id: existing._id },
+              {
+                $set: {
+                  fileName: file.filename,
+                  fileSize: file.size,
+                  fileType: fileExt,
+                  filePath: file.path,
+                  extractedText,
+                  parsedData,
+                  status: 'processed',
+                  'metadata.uploadBatch': uploadBatch
+                }
+              },
+              { new: true }
+            );
+            if (oldFilePath && oldFilePath !== file.path) {
+              try { await fs.unlink(oldFilePath); } catch {}
+            }
+          } else {
+            resume = new Resume({
+              companyId: req.companyId,
+              fileName: file.filename,
+              originalName: file.originalname,
+              fileSize: file.size,
+              fileType: fileExt,
+              filePath: file.path,
+              extractedText,
+              parsedData,
+              status: 'processed',
+              metadata: { uploadBatch }
+            });
+            await resume.save();
+          }
+
           processedCount++;
-          
           uploadedResumes.push({
             id: resume._id,
             originalName: file.originalname,
@@ -267,32 +260,35 @@ router.post('/upload-resumes', verifyCompanyToken,requireBulkUploadPermission, (
         } catch (error) {
           console.error('Error processing resume:', file.originalname, error);
           failedCount++;
-          
           try {
-            const resume = new Resume({
-              companyId: req.companyId,
-              fileName: file.filename,
+            // Don't overwrite an existing successfully processed record with a failed one
+            const existing = await Resume.findOne({
+              ...companyIdQuery(req.companyId),
               originalName: file.originalname,
-              fileSize: file.size,
-              fileType: path.extname(file.originalname).substring(1).toLowerCase(),
-              filePath: file.path,
-              extractedText: '',
-              parsedData: {},
-              status: 'failed',
-              metadata: {
-                uploadBatch,
-                processingNotes: error.message
-              }
+              status: 'processed'
             });
-
-            await resume.save();
-            uploadedResumes.push({
-              id: resume._id,
-              originalName: file.originalname,
-              size: file.size,
-              status: 'failed',
-              error: error.message
-            });
+            if (!existing) {
+              const resume = new Resume({
+                companyId: req.companyId,
+                fileName: file.filename,
+                originalName: file.originalname,
+                fileSize: file.size,
+                fileType: path.extname(file.originalname).substring(1).toLowerCase(),
+                filePath: file.path,
+                extractedText: '',
+                parsedData: {},
+                status: 'failed',
+                metadata: { uploadBatch, processingNotes: error.message }
+              });
+              await resume.save();
+              uploadedResumes.push({
+                id: resume._id,
+                originalName: file.originalname,
+                size: file.size,
+                status: 'failed',
+                error: error.message
+              });
+            }
           } catch (saveError) {
             console.error('Error saving failed resume:', saveError);
           }
@@ -313,61 +309,37 @@ router.post('/upload-resumes', verifyCompanyToken,requireBulkUploadPermission, (
 
     } catch (error) {
       console.error('Bulk resume upload error:', error);
-      res.status(500).json({ 
-        success: false, 
-        message: "Internal server error: " + error.message 
-      });
+      res.status(500).json({ success: false, message: "Internal server error: " + error.message });
     }
   });
 });
 
-// Bulk CSV/Excel Upload - UPDATED
-router.post('/upload-csv', verifyCompanyToken,requireBulkUploadPermission, (req, res) => {
+// ─── POST /upload-csv ─────────────────────────────────────────────────────────
+router.post('/upload-csv', verifyCompanyToken, requireBulkUploadPermission, (req, res) => {
   upload.array('csvFiles', 10)(req, res, async (err) => {
-    // Enhanced error logging
     console.log('=== CSV/Excel Upload Request ===');
     console.log('Files received:', req.files?.length || 0);
-    
-    
+
     if (err instanceof multer.MulterError) {
       console.error('Multer error:', err);
       if (err.code === 'LIMIT_FILE_SIZE') {
-        return res.status(400).json({ 
-          success: false, 
-          message: "File size exceeds 5MB limit" 
-        });
+        return res.status(400).json({ success: false, message: "File size exceeds 15MB limit" });
       }
       if (err.code === 'LIMIT_FILE_COUNT') {
-        return res.status(400).json({ 
-          success: false, 
-          message: "Maximum 10 files allowed at once" 
-        });
+        return res.status(400).json({ success: false, message: "Maximum 10 files allowed at once" });
       }
       if (err.code === 'LIMIT_UNEXPECTED_FILE') {
-        return res.status(400).json({ 
-          success: false, 
-          message: "Unexpected field in upload. Use 'csvFiles' as the field name." 
-        });
+        return res.status(400).json({ success: false, message: "Unexpected field in upload. Use 'csvFiles' as the field name." });
       }
-      return res.status(400).json({ 
-        success: false, 
-        message: err.message 
-      });
+      return res.status(400).json({ success: false, message: err.message });
     } else if (err) {
       console.error('Upload error:', err);
-      return res.status(400).json({ 
-        success: false, 
-        message: err.message 
-      });
+      return res.status(400).json({ success: false, message: err.message });
     }
 
     try {
       if (!req.files || req.files.length === 0) {
-        console.log('No files in request');
-        return res.status(400).json({ 
-          success: false, 
-          message: "No files uploaded. Please select CSV or Excel files to upload." 
-        });
+        return res.status(400).json({ success: false, message: "No files uploaded. Please select CSV or Excel files to upload." });
       }
 
       const uploadBatch = Date.now().toString();
@@ -375,50 +347,77 @@ router.post('/upload-csv', verifyCompanyToken,requireBulkUploadPermission, (req,
       let processedCount = 0;
       let failedCount = 0;
 
-      // Process each uploaded file
       for (const file of req.files) {
         try {
           const fileExt = path.extname(file.originalname).toLowerCase();
           let processedData;
 
-          // Process based on file type
           if (fileExt === '.csv') {
             processedData = await CSVProcessor.processCSVFile(file.path);
           } else if (fileExt === '.xlsx' || fileExt === '.xls') {
-            // Process Excel file - will need Excel processor
             processedData = await CSVProcessor.processExcelFile(file.path);
           } else {
             throw new Error('Unsupported file type');
           }
 
           const validation = CSVProcessor.validateCSVData(processedData);
-
           if (!validation.isValid) {
             throw new Error(`Data validation failed: ${validation.errors.join(', ')}`);
           }
 
-          // Save to database with ObjectId companyId
-          const dataRecord = new CsvData({
-            companyId: req.companyId,
-            fileName: file.filename,
-            originalName: file.originalname,
-            fileSize: file.size,
-            fileType: fileExt.substring(1), // Store file extension
-            filePath: file.path,
-            totalRows: processedData.totalRows,
-            processedRows: processedData.totalRows,
-            headers: processedData.headers,
-            data: processedData.data,
-            status: 'processed',
-            metadata: {
-              uploadBatch,
-              dataType: req.body.dataType || 'general'
-            }
+          // Deduplication: check for existing CSV with same name for this company
+          const existingCsv = await CsvData.findOne({
+            ...companyIdQuery(req.companyId),
+            originalName: file.originalname
           });
 
-          await dataRecord.save();
+          let dataRecord;
+          if (existingCsv) {
+            const oldFilePath = existingCsv.filePath;
+            dataRecord = await CsvData.findOneAndUpdate(
+              { _id: existingCsv._id },
+              {
+                $set: {
+                  fileName: file.filename,
+                  fileSize: file.size,
+                  fileType: fileExt.substring(1),
+                  filePath: file.path,
+                  totalRows: processedData.totalRows,
+                  processedRows: processedData.totalRows,
+                  headers: processedData.headers,
+                  data: processedData.data,
+                  status: 'processed',
+                  'metadata.uploadBatch': uploadBatch,
+                  'metadata.dataType': req.body.dataType || 'general'
+                }
+              },
+              { new: true }
+            );
+            if (oldFilePath && oldFilePath !== file.path) {
+              try { await fs.unlink(oldFilePath); } catch {}
+            }
+          } else {
+            dataRecord = new CsvData({
+              companyId: req.companyId,
+              fileName: file.filename,
+              originalName: file.originalname,
+              fileSize: file.size,
+              fileType: fileExt.substring(1),
+              filePath: file.path,
+              totalRows: processedData.totalRows,
+              processedRows: processedData.totalRows,
+              headers: processedData.headers,
+              data: processedData.data,
+              status: 'processed',
+              metadata: {
+                uploadBatch,
+                dataType: req.body.dataType || 'general'
+              }
+            });
+            await dataRecord.save();
+          }
+
           processedCount++;
-          
           uploadedFiles.push({
             id: dataRecord._id,
             originalName: file.originalname,
@@ -431,34 +430,37 @@ router.post('/upload-csv', verifyCompanyToken,requireBulkUploadPermission, (req,
         } catch (error) {
           console.error('Error processing file:', file.originalname, error);
           failedCount++;
-          
           try {
-            const dataRecord = new CsvData({
-              companyId: req.companyId,
-              fileName: file.filename,
+            // Don't overwrite an existing successfully processed record with a failed one
+            const existingCsv = await CsvData.findOne({
+              ...companyIdQuery(req.companyId),
               originalName: file.originalname,
-              fileSize: file.size,
-              fileType: path.extname(file.originalname).substring(1).toLowerCase(),
-              filePath: file.path,
-              totalRows: 0,
-              processedRows: 0,
-              headers: [],
-              data: [],
-              status: 'failed',
-              metadata: {
-                uploadBatch,
-                processingNotes: error.message
-              }
+              status: 'processed'
             });
-
-            await dataRecord.save();
-            uploadedFiles.push({
-              id: dataRecord._id,
-              originalName: file.originalname,
-              size: file.size,
-              status: 'failed',
-              error: error.message
-            });
+            if (!existingCsv) {
+              const dataRecord = new CsvData({
+                companyId: req.companyId,
+                fileName: file.filename,
+                originalName: file.originalname,
+                fileSize: file.size,
+                fileType: path.extname(file.originalname).substring(1).toLowerCase(),
+                filePath: file.path,
+                totalRows: 0,
+                processedRows: 0,
+                headers: [],
+                data: [],
+                status: 'failed',
+                metadata: { uploadBatch, processingNotes: error.message }
+              });
+              await dataRecord.save();
+              uploadedFiles.push({
+                id: dataRecord._id,
+                originalName: file.originalname,
+                size: file.size,
+                status: 'failed',
+                error: error.message
+              });
+            }
           } catch (saveError) {
             console.error('Error saving failed file:', saveError);
           }
@@ -479,46 +481,40 @@ router.post('/upload-csv', verifyCompanyToken,requireBulkUploadPermission, (req,
 
     } catch (error) {
       console.error('Bulk file upload error:', error);
-      res.status(500).json({ 
-        success: false, 
-        message: "Internal server error: " + error.message 
-      });
+      res.status(500).json({ success: false, message: "Internal server error: " + error.message });
     }
   });
 });
-// Reject a candidate (persist in DB)
+
+// ─── POST /reject/:id ─────────────────────────────────────────────────────────
 router.post('/reject/:id', verifyCompanyToken, requireBulkUploadPermission, async (req, res) => {
   try {
     const updated = await Resume.findOneAndUpdate(
-      { _id: req.params.id, companyId: req.companyId },
-      { rejected: true },
+      { _id: req.params.id, ...companyIdQuery(req.companyId) },
+      { $set: { rejected: true, accepted: false } },
       { new: true }
     );
-
     if (!updated) {
       return res.status(404).json({ success: false, message: "Resume not found" });
     }
-
-    res.json({ success: true, message: "Candidate rejected successfully" });
+    res.json({ success: true, message: "Candidate rejected successfully", data: { rejected: updated.rejected, accepted: updated.accepted } });
   } catch (error) {
     console.error('Reject candidate error:', error);
     res.status(500).json({ success: false, message: "Internal server error: " + error.message });
   }
 });
 
-// Undo reject
+// ─── POST /unreject/:id ───────────────────────────────────────────────────────
 router.post('/unreject/:id', verifyCompanyToken, requireBulkUploadPermission, async (req, res) => {
   try {
     const updated = await Resume.findOneAndUpdate(
-      { _id: req.params.id, companyId: req.companyId },
+      { _id: req.params.id, ...companyIdQuery(req.companyId) },
       { rejected: false },
       { new: true }
     );
-
     if (!updated) {
       return res.status(404).json({ success: false, message: "Resume not found" });
     }
-
     res.json({ success: true, message: "Candidate unrejected successfully" });
   } catch (error) {
     console.error('Unreject candidate error:', error);
@@ -526,64 +522,72 @@ router.post('/unreject/:id', verifyCompanyToken, requireBulkUploadPermission, as
   }
 });
 
-// Mark candidate as accepted with assessment data
+// ─── POST /accept/:id ─────────────────────────────────────────────────────────
 router.post('/accept/:id', verifyCompanyToken, requireBulkUploadPermission, async (req, res) => {
   try {
     const updated = await Resume.findOneAndUpdate(
-      { _id: req.params.id, companyId: req.companyId },
-      { accepted: true, assessmentData: req.body.assessmentData || {} },
+      { _id: req.params.id, ...companyIdQuery(req.companyId) },
+      { $set: { accepted: true, rejected: false, assessmentData: req.body.assessmentData || {} } },
       { new: true }
     );
-
     if (!updated) {
       return res.status(404).json({ success: false, message: "Resume not found" });
     }
-
-    res.json({ success: true, message: "Candidate accepted successfully" });
+    res.json({ success: true, message: "Candidate accepted successfully", data: { rejected: updated.rejected, accepted: updated.accepted } });
   } catch (error) {
     console.error('Accept candidate error:', error);
     res.status(500).json({ success: false, message: "Internal server error: " + error.message });
   }
 });
 
-// Get uploaded files for a company
-router.get('/files', verifyCompanyToken, requireBulkUploadPermission,async (req, res) => {
+// ─── GET /files ───────────────────────────────────────────────────────────────
+router.get('/files', verifyCompanyToken, requireBulkUploadPermission, async (req, res) => {
   try {
     const { type, page = 1, limit = 50 } = req.query;
     const skip = (page - 1) * limit;
+    const idQuery = companyIdQuery(req.companyId);
+
+    // Debug log — remove after confirming fix
+    console.log('=== GET /files ===');
+    console.log('type:', type);
+    console.log('companyId:', req.companyId, typeof req.companyId);
 
     let files = [];
     let totalCount = 0;
 
     if (type === 'resumes') {
-      const resumes = await Resume.find({ companyId: req.companyId })
+      const resumes = await Resume.find(idQuery)
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(parseInt(limit))
-        .select('-extractedText');
+        .select('-extractedText')
+        .lean();
 
-      const resumeCount = await Resume.countDocuments({ companyId: req.companyId });
-      
+      totalCount = await Resume.countDocuments(idQuery);
+
       files = resumes.map(resume => ({
-        ...resume.toObject(),
+        ...resume,
+        rejected: resume.rejected === true,
+        accepted: resume.accepted === true,
         fileCategory: 'resume'
       }));
-      totalCount = resumeCount;
+
     } else if (type === 'csv') {
-      const csvFiles = await CsvData.find({ companyId: req.companyId })
+      const csvFiles = await CsvData.find(idQuery)
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(parseInt(limit))
         .select('-data');
 
-      const csvCount = await CsvData.countDocuments({ companyId: req.companyId });
-      
+      totalCount = await CsvData.countDocuments(idQuery);
+
       files = csvFiles.map(csv => ({
         ...csv.toObject(),
         fileCategory: 'csv'
       }));
-      totalCount = csvCount;
     }
+
+    console.log(`Found ${files.length} files, totalCount: ${totalCount}`);
 
     res.json({
       success: true,
@@ -597,85 +601,61 @@ router.get('/files', verifyCompanyToken, requireBulkUploadPermission,async (req,
 
   } catch (error) {
     console.error('Get files error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: "Internal server error: " + error.message 
-    });
+    res.status(500).json({ success: false, message: "Internal server error: " + error.message });
   }
 });
 
-// Delete uploaded file
-router.delete('/files/:id', verifyCompanyToken,requireBulkUploadPermission, async (req, res) => {
+// ─── DELETE /files/:id ────────────────────────────────────────────────────────
+router.delete('/files/:id', verifyCompanyToken, requireBulkUploadPermission, async (req, res) => {
   try {
     const { id } = req.params;
     const { type } = req.query;
+    const idQuery = companyIdQuery(req.companyId);
 
     let deletedFile = null;
 
     if (type === 'resume') {
-      deletedFile = await Resume.findOneAndDelete({ 
-        _id: id, 
-        companyId: req.companyId 
-      });
+      deletedFile = await Resume.findOneAndDelete({ _id: id, ...idQuery });
     } else if (type === 'csv') {
-      deletedFile = await CsvData.findOneAndDelete({ 
-        _id: id, 
-        companyId: req.companyId 
-      });
+      deletedFile = await CsvData.findOneAndDelete({ _id: id, ...idQuery });
     }
 
     if (!deletedFile) {
-      return res.status(404).json({ 
-        success: false, 
-        message: "File not found" 
-      });
+      return res.status(404).json({ success: false, message: "File not found" });
     }
 
-    // Delete physical file
     try {
       await fs.unlink(deletedFile.filePath);
     } catch (error) {
       console.error('Error deleting physical file:', error);
     }
 
-    res.json({
-      success: true,
-      message: "File deleted successfully"
-    });
+    res.json({ success: true, message: "File deleted successfully" });
 
   } catch (error) {
     console.error('Delete file error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: "Internal server error: " + error.message 
-    });
+    res.status(500).json({ success: false, message: "Internal server error: " + error.message });
   }
 });
 
-// Download uploaded file
-router.get('/download/:id', verifyCompanyToken,requireBulkUploadPermission, async (req, res) => {
+// ─── GET /download/:id ────────────────────────────────────────────────────────
+router.get('/download/:id', verifyCompanyToken, requireBulkUploadPermission, async (req, res) => {
   try {
     const { id } = req.params;
-    let file = null;
+    const idQuery = companyIdQuery(req.companyId);
 
-    file = await Resume.findOne({ _id: id, companyId: req.companyId });
+    let file = await Resume.findOne({ _id: id, ...idQuery });
     if (!file) {
-      file = await CsvData.findOne({ _id: id, companyId: req.companyId });
+      file = await CsvData.findOne({ _id: id, ...idQuery });
     }
 
     if (!file) {
-      return res.status(404).json({ 
-        success: false, 
-        message: "File not found" 
-      });
+      return res.status(404).json({ success: false, message: "File not found" });
     }
 
     const fsSync = await import('fs');
     if (!fsSync.default.existsSync(file.filePath)) {
-      return res.status(404).json({ 
-        success: false, 
-        message: "Physical file not found" 
-      });
+      return res.status(404).json({ success: false, message: "Physical file not found" });
     }
 
     res.setHeader('Content-Disposition', `attachment; filename="${file.originalName}"`);
@@ -686,88 +666,56 @@ router.get('/download/:id', verifyCompanyToken,requireBulkUploadPermission, asyn
 
   } catch (error) {
     console.error('Download file error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: "Internal server error: " + error.message 
-    });
+    res.status(500).json({ success: false, message: "Internal server error: " + error.message });
   }
 });
 
-// Get file statistics
-router.get('/stats', verifyCompanyToken,requireBulkUploadPermission, async (req, res) => {
+// ─── GET /stats ───────────────────────────────────────────────────────────────
+router.get('/stats', verifyCompanyToken, requireBulkUploadPermission, async (req, res) => {
   try {
     console.log('=== Stats Request ===');
     console.log('CompanyId (ObjectId):', req.companyId);
     console.log('CompanyId type:', typeof req.companyId);
 
-    // Direct count first to verify data exists
-    const directResumeCount = await Resume.countDocuments({ companyId: req.companyId });
-    const directCsvCount = await CsvData.countDocuments({ companyId: req.companyId });
-    
+    const idQuery = companyIdQuery(req.companyId);
+
+    const directResumeCount = await Resume.countDocuments(idQuery);
+    const directCsvCount = await CsvData.countDocuments(idQuery);
+
     console.log('Direct Resume Count:', directResumeCount);
     console.log('Direct CSV/Excel Count:', directCsvCount);
 
-    // If no data, return zeros immediately
     if (directResumeCount === 0 && directCsvCount === 0) {
       return res.json({
         success: true,
         data: {
-          resumes: {
-            totalResumes: 0,
-            processedResumes: 0,
-            failedResumes: 0,
-            totalSize: 0
-          },
-          csv: {
-            totalCSVs: 0,
-            processedCSVs: 0,
-            failedCSVs: 0,
-            totalRows: 0,
-            totalSize: 0
-          }
+          resumes: { totalResumes: 0, processedResumes: 0, failedResumes: 0, totalSize: 0 },
+          csv: { totalCSVs: 0, processedCSVs: 0, failedCSVs: 0, totalRows: 0, totalSize: 0 }
         }
       });
     }
 
-    // Run aggregations
     const [resumeStatsResult, csvStatsResult] = await Promise.allSettled([
       Resume.aggregate([
-        { 
-          $match: { 
-            companyId: req.companyId 
-          } 
-        },
+        { $match: idQuery },
         {
           $group: {
             _id: null,
             totalResumes: { $sum: 1 },
-            processedResumes: {
-              $sum: { $cond: [{ $eq: ["$status", "processed"] }, 1, 0] }
-            },
-            failedResumes: {
-              $sum: { $cond: [{ $eq: ["$status", "failed"] }, 1, 0] }
-            },
+            processedResumes: { $sum: { $cond: [{ $eq: ["$status", "processed"] }, 1, 0] } },
+            failedResumes: { $sum: { $cond: [{ $eq: ["$status", "failed"] }, 1, 0] } },
             totalSize: { $sum: "$fileSize" }
           }
         }
       ]),
-      
       CsvData.aggregate([
-        { 
-          $match: { 
-            companyId: req.companyId 
-          } 
-        },
+        { $match: idQuery },
         {
           $group: {
             _id: null,
             totalCSVs: { $sum: 1 },
-            processedCSVs: {
-              $sum: { $cond: [{ $eq: ["$status", "processed"] }, 1, 0] }
-            },
-            failedCSVs: {
-              $sum: { $cond: [{ $eq: ["$status", "failed"] }, 1, 0] }
-            },
+            processedCSVs: { $sum: { $cond: [{ $eq: ["$status", "processed"] }, 1, 0] } },
+            failedCSVs: { $sum: { $cond: [{ $eq: ["$status", "failed"] }, 1, 0] } },
             totalRows: { $sum: "$totalRows" },
             totalSize: { $sum: "$fileSize" }
           }
@@ -775,65 +723,27 @@ router.get('/stats', verifyCompanyToken,requireBulkUploadPermission, async (req,
       ])
     ]);
 
-    console.log('Resume aggregation result:', resumeStatsResult);
-    console.log('CSV/Excel aggregation result:', csvStatsResult);
+    let resumeStats = { totalResumes: directResumeCount, processedResumes: 0, failedResumes: 0, totalSize: 0 };
+    let csvStats = { totalCSVs: directCsvCount, processedCSVs: 0, failedCSVs: 0, totalRows: 0, totalSize: 0 };
 
-    // Extract results with fallbacks
-    let resumeStats = {
-      totalResumes: directResumeCount,
-      processedResumes: 0,
-      failedResumes: 0,
-      totalSize: 0
-    };
-
-    let csvStats = {
-      totalCSVs: directCsvCount,
-      processedCSVs: 0,
-      failedCSVs: 0,
-      totalRows: 0,
-      totalSize: 0
-    };
-
-    // Use aggregation results if successful
-    if (resumeStatsResult.status === 'fulfilled' && resumeStatsResult.value && resumeStatsResult.value[0]) {
+    if (resumeStatsResult.status === 'fulfilled' && resumeStatsResult.value?.[0]) {
       resumeStats = resumeStatsResult.value[0];
     }
-
-    if (csvStatsResult.status === 'fulfilled' && csvStatsResult.value && csvStatsResult.value[0]) {
+    if (csvStatsResult.status === 'fulfilled' && csvStatsResult.value?.[0]) {
       csvStats = csvStatsResult.value[0];
     }
 
     console.log('Final stats:', { resumeStats, csvStats });
 
-    res.json({
-      success: true,
-      data: {
-        resumes: resumeStats,
-        csv: csvStats
-      }
-    });
+    res.json({ success: true, data: { resumes: resumeStats, csv: csvStats } });
 
   } catch (error) {
     console.error('Get stats error:', error);
-    console.error('Error stack:', error.stack);
-    
-    // Return empty stats on error
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       data: {
-        resumes: {
-          totalResumes: 0,
-          processedResumes: 0,
-          failedResumes: 0,
-          totalSize: 0
-        },
-        csv: {
-          totalCSVs: 0,
-          processedCSVs: 0,
-          failedCSVs: 0,
-          totalRows: 0,
-          totalSize: 0
-        }
+        resumes: { totalResumes: 0, processedResumes: 0, failedResumes: 0, totalSize: 0 },
+        csv: { totalCSVs: 0, processedCSVs: 0, failedCSVs: 0, totalRows: 0, totalSize: 0 }
       }
     });
   }
