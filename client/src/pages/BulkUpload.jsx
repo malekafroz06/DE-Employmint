@@ -36,6 +36,8 @@ const BulkUpload = () => {
     }
   }, [companyToken, activeTab]);
 
+  // CSV/Excel sample-format helpers — disabled per request, kept for future re-enable
+  /*
   // Download sample format function
   const downloadSampleFormat = async () => {
     try {
@@ -127,6 +129,7 @@ const BulkUpload = () => {
       toast.error("Failed to download sample format. Please try again.");
     }
   };
+  */
 
   const fetchStats = async () => {
     try {
@@ -277,10 +280,10 @@ const BulkUpload = () => {
           toast.warning(`${processedFiles}/${totalFiles} files processed successfully. ${failedFiles} files failed.`);
         }
         
-        // Show name extraction info for resumes
-        if (type === "resumes") {
-          toast.info("Resume names extracted successfully. Please upload CSV to match candidate data.");
-        }
+        // Show name extraction info for resumes — disabled per request, kept for future re-enable
+        // if (type === "resumes") {
+        //   toast.info("Resume names extracted successfully. Please upload CSV to match candidate data.");
+        // }
       } else {
         toast.error(data.message || "Upload failed");
       }
@@ -341,7 +344,7 @@ const BulkUpload = () => {
               >
                 Bulk Upload
               </h1>
-              <p className="text-gray-600">Upload multiple resumes or CSV/Excel files for bulk processing</p>
+              <p className="text-gray-600">Upload multiple resumes for bulk processing</p>
             </div>
             <button
               onClick={() => {
@@ -356,7 +359,7 @@ const BulkUpload = () => {
           </div>
         </motion.div>
 
-        {/* Important Note */}
+        {/* Important Note — "How Name Matching Works" — disabled per request, kept for future re-enable
         <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 rounded-lg">
           <div className="flex items-start">
             <FiAlertCircle className="text-blue-500 mt-1 mr-3 flex-shrink-0" size={20} />
@@ -370,6 +373,7 @@ const BulkUpload = () => {
             </div>
           </div>
         </div>
+        */}
 
         {/* Tab Navigation */}
         <div className="flex space-x-1 rounded-xl bg-gray-100 p-1 mb-8">
@@ -385,6 +389,7 @@ const BulkUpload = () => {
             <FiFileText />
             <span>Resume Upload</span>
           </button>
+          {/* CSV/Excel Upload tab — disabled per request, kept for future re-enable
           <button
             onClick={() => setActiveTab("csv")}
             className={`flex items-center space-x-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-all ${
@@ -397,6 +402,7 @@ const BulkUpload = () => {
             <FiDatabase />
             <span>CSV/Excel Upload</span>
           </button>
+          */}
         </div>
 
         {/* Upload Section */}
@@ -435,6 +441,7 @@ const BulkUpload = () => {
                 }
               </p>
 
+              {/* "Upload CSV or Excel Files" sample-format block — disabled per request, kept for future re-enable
               {activeTab === "csv" && (
                 <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg max-w-md w-full">
                   <p className="text-sm text-blue-800 mb-2 flex items-center gap-2">
@@ -450,6 +457,7 @@ const BulkUpload = () => {
                   </button>
                 </div>
               )}
+              */}
 
               <input
                 ref={activeTab === "resumes" ? resumeInputRef : csvInputRef}
@@ -486,7 +494,7 @@ const BulkUpload = () => {
           </div>
         </div>
 
-        {/* Stats Overview - Only show for CSV tab */}
+        {/* Stats Overview - Only show for CSV tab — disabled per request, kept for future re-enable
         {activeTab === "csv" && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -520,6 +528,7 @@ const BulkUpload = () => {
             </div>
           </motion.div>
         )}
+        */}
 
       </div>
 

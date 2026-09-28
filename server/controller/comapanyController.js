@@ -13,6 +13,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { OAuth2Client } from 'google-auth-library';
 import SubUser from "../models/SubUser.js";
+import { freshJobFilter, JOB_MAX_AGE_MS } from "../utils/jobExpiry.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -653,10 +654,10 @@ export const getCompanyPostedJobs = async (req, res) => {
 
     const jobs = await Job.find({ companyId });
 
-    // Auto-expire jobs older than 30 days
-    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    // Auto-expire jobs older than the max age (30 days)
+    const expiryCutoff = Date.now() - JOB_MAX_AGE_MS;
     const expiredIds = jobs
-      .filter(job => job.visible && job.date < thirtyDaysAgo)
+      .filter(job => job.visible && job.date < expiryCutoff)
       .map(job => job._id);
 
     if (expiredIds.length > 0) {
@@ -815,19 +816,19 @@ export const getPublicCompanyJobs = async (req, res) => {
             });
         }
 
-        const jobs = await Job.find({ 
-            companyId: id, 
-            visible: true 
-        })
+        const publicJobFilter = {
+            companyId: id,
+            visible: true,
+            ...freshJobFilter(), // exclude postings older than 30 days
+        };
+
+        const jobs = await Job.find(publicJobFilter)
         .populate('companyId', 'name image')
         .sort({ date: -1 })
         .limit(limit * 1)
         .skip((page - 1) * limit);
 
-        const totalJobs = await Job.countDocuments({ 
-            companyId: id, 
-            visible: true 
-        });
+        const totalJobs = await Job.countDocuments(publicJobFilter);
 
         res.json({
             success: true,

@@ -22,6 +22,7 @@ import BulkUpload from './pages/BulkUpload';
 import SearchResume from './pages/SearchResume';
 import JobAlerts from "./components/JobAlerts";
 import MainDashboard from "./pages/Maindashboard";
+import HiringPulse from "./pages/HiringPulse";
 import "quill/dist/quill.snow.css";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -118,6 +119,7 @@ const App = () => {
         </Route>
         <Route path="/JobCategories" element={<JobCategories />} />
         <Route path="/JobListing" element={<JobListing />} />
+        <Route path="/hiring-pulse" element={<HiringPulse />} />
         <Route path="/company/:id" element={<PublicCompanyProfile />} />
         <Route path="/contact" element={<ContactUs />} />
         <Route path="/assessment" element={<AssessmentPage />} />

@@ -17,6 +17,7 @@ import {
   
 
 } from "../controller/comapanyController.js";
+import { getCandidateInsights } from "../controller/candidateInsightsController.js";
 import jwt from 'jsonwebtoken';
 import { companyAuthMiddleware,requirePostJobPermission,
   requireBulkUploadPermission, } from "../middleware/companyAuthMiddleware.js";
@@ -177,6 +178,7 @@ router.get('/jobs/:id', getPublicCompanyJobs);
 // ✅ OPEN TO ALL (Main Recruiters & Sub-Users)
 router.get("/company", companyAuthMiddleware, getCompanyData);
 router.get("/applicants", companyAuthMiddleware, getCompanyJobApplicants);
+router.get("/candidate-insights", companyAuthMiddleware, getCandidateInsights);
 
 // ✅ MAIN RECRUITER ONLY - Block Sub-Users
 router.post("/post-job", companyAuthMiddleware, requirePostJobPermission, postJob);

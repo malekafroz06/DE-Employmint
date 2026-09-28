@@ -1,19 +1,21 @@
 import Job from "../models/Job.js";
 import JobApplication from "../models/JobApplication.js";
 import EmployerProfile from "../models/EmployerProfile.js";
+import { freshJobFilter, jobFreshnessCutoff } from "../utils/jobExpiry.js";
 
-// Helper: merge EmployerProfile logos into jobs
+// Helper: merge EmployerProfile logo/location into jobs
 const mergeLogos = async (jobs) => {
     const companyIds = [...new Set(jobs.map(j => j.companyId?._id?.toString()).filter(Boolean))];
-    const profiles = await EmployerProfile.find({ companyId: { $in: companyIds } }).select('companyId logo');
-    const logoMap = {};
-    profiles.forEach(p => { logoMap[p.companyId.toString()] = p.logo; });
+    const profiles = await EmployerProfile.find({ companyId: { $in: companyIds } }).select('companyId logo location');
+    const profileMap = {};
+    profiles.forEach(p => { profileMap[p.companyId.toString()] = p; });
 
     return jobs.map(job => {
         const obj = job.toObject ? job.toObject() : { ...job };
         if (obj.companyId) {
-            const profileLogo = logoMap[obj.companyId._id?.toString()];
-            obj.companyId.image = profileLogo || obj.companyId.image || '';
+            const profile = profileMap[obj.companyId._id?.toString()];
+            obj.companyId.image = profile?.logo || obj.companyId.image || '';
+            obj.companyId.location = profile?.location || '';
         }
         return obj;
     });
@@ -22,7 +24,9 @@ const mergeLogos = async (jobs) => {
 // Get all jobs
 export const getJobs = async (req, res) => {
     try {
-        const jobs = await Job.find({ visible: true})
+        // Hide jobs older than the max age (30 days) from the public portal,
+        // regardless of whether their `visible` flag has been swept yet.
+        const jobs = await Job.find({ visible: true, ...freshJobFilter() })
             .populate({path: "companyId", select: "-password"})
 
         const jobsWithLogos = await mergeLogos(jobs);
@@ -46,6 +50,15 @@ export const getJobById = async (req, res) => {
             return res.status(404).json({
                 success:false,
                 message:"Job not found"
+            })
+        }
+
+        // A job that has been hidden or is older than the max age (30 days)
+        // is no longer available on the portal.
+        if (!job.visible || job.date < jobFreshnessCutoff()) {
+            return res.status(404).json({
+                success: false,
+                message: "This job posting is no longer available"
             })
         }
 

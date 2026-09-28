@@ -171,23 +171,8 @@ const ViewApplications = () => {
       fullUrl = `${backendUrl}/${cleanUrl}`;
     }
 
-    console.log("Opening resume URL:", fullUrl);
-
-    fetch(fullUrl, { method: 'HEAD' })
-      .then(response => {
-        if (response.ok) {
-          window.open(fullUrl, '_blank', 'noopener,noreferrer');
-        } else {
-          console.error('Resume file not found on server');
-          setResumeApplicantName(applicantName || 'Unknown');
-          setResumeModalOpen(true);
-        }
-      })
-      .catch(error => {
-        console.error('Error checking resume:', error);
-        setResumeApplicantName(applicantName || 'Unknown');
-        setResumeModalOpen(true);
-      });
+    // window.open is browser navigation — not blocked by CORS unlike fetch()
+    window.open(fullUrl, '_blank', 'noopener,noreferrer');
   };
 
   const getImageUrl = (imagePath) => {
@@ -247,19 +232,23 @@ const ViewApplications = () => {
     }
   }, [companyToken]);
 
-  const filteredApplicants = applicants
-    .filter(item => item.jobId && item.userId)
+  const activeApplicants = applicants.filter(a => a.jobId && a.userId);
+  const closedApplicants = applicants.filter(a => !a.jobId && a.userId);
+
+  const filteredApplicants = (filterStatus === "closed" ? closedApplicants : activeApplicants)
     .filter(applicant => {
-      const matchesSearch = searchTerm === "" || 
+      const matchesSearch = searchTerm === "" ||
         (applicant.userId?.name && applicant.userId.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (applicant.jobId?.title && applicant.jobId.title.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (applicant.jobId?.location && applicant.jobId.location.toLowerCase().includes(searchTerm.toLowerCase()));
-      
-      const matchesStatus = filterStatus === "all" || 
+
+      if (filterStatus === "closed") return matchesSearch;
+
+      const matchesStatus = filterStatus === "all" ||
         (filterStatus === "pending" && (!applicant.status || applicant.status.toLowerCase() === "pending")) ||
         (filterStatus === "accepted" && applicant.status && applicant.status.toLowerCase() === "accepted") ||
         (filterStatus === "rejected" && applicant.status && applicant.status.toLowerCase() === "rejected");
-      
+
       return matchesSearch && matchesStatus;
     });
 
@@ -372,7 +361,7 @@ const ViewApplications = () => {
     }`}
     style={filterStatus === "all" ? { backgroundColor: '#FF0000' } : {}}
   >
-    All ({applicants.length})
+    All ({activeApplicants.length})
   </button>
 
   <button
@@ -384,7 +373,19 @@ const ViewApplications = () => {
     }`}
     style={filterStatus === "pending" ? { backgroundColor: '#FF0000' } : {}}
   >
-    Pending ({applicants.length})
+    Pending ({activeApplicants.length})
+  </button>
+
+  <button
+    onClick={() => setFilterStatus("closed")}
+    className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
+      filterStatus === "closed"
+        ? "text-white"
+        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+    }`}
+    style={filterStatus === "closed" ? { backgroundColor: '#FF0000' } : {}}
+  >
+    Closed Jobs Applications ({closedApplicants.length})
   </button>
 </div>
           </div>
@@ -433,8 +434,12 @@ const ViewApplications = () => {
                         >
                           No applications found
                         </h3>
-                        <p className="text-sm sm:text-base text-gray-500 text-center mb-2">No matching applications with the current filters</p>
-                        {(searchTerm || filterStatus !== "all") && (
+                        <p className="text-sm sm:text-base text-gray-500 text-center mb-2">
+                          {filterStatus === "closed"
+                            ? "No applications from closed/deleted jobs"
+                            : "No matching applications with the current filters"}
+                        </p>
+                        {(searchTerm || (filterStatus !== "all" && filterStatus !== "closed")) && (
                           <button 
                             onClick={() => {
                               setSearchTerm("");
@@ -484,16 +489,16 @@ const ViewApplications = () => {
                               {applicant.userId?.email || 'No email'}
                             </div>
                             <div className="text-gray-500 text-xs md:hidden truncate">
-                              {applicant.jobId?.title || 'N/A'}
+                              {applicant.jobId?.title || applicant.jobTitle || 'N/A'}
                             </div>
                           </div>
                         </div>
                       </td>
                       <td className="py-3 sm:py-4 px-3 sm:px-5 text-xs sm:text-sm text-gray-700 max-md:hidden">
-                        {applicant.jobId?.title || 'N/A'}
+                        {applicant.jobId?.title || applicant.jobTitle || 'N/A'}
                       </td>
                       <td className="py-3 sm:py-4 px-3 sm:px-5 text-xs sm:text-sm text-gray-700 max-lg:hidden">
-                        {applicant.jobId?.location || 'Remote'}
+                        {applicant.jobId?.location || '—'}
                       </td>
                       <td className="py-3 sm:py-4 px-3 sm:px-5">
                         <div className="flex flex-col sm:flex-row flex-wrap gap-1.5 sm:gap-2">

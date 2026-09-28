@@ -540,6 +540,237 @@ router.post('/accept/:id', verifyCompanyToken, requireBulkUploadPermission, asyn
   }
 });
 
+// ─── Candidate profile editing (Candidate Profile "Edit" screen) ──────────────
+// Allowed sections for the generic PATCH below — keeps arbitrary keys from
+// being written into the document.
+const PERSONAL_FIELDS = ['gender', 'dob', 'city', 'state', 'maritalStatus', 'languages', 'preferredLocation'];
+const PROFESSIONAL_FIELDS = [
+  'sector', 'category', 'product', 'channel', 'currentDesignation', 'currentDepartment', 'currentCompany',
+  'currentCTC', 'expectedCTC', 'totalExperience', 'roleExperience', 'noticePeriod', 'availability',
+  'jobChangeStatus', 'hiringStatus',
+];
+const EDUCATION_FIELDS = [
+  'level', 'degreeName', 'institute', 'modeOfEducation', 'percentage', 'specialization', 'isHighestEducation',
+];
+const SKILL_FIELDS = ['category', 'name', 'description', 'proficiencyLevel', 'isCoreSkill'];
+
+const pickFields = (source = {}, allowed) => {
+  const out = {};
+  allowed.forEach((key) => {
+    if (source[key] !== undefined) out[key] = source[key];
+  });
+  return out;
+};
+
+// PATCH /candidate/:id/personal — save the Personal Information tab
+router.patch('/candidate/:id/personal', verifyCompanyToken, requireBulkUploadPermission, async (req, res) => {
+  try {
+    const updates = pickFields(req.body, PERSONAL_FIELDS);
+    const setOps = { 'candidateProfile.lastVerified': new Date() };
+    Object.entries(updates).forEach(([k, v]) => { setOps[`candidateProfile.personal.${k}`] = v; });
+
+    const updated = await Resume.findOneAndUpdate(
+      { _id: req.params.id, ...companyIdQuery(req.companyId) },
+      { $set: setOps },
+      { new: true }
+    );
+    if (!updated) return res.status(404).json({ success: false, message: "Candidate not found" });
+    res.json({ success: true, message: "Personal information updated", data: updated.candidateProfile });
+  } catch (error) {
+    console.error('Update candidate personal info error:', error);
+    res.status(500).json({ success: false, message: "Internal server error: " + error.message });
+  }
+});
+
+// PATCH /candidate/:id/professional — save the Professional Details tab
+router.patch('/candidate/:id/professional', verifyCompanyToken, requireBulkUploadPermission, async (req, res) => {
+  try {
+    const updates = pickFields(req.body, PROFESSIONAL_FIELDS);
+    const setOps = { 'candidateProfile.lastVerified': new Date() };
+    Object.entries(updates).forEach(([k, v]) => { setOps[`candidateProfile.professional.${k}`] = v; });
+
+    const updated = await Resume.findOneAndUpdate(
+      { _id: req.params.id, ...companyIdQuery(req.companyId) },
+      { $set: setOps },
+      { new: true }
+    );
+    if (!updated) return res.status(404).json({ success: false, message: "Candidate not found" });
+    res.json({ success: true, message: "Professional details updated", data: updated.candidateProfile });
+  } catch (error) {
+    console.error('Update candidate professional info error:', error);
+    res.status(500).json({ success: false, message: "Internal server error: " + error.message });
+  }
+});
+
+// POST /candidate/:id/skills — add one Skills & Competency row
+router.post('/candidate/:id/skills', verifyCompanyToken, requireBulkUploadPermission, async (req, res) => {
+  try {
+    const entry = pickFields(req.body, SKILL_FIELDS);
+    if (!entry.name) {
+      return res.status(400).json({ success: false, message: "Skill Name is required" });
+    }
+
+    const updated = await Resume.findOneAndUpdate(
+      { _id: req.params.id, ...companyIdQuery(req.companyId) },
+      { $push: { 'candidateProfile.skills': entry }, $set: { 'candidateProfile.lastVerified': new Date() } },
+      { new: true }
+    );
+    if (!updated) return res.status(404).json({ success: false, message: "Candidate not found" });
+    res.json({ success: true, message: "Skill added", data: updated.candidateProfile });
+  } catch (error) {
+    console.error('Add candidate skill error:', error);
+    res.status(500).json({ success: false, message: "Internal server error: " + error.message });
+  }
+});
+
+// PUT /candidate/:id/skills/:skillId — edit one Skills & Competency row
+router.put('/candidate/:id/skills/:skillId', verifyCompanyToken, requireBulkUploadPermission, async (req, res) => {
+  try {
+    const entry = pickFields(req.body, SKILL_FIELDS);
+    const setOps = { 'candidateProfile.lastVerified': new Date() };
+    Object.entries(entry).forEach(([k, v]) => {
+      setOps[`candidateProfile.skills.$[sk].${k}`] = v;
+    });
+
+    const updated = await Resume.findOneAndUpdate(
+      { _id: req.params.id, ...companyIdQuery(req.companyId) },
+      { $set: setOps },
+      { new: true, arrayFilters: [{ 'sk._id': req.params.skillId }] }
+    );
+    if (!updated) return res.status(404).json({ success: false, message: "Candidate not found" });
+    res.json({ success: true, message: "Skill updated", data: updated.candidateProfile });
+  } catch (error) {
+    console.error('Update candidate skill error:', error);
+    res.status(500).json({ success: false, message: "Internal server error: " + error.message });
+  }
+});
+
+// DELETE /candidate/:id/skills/:skillId — remove one Skills & Competency row
+router.delete('/candidate/:id/skills/:skillId', verifyCompanyToken, requireBulkUploadPermission, async (req, res) => {
+  try {
+    const updated = await Resume.findOneAndUpdate(
+      { _id: req.params.id, ...companyIdQuery(req.companyId) },
+      { $pull: { 'candidateProfile.skills': { _id: req.params.skillId } }, $set: { 'candidateProfile.lastVerified': new Date() } },
+      { new: true }
+    );
+    if (!updated) return res.status(404).json({ success: false, message: "Candidate not found" });
+    res.json({ success: true, message: "Skill removed", data: updated.candidateProfile });
+  } catch (error) {
+    console.error('Delete candidate skill error:', error);
+    res.status(500).json({ success: false, message: "Internal server error: " + error.message });
+  }
+});
+
+// POST /candidate/:id/education — add one Education Details row
+router.post('/candidate/:id/education', verifyCompanyToken, requireBulkUploadPermission, async (req, res) => {
+  try {
+    const entry = pickFields(req.body, EDUCATION_FIELDS);
+    if (!entry.degreeName && !entry.level) {
+      return res.status(400).json({ success: false, message: "Education Level or Degree Name is required" });
+    }
+
+    const updated = await Resume.findOneAndUpdate(
+      { _id: req.params.id, ...companyIdQuery(req.companyId) },
+      { $push: { 'candidateProfile.education': entry }, $set: { 'candidateProfile.lastVerified': new Date() } },
+      { new: true }
+    );
+    if (!updated) return res.status(404).json({ success: false, message: "Candidate not found" });
+    res.json({ success: true, message: "Education entry added", data: updated.candidateProfile });
+  } catch (error) {
+    console.error('Add candidate education error:', error);
+    res.status(500).json({ success: false, message: "Internal server error: " + error.message });
+  }
+});
+
+// PUT /candidate/:id/education/:eduId — edit one Education Details row
+router.put('/candidate/:id/education/:eduId', verifyCompanyToken, requireBulkUploadPermission, async (req, res) => {
+  try {
+    const entry = pickFields(req.body, EDUCATION_FIELDS);
+    const setOps = { 'candidateProfile.lastVerified': new Date() };
+    Object.entries(entry).forEach(([k, v]) => {
+      setOps[`candidateProfile.education.$[edu].${k}`] = v;
+    });
+
+    const updated = await Resume.findOneAndUpdate(
+      { _id: req.params.id, ...companyIdQuery(req.companyId) },
+      { $set: setOps },
+      { new: true, arrayFilters: [{ 'edu._id': req.params.eduId }] }
+    );
+    if (!updated) return res.status(404).json({ success: false, message: "Candidate not found" });
+    res.json({ success: true, message: "Education entry updated", data: updated.candidateProfile });
+  } catch (error) {
+    console.error('Update candidate education error:', error);
+    res.status(500).json({ success: false, message: "Internal server error: " + error.message });
+  }
+});
+
+// DELETE /candidate/:id/education/:eduId — remove one Education Details row
+router.delete('/candidate/:id/education/:eduId', verifyCompanyToken, requireBulkUploadPermission, async (req, res) => {
+  try {
+    const updated = await Resume.findOneAndUpdate(
+      { _id: req.params.id, ...companyIdQuery(req.companyId) },
+      { $pull: { 'candidateProfile.education': { _id: req.params.eduId } }, $set: { 'candidateProfile.lastVerified': new Date() } },
+      { new: true }
+    );
+    if (!updated) return res.status(404).json({ success: false, message: "Candidate not found" });
+    res.json({ success: true, message: "Education entry removed", data: updated.candidateProfile });
+  } catch (error) {
+    console.error('Delete candidate education error:', error);
+    res.status(500).json({ success: false, message: "Internal server error: " + error.message });
+  }
+});
+
+// POST /candidate/:id/resume — replace this candidate's CV file (Documents tab)
+router.post('/candidate/:id/resume', verifyCompanyToken, requireBulkUploadPermission, (req, res) => {
+  upload.single('resumes')(req, res, async (err) => {
+    if (err) {
+      return res.status(400).json({ success: false, message: err.message || "Upload failed" });
+    }
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: "No file uploaded" });
+    }
+    try {
+      const existing = await Resume.findOne({ _id: req.params.id, ...companyIdQuery(req.companyId) });
+      if (!existing) {
+        await fs.unlink(req.file.path).catch(() => {});
+        return res.status(404).json({ success: false, message: "Candidate not found" });
+      }
+
+      const oldFilePath = existing.filePath;
+      const ext = path.extname(req.file.originalname).toLowerCase().replace('.', '');
+
+      const updated = await Resume.findOneAndUpdate(
+        { _id: req.params.id, ...companyIdQuery(req.companyId) },
+        {
+          $set: {
+            fileName: req.file.filename,
+            originalName: req.file.originalname,
+            fileSize: req.file.size,
+            fileType: ['pdf', 'doc', 'docx'].includes(ext) ? ext : 'pdf',
+            filePath: req.file.path,
+            'candidateProfile.lastVerified': new Date(),
+          },
+        },
+        { new: true }
+      );
+
+      if (oldFilePath) {
+        await fs.unlink(oldFilePath).catch(() => {}); // best-effort; old file may already be gone
+      }
+
+      res.json({
+        success: true,
+        message: "CV updated",
+        data: { resumeName: updated.originalName, fileSize: updated.fileSize, candidateProfile: updated.candidateProfile },
+      });
+    } catch (error) {
+      console.error('Replace candidate CV error:', error);
+      await fs.unlink(req.file.path).catch(() => {});
+      res.status(500).json({ success: false, message: "Internal server error: " + error.message });
+    }
+  });
+});
+
 // ─── GET /files ───────────────────────────────────────────────────────────────
 router.get('/files', verifyCompanyToken, requireBulkUploadPermission, async (req, res) => {
   try {

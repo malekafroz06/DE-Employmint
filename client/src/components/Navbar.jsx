@@ -133,18 +133,16 @@ const Navbar = () => {
     { path: "/", label: "Home" },
     { path: "/JobCategories", label: "Job Categories" },
     { path: "/JobListing", label: "Latest Jobs" },
+    { path: "/hiring-pulse", label: "Hiring Pulse" },
     { path: "/contact", label: "Contact Us" },
   ];
 
   return (
     <>
-      {/* Spacer div to prevent content jump when navbar becomes fixed */}
-      <div className="h-2"></div>
-
       <div
-        className={`${
-          scrolled ? "fixed animate-slideDown" : "relative"
-        } top-0 left-0 right-0 z-20 w-full transition-all duration-300`}
+        className={`sticky top-0 z-20 w-full transition-all duration-300 ${
+          scrolled ? "bg-white/95 backdrop-blur-lg" : ""
+        }`}
       >
         <nav
           className={`transition-all duration-500 ${
@@ -179,21 +177,21 @@ const Navbar = () => {
             </span>
           </div>
 
-          {/* Desktop Navigation - Hidden on mobile/tablet (< 1024px) */}
-          <div className="hidden lg:flex items-center flex-1 justify-center mx-4">
-            <div className="flex items-center gap-6 xl:gap-8 text-gray-700 font-medium">
+          {/* Desktop Navigation - Hidden below 1280px so items never get cramped */}
+          <div className="hidden xl:flex items-center flex-1 justify-center mx-4">
+            <div className="flex items-center gap-4 text-gray-700 font-medium">
               {navItems.map((item, index) => (
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`flex items-center gap-2 px-3 xl:px-4 py-2 rounded-lg transition-all duration-300 relative ${
+                  className={`flex items-center gap-2 px-2 py-2 rounded-lg transition-all duration-300 relative ${
                     isActiveLink(item.path)
                       ? "text-red-600 bg-red-50 shadow-sm"
                       : "hover:text-red-600 hover:bg-red-50/50"
                   }`}
                 >
                   {item.icon && <span>{item.icon}</span>}
-                  <span className="relative whitespace-nowrap text-sm xl:text-base">
+                  <span className="relative whitespace-nowrap text-sm">
                     {item.label}
                     {isActiveLink(item.path) && (
                       <span className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-red-600 rounded-full animate-pulse"></span>
@@ -204,11 +202,11 @@ const Navbar = () => {
             </div>
           </div>
 
-          {/* Desktop Right Section - Hidden on mobile/tablet */}
-          <div className="hidden lg:flex items-center gap-2 xl:gap-4 flex-shrink-0">
+          {/* Desktop Right Section - Hidden below 1280px */}
+          <div className="hidden xl:flex items-center gap-4 flex-shrink-0">
             {user ? (
               <div className="flex items-center gap-3 relative">
-                <span className="hidden xl:block text-sm text-gray-600">
+                <span className="hidden 2xl:block text-sm text-gray-600">
                   Hi, {user.firstName}
                 </span>
                 
@@ -309,8 +307,8 @@ const Navbar = () => {
             )}
           </div>
 
-          {/* Mobile/Tablet Hamburger Menu - Visible below 1024px */}
-          <div className="flex lg:hidden items-center gap-2">
+          {/* Mobile/Tablet Hamburger Menu - Visible below 1280px */}
+          <div className="flex xl:hidden items-center gap-2">
             {user && (
               <div className="relative">
                 <UserButton
@@ -392,7 +390,7 @@ const Navbar = () => {
 
         {/* Mobile Menu Overlay */}
         {mobileMenuOpen && (
-          <div className="fixed inset-x-0 top-0 z-50 mobile-menu-container lg:hidden">
+          <div className="fixed inset-x-0 top-0 z-50 mobile-menu-container xl:hidden">
             {/* Backdrop */}
             <div 
               className="fixed inset-0 bg-black/50 backdrop-blur-sm"
@@ -517,20 +515,6 @@ const Navbar = () => {
       </div>
 
       <style>{`
-        @keyframes slideDown {
-          from {
-            transform: translateY(-100%);
-            opacity: 0;
-          }
-          to {
-            transform: translateY(0);
-            opacity: 1;
-          }
-        }
-        .animate-slideDown {
-          animation: slideDown 0.3s ease-out;
-        }
-        
         @keyframes wave {
           0%, 100% { transform: rotate(0deg); }
           25% { transform: rotate(20deg); }

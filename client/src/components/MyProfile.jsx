@@ -53,7 +53,9 @@ const CategoryProducts = {
   "Alternative Investment Fund": ["Private Equity", "Venture Capital", "Hedge Funds"],
   "Investment Banking": ["IPO Advisory", "M&A", "Capital Raising", "Debt Syndication"],
   "Asset Finance Company (AFC)": [
-    "Commercial Vehicle Loans", "Construction Equipment Loans", "Tractor Loan"
+    "Commercial Vehicle Loans", "Construction Equipment Loans", "Tractor Loan",
+    "Used Commercial Vehicle Loan", "Car Finance", "Useed Car Finance",
+    "Passenger Vehicle Finance", "Machinery Finance", "Equipment Finance"
   ],
   "Loan Company (LC)": ["Personal Loans", "Business Loans", "MSME Loans"],
   "Microfinance Institution (MFI)": [

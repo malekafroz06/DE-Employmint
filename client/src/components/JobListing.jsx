@@ -269,7 +269,10 @@ const JobListing = () => {
       selectedJobCategory, selectedSalaryRanges, customSalary, useCustomSalary, searchFilter, sortBy]);
 
   const handlePageChange = (newPage) => triggerTransition(() => setCurrentPage(newPage));
-  const handleSortChange = (e) => triggerTransition(() => setSortBy(e.target.value), false);
+  const handleSortChange = (e) => {
+    const value = e.target.value;
+    triggerTransition(() => setSortBy(value), false);
+  };
 
   const clearAllFilters = () => {
     triggerTransition(() => {

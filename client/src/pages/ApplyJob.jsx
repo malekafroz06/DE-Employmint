@@ -13,7 +13,7 @@ import { toast } from "react-toastify";
 import { useAuth, useClerk } from "@clerk/clerk-react";
 import Calltoaction from "../components/Calltoaction";
 import { motion } from "framer-motion";
-import { FiMapPin, FiBriefcase, FiClock, FiCheckCircle, FiExternalLink } from "react-icons/fi";
+import { FiMapPin, FiBriefcase, FiClock, FiCheckCircle, FiExternalLink, FiMail, FiPhone } from "react-icons/fi";
 import { TbCurrencyRupee } from "react-icons/tb";
 
 // Company Logo Component with loading state and fallback
@@ -27,49 +27,44 @@ const CompanyLogo = ({ companyData }) => {
     !imageError;
 
   return (
-    <motion.div 
+    <motion.div
       whileHover={{ scale: 1.05 }}
-      className="bg-white p-3 rounded-lg shadow-lg border border-white/20 flex items-center justify-center relative overflow-hidden"
-      style={{ 
-        width: '88px', 
-        height: '88px',
-        minWidth: '88px',
-        minHeight: '88px'
+      className="bg-white rounded-lg shadow-lg border border-white/20 flex items-center justify-center relative"
+      style={{
+        padding: '10px',
+        minWidth: '80px',
+        minHeight: '64px',
+        maxWidth: '180px',
+        maxHeight: '120px',
+        width: 'auto',
+        height: 'auto',
       }}
     >
       {hasValidImage ? (
         <>
-          {/* Loading skeleton */}
           {!imageLoaded && (
-            <div className="absolute inset-0 bg-gray-200 animate-pulse" />
+            <div
+              style={{ width: 80, height: 64 }}
+              className="bg-gray-200 animate-pulse rounded"
+            />
           )}
-          
-          {/* Actual image */}
           <img
-            className={`max-w-full max-h-full object-contain transition-opacity duration-300 ${
-              imageLoaded ? 'opacity-100' : 'opacity-0'
-            }`}
             src={companyData.image}
             alt={`${companyData?.name || 'Company'} Logo`}
-            onLoad={() => {
-              setImageLoaded(true);
-              setImageError(false);
-            }}
-            onError={() => {
-              setImageError(true);
-              setImageLoaded(true);
-            }}
+            onLoad={() => { setImageLoaded(true); setImageError(false); }}
+            onError={() => { setImageError(true); setImageLoaded(true); }}
             loading="eager"
             style={{
-              maxWidth: '100%',
-              maxHeight: '100%',
+              display: imageLoaded ? 'block' : 'none',
+              maxWidth: '160px',
+              maxHeight: '100px',
               width: 'auto',
-              height: 'auto'
+              height: 'auto',
+              objectFit: 'contain',
             }}
           />
         </>
       ) : (
-        // Fallback: Show first letter of company name
         <span className="text-3xl font-bold text-gray-700">
           {companyData?.name?.[0]?.toUpperCase() || 'C'}
         </span>
@@ -571,7 +566,29 @@ const ApplyJob = () => {
                   <p className="text-gray-600 mb-4">
                     {jobData?.companyId?.description || "Leading company in their industry."}
                   </p>
-                  <a 
+
+                  <div className="space-y-3 mb-4 pb-4 border-b border-gray-100">
+                    {jobData?.companyId?.email && (
+                      <div className="flex items-center gap-2 text-sm text-gray-700">
+                        <FiMail className="flex-shrink-0" style={{ color: '#FF0000' }} />
+                        <span className="break-all">{jobData.companyId.email}</span>
+                      </div>
+                    )}
+                    {jobData?.companyId?.phone && (
+                      <div className="flex items-center gap-2 text-sm text-gray-700">
+                        <FiPhone className="flex-shrink-0" style={{ color: '#FF0000' }} />
+                        <span>{jobData.companyId.phone}</span>
+                      </div>
+                    )}
+                    {jobData?.companyId?.location && (
+                      <div className="flex items-center gap-2 text-sm text-gray-700">
+                        <FiMapPin className="flex-shrink-0" style={{ color: '#FF0000' }} />
+                        <span>{jobData.companyId.location}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <a
                     href={`/company/${jobData?.companyId?._id}`}
                     className="font-medium flex items-center hover:opacity-80 transition-opacity"
                     style={{ color: '#FF0000' }}

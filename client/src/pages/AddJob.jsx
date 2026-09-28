@@ -71,7 +71,13 @@ const CategoryProducts = {
   "Asset Finance Company (AFC)": [
     "Commercial Vehicle Loans",
     "Construction Equipment Loans",
-    "Tractor Loan"
+    "Tractor Loan",
+    "Used Commercial Vehicle Loan",
+    "Car Finance",
+    "Useed Car Finance",
+    "Passenger Vehicle Finance",
+    "Machinery Finance",
+    "Equipment Finance"
   ],
   "Loan Company (LC)": [
     "Personal Loans", "Business Loans", "MSME Loans"
@@ -139,6 +145,11 @@ const AddJob = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formStep, setFormStep] = useState(1);
 
+  // Track whether the recruiter has actually chosen a category / product, so the
+  // pre-selected defaults don't silently narrow the candidate-pool insights.
+  const [categoryTouched, setCategoryTouched] = useState(false);
+  const [productTouched, setProductTouched] = useState(false);
+
   const [showOtherChannel, setShowOtherChannel] = useState(false);
   const [otherChannel, setOtherChannel] = useState("");
   const [showOtherCategory, setShowOtherCategory] = useState(false);
@@ -148,6 +159,49 @@ const AddJob = () => {
   const quillRef = useRef(null);
 
   const { backendUrl, companyToken } = useContext(AppContext);
+
+  // ── Live candidate-pool insights (dynamic counts under Basic Info) ─────────
+  const [insights, setInsights] = useState({
+    availableCandidates: 0,
+    strongMatches: 0,
+    activelyLooking: 0,
+    noticePeriodUnder30: 0,
+    expectedCtcWithinBudget: 0,
+  });
+  const [insightsLoading, setInsightsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!companyToken) return;
+    const controller = new AbortController();
+    const finalCategory = categoryTouched
+      ? (jobcategory === "Other" ? otherCategory.trim() : jobcategory)
+      : "";
+    const finalProduct = productTouched ? (selectedProducts[0] || "") : "";
+    const timer = setTimeout(async () => {
+      try {
+        setInsightsLoading(true);
+        const { data } = await axios.get(`${backendUrl}/api/company/candidate-insights`, {
+          headers: { token: companyToken },
+          params: {
+            designation: designation.trim(),
+            category: finalCategory,
+            product: finalProduct,
+            salary: Number(salary) > 0 ? Number(salary) : "",
+          },
+          signal: controller.signal,
+        });
+        if (data.success) setInsights(data.data);
+      } catch (err) {
+        if (!axios.isCancel(err)) console.error("Failed to load candidate insights", err);
+      } finally {
+        setInsightsLoading(false);
+      }
+    }, 500);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [designation, jobcategory, otherCategory, selectedProducts, salary, categoryTouched, productTouched, companyToken, backendUrl]);
 
   // ── Location helpers ──────────────────────────────────────────────────────
   const addLocation = (raw) => {
@@ -171,6 +225,7 @@ const AddJob = () => {
 
   // ── Product (checkbox) helpers ────────────────────────────────────────────
   const handleProductToggle = (p) => {
+    setProductTouched(true);
     setSelectedProducts((prev) =>
       prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]
     );
@@ -179,6 +234,8 @@ const AddJob = () => {
   // ── Category change ───────────────────────────────────────────────────────
   const handleCategoryChange = (e) => {
     const value = e.target.value;
+    setCategoryTouched(true);
+    setProductTouched(false);
     setJobCategory(value);
     // Reset selected products to first item of new category
     const products = CategoryProducts[value] || [];
@@ -252,6 +309,8 @@ const AddJob = () => {
       setJobChannel("Agency Channel");
       setJobCategory("Stock Market");  // ← also fix this, "Equity Broking" doesn't exist in JobCategories
       setSelectedProducts([CategoryProducts["Stock Market"][0]]);  // ← match above
+      setCategoryTouched(false);
+      setProductTouched(false);
       setNoticeperiod("Immediate Joiner");
       setShowOtherChannel(false);
       setOtherChannel("");
@@ -428,6 +487,35 @@ const AddJob = () => {
             </div>
           </div>
 
+          {/* ── Live Candidate Pool Insights ── */}
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-sm font-semibold text-gray-700">Candidate Pool Insights</h4>
+              <span className="text-xs text-gray-400">
+                {insightsLoading ? "Updating…" : "Updates as you fill the form"}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+              {[
+                { label: "Available Candidates", value: insights.availableCandidates, color: "text-gray-800", ring: "border-gray-200" },
+                { label: "Strong Matches", value: insights.strongMatches, color: "text-red-600", ring: "border-red-200" },
+                { label: "Actively Looking", value: insights.activelyLooking, color: "text-emerald-600", ring: "border-emerald-200" },
+                { label: "Notice ≤ 30 days", value: insights.noticePeriodUnder30, color: "text-amber-600", ring: "border-amber-200" },
+                { label: "Expected CTC within budget", value: insights.expectedCtcWithinBudget, color: "text-violet-600", ring: "border-violet-200" },
+              ].map((box) => (
+                <div
+                  key={box.label}
+                  className={`bg-white rounded-xl shadow-sm border ${box.ring} p-4 flex flex-col justify-between transition-all duration-200`}
+                >
+                  <span className={`text-2xl font-bold ${box.color} ${insightsLoading ? "opacity-40" : ""}`}>
+                    {Number(box.value || 0).toLocaleString()}
+                  </span>
+                  <span className="mt-1 text-xs font-medium text-gray-500 leading-tight">{box.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="flex justify-end">
             <button
               type="button"
@@ -523,7 +611,7 @@ const AddJob = () => {
                       type="text"
                       placeholder="Specify product"
                       value={selectedProducts[0] || ""}
-                      onChange={(e) => setSelectedProducts([e.target.value])}
+                      onChange={(e) => { setProductTouched(true); setSelectedProducts([e.target.value]); }}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 outline-none transition-all duration-200"
                     />
                   )}

@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect } from "react";
+import React, { useState, useContext, useEffect, useRef } from "react";
 import { AppContext } from "../context/AppContext";
 import { useOutletContext } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -6,48 +6,130 @@ import axios from "axios";
 import {
   FiSearch,
   FiDownload,
-  FiEye,
   FiTrash2,
   FiAlertCircle,
   FiX,
   FiRefreshCw,
-  FiMail,
-  FiPhone,
-  FiMapPin,
-  FiFileText,
-  FiCalendar,
-  FiBriefcase,
-  FiTrendingUp,
   FiCheckCircle,
   FiCheck,
-  FiShield,
-  FiClock,
+  FiEdit2,
+  FiChevronDown,
+  FiChevronUp,
+  FiFilter,
 } from "react-icons/fi";
 import { toast } from "react-toastify";
+import AssessmentPopup from "../components/AssessmentPopup";
+import CandidateDetailsModal from "../components/CandidateDetailsModal";
 
-const ROLE_COLORS = {
-  consultancy: "bg-blue-50 border-blue-200 text-blue-700",
-  hr:          "bg-purple-50 border-purple-200 text-purple-700",
-  management:  "bg-green-50 border-green-200 text-green-700",
-  recruiter:   "bg-gray-50 border-gray-200 text-gray-700",
+// ── Candidate CTC ranges (same style as the job-search Salary filter) ────────
+const CtcRanges = [
+  { label: "Under ₹3 LPA", min: 0, max: 300000 },
+  { label: "₹3 - ₹5 LPA", min: 300000, max: 500000 },
+  { label: "₹5 - ₹8 LPA", min: 500000, max: 800000 },
+  { label: "₹8 - ₹12 LPA", min: 800000, max: 1200000 },
+  { label: "₹12 - ₹15 LPA", min: 1200000, max: 1500000 },
+  { label: "₹15 - ₹20 LPA", min: 1500000, max: 2000000 },
+  { label: "₹20 - ₹30 LPA", min: 2000000, max: 3000000 },
+  { label: "Above ₹30 LPA", min: 3000000, max: Infinity },
+];
+
+// Parse a free-text CTC string ("8 LPA", "6.5 lakh", "45000") → annual rupees
+const parseCtcToRupees = (raw) => {
+  const s = String(raw || "").toLowerCase().replace(/,/g, "").trim();
+  if (!s || s === "n/a") return null;
+  const num = parseFloat(s.match(/[\d.]+/)?.[0]);
+  if (!Number.isFinite(num) || num <= 0) return null;
+  if (/cr|crore/.test(s)) return num * 1e7;
+  if (/lac|lakh|lpa|\bl\b/.test(s)) return num * 1e5;
+  if (/\bk\b/.test(s)) return num * 1e3;
+  return num < 100 ? num * 1e5 : num;
 };
 
-const ROLE_LABELS = {
-  consultancy: "Consultancy",
-  hr:          "HR",
-  management:  "Management",
-  recruiter:   "Recruiter",
+// Notice-period buckets a recruiter typically filters by
+const NoticePeriodBuckets = [
+  { label: "Immediate", test: (d) => d === 0 },
+  { label: "Up to 30 days", test: (d) => d !== null && d <= 30 },
+  { label: "31 - 60 days", test: (d) => d !== null && d > 30 && d <= 60 },
+  { label: "61 - 90 days", test: (d) => d !== null && d > 60 && d <= 90 },
+  { label: "90+ days", test: (d) => d !== null && d > 90 },
+];
+
+// Parse a free-text notice-period string → approximate days
+const noticePeriodToDays = (raw) => {
+  const s = String(raw || "").toLowerCase().trim();
+  if (!s || s === "n/a") return null;
+  if (/immediate|any\s*time|anytime|serving|already|no\s*notice|none/.test(s)) return 0;
+  const dayMatch = s.match(/(\d+)\s*day/);
+  if (dayMatch) return Number(dayMatch[1]);
+  const weekMatch = s.match(/(\d+)\s*week/);
+  if (weekMatch) return Number(weekMatch[1]) * 7;
+  const monthMatch = s.match(/(\d+(?:\.\d+)?)\s*month/);
+  if (monthMatch) return Number(monthMatch[1]) * 30;
+  const bare = Number(s.replace(/[^\d.]/g, ""));
+  return Number.isFinite(bare) && bare > 0 ? bare : null;
 };
 
-const formatDate = (d) => {
-  if (!d) return "";
-  try {
-    return new Date(d).toLocaleDateString("en-US", {
-      year: "numeric", month: "short", day: "numeric",
-      hour: "2-digit", minute: "2-digit",
-    });
-  } catch { return ""; }
-};
+// Compact dropdown filter — a button that pops a checkbox list, so all
+// filters sit in one horizontal row instead of a sidebar.
+const FilterDropdown = ({ title, options, selected, onChange, isOpen, onToggle }) => (
+  <div className="relative">
+    <button
+      onClick={onToggle}
+      className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors whitespace-nowrap ${
+        selected.length > 0
+          ? "bg-red-50 border-red-300 text-red-700"
+          : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+      }`}
+    >
+      {title}
+      {selected.length > 0 && (
+        <span className="bg-red-600 text-white text-[10px] leading-none px-1.5 py-0.5 rounded-full">{selected.length}</span>
+      )}
+      {isOpen ? <FiChevronUp size={14} /> : <FiChevronDown size={14} />}
+    </button>
+
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
+          transition={{ duration: 0.15 }}
+          className="absolute left-0 top-full mt-1.5 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-3"
+        >
+          {options.length === 0 ? (
+            <p className="text-xs text-gray-400 py-1">No data yet.</p>
+          ) : (
+            <>
+              {selected.length > 0 && (
+                <div className="flex justify-between items-center mb-2 pb-2 border-b border-gray-100">
+                  <span className="text-xs text-gray-500">{selected.length} selected</span>
+                  <button onClick={() => onChange([])} className="text-xs text-red-600 hover:underline">Clear</button>
+                </div>
+              )}
+              <ul className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                {options.map((option) => (
+                  <li key={option} className="flex items-center">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 text-red-600 rounded focus:ring-red-500 border-gray-300 flex-shrink-0"
+                      checked={selected.includes(option)}
+                      onChange={() => {
+                        onChange(selected.includes(option) ? selected.filter((o) => o !== option) : [...selected, option]);
+                      }}
+                      id={`filt-${title}-${option}`}
+                    />
+                    <label htmlFor={`filt-${title}-${option}`} className="ml-2 text-sm text-gray-700 cursor-pointer hover:text-red-600 transition-colors truncate">
+                      {option}
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </motion.div>
+      )}
+    </AnimatePresence>
+  </div>
+);
 
 const SearchResume = () => {
   const { companyToken, backendUrl } = useContext(AppContext);
@@ -59,19 +141,57 @@ const SearchResume = () => {
   const [isLoading, setIsLoading]                 = useState(false);
   const [searchQuery, setSearchQuery]             = useState("");
   const [filterStatus, setFilterStatus]           = useState("all");
-  const [sortBy, setSortBy]                       = useState("name");
+  const [sortBy, setSortBy]                       = useState("date");
   const [selectedCandidates, setSelectedCandidates] = useState([]);
   const [selectAll, setSelectAll]                 = useState(false);
   const [selectedCandidate, setSelectedCandidate] = useState(null);
   const [showDetailModal, setShowDetailModal]     = useState(false);
 
-  // Assessment modal states
-  const [showAssessmentModal, setShowAssessmentModal] = useState(false);
-  const [viewingAssessment, setViewingAssessment]     = useState(null);
-
   const [matchingStats, setMatchingStats] = useState({
     total: 0, matched: 0, unmatched: 0, matchRate: 0
   });
+
+  // ── Top filter bar (same filters as the public job-search page, in one row) ──
+  const [selectedCategory, setSelectedCategory]     = useState([]);
+  const [selectedDesignation, setSelectedDesignation] = useState([]);
+  const [selectedProduct, setSelectedProduct]       = useState([]);
+  const [selectedChannel, setSelectedChannel]       = useState([]);
+  const [selectedLocation, setSelectedLocation]     = useState([]);
+  const [selectedJobStatus, setSelectedJobStatus]   = useState([]);
+  const [selectedNotice, setSelectedNotice]         = useState([]);
+  const [selectedCtc, setSelectedCtc]               = useState([]);
+  const [openDropdown, setOpenDropdown] = useState(null); // only one dropdown open at a time
+  const toggleDropdown = (key) => setOpenDropdown((prev) => (prev === key ? null : key));
+  const filterBarRef = useRef(null);
+
+  // Close whichever filter dropdown is open when clicking anywhere outside the filter bar
+  useEffect(() => {
+    if (!openDropdown) return;
+    const handleClickOutside = (e) => {
+      if (filterBarRef.current && !filterBarRef.current.contains(e.target)) setOpenDropdown(null);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [openDropdown]);
+
+  const uniqueSorted = (arr) => [...new Set(arr.filter((v) => v && v !== "N/A"))].sort();
+  const categoryOptions    = uniqueSorted(combinedData.map((c) => c.category));
+  const designationOptions = uniqueSorted(combinedData.map((c) => c.currentDesignation));
+  const productOptions     = uniqueSorted(combinedData.map((c) => c.product));
+  const channelOptions     = uniqueSorted(combinedData.map((c) => c.channel));
+  const locationOptions    = uniqueSorted(combinedData.map((c) => c.city));
+  const jobStatusOptions   = uniqueSorted(combinedData.map((c) => c.jobChangeStatus));
+
+  const hasActiveFilters =
+    selectedCategory.length || selectedDesignation.length || selectedProduct.length ||
+    selectedChannel.length || selectedLocation.length || selectedJobStatus.length ||
+    selectedNotice.length || selectedCtc.length;
+
+  const clearAllFilters = () => {
+    setSelectedCategory([]); setSelectedDesignation([]); setSelectedProduct([]);
+    setSelectedChannel([]); setSelectedLocation([]); setSelectedJobStatus([]);
+    setSelectedNotice([]); setSelectedCtc([]);
+  };
 
   useEffect(() => {
     if (companyToken) fetchCombinedData();
@@ -79,7 +199,9 @@ const SearchResume = () => {
 
   useEffect(() => {
     filterAndSortData();
-  }, [combinedData, searchQuery, filterStatus, sortBy]);
+  }, [combinedData, searchQuery, filterStatus, sortBy,
+      selectedCategory, selectedDesignation, selectedProduct, selectedChannel,
+      selectedLocation, selectedJobStatus, selectedNotice, selectedCtc]);
 
   // Listen for assessment tab completion → mark candidate as accepted in UI immediately
  useEffect(() => {
@@ -95,11 +217,11 @@ const SearchResume = () => {
           prev.map(c => {
             // Match by bulk-upload _id (SearchResume candidates)
             if (applicationId && c._id === applicationId) {
-              return { ...c, accepted: true };
+              return { ...c, accepted: true, rejected: false };
             }
             // Match by email (when coming from ViewApplications assessment tab)
             if (candidateEmail && c.email?.toLowerCase() === candidateEmail.toLowerCase()) {
-              return { ...c, accepted: true };
+              return { ...c, accepted: true, rejected: false };
             }
             return c;
           })
@@ -113,10 +235,10 @@ const SearchResume = () => {
         setCombinedData(prev =>
           prev.map(c => {
             if (applicationId && c._id === applicationId) {
-              return { ...c, rejected: true };
+              return { ...c, rejected: true, accepted: false };
             }
             if (candidateEmail && c.email?.toLowerCase() === candidateEmail.toLowerCase()) {
-              return { ...c, rejected: true };
+              return { ...c, rejected: true, accepted: false };
             }
             return c;
           })
@@ -240,8 +362,8 @@ const parseCsvRow = (row, headers) => {
       ]);
 
       if (resumesRes.data.success && csvRes.data.success) {
-        const resumes  = resumesRes.data.data?.files || resumesRes.data.files || [];
-        const csvFiles = csvRes.data.data?.files    || csvRes.data.files    || [];
+        const resumes  = (resumesRes.data.data?.files || resumesRes.data.files || []).filter(Boolean);
+        const csvFiles = (csvRes.data.data?.files    || csvRes.data.files    || []).filter(Boolean);
 
         const parsedCsvFiles = await Promise.all(
           csvFiles.map(async (csvFile) => {
@@ -278,7 +400,7 @@ const parseCsvRow = (row, headers) => {
           })
         );
 
-        const combined = resumes.map(resume => {
+        const combined = resumes.filter(Boolean).map(resume => {
           const resumeFileName = resume.originalName || "";
           const extractedName  = extractCandidateName(resumeFileName);
           const candidateName  = resume.parsedData?.name || extractedName;
@@ -292,6 +414,12 @@ const parseCsvRow = (row, headers) => {
           const csvHeaders = csvMatch ? buildHeaderMap(csvMatch) : [];
           const parsedCsv  = csvMatchedData ? parseCsvRow(csvMatchedData, csvHeaders) : null;
 
+          // Recruiter edits made from the "Edit" screen always win over the
+          // value auto-matched from the uploaded CSV.
+          const candidateProfile = resume.candidateProfile || {};
+          const cpPersonal = candidateProfile.personal || {};
+          const cpPro      = candidateProfile.professional || {};
+
           return {
             _id:            resume._id,
             rejected:       resume.rejected       || false,
@@ -299,11 +427,12 @@ const parseCsvRow = (row, headers) => {
             assessmentData: resume.assessmentData || {},
             resumeName:     resumeFileName,
             candidateName,
+            candidateProfile,
             email:    parsedCsv?.['Email ID']  || resume.parsedData?.email    || "N/A",
             phone:    parsedCsv?.['Mobile No'] || resume.parsedData?.phone    || "N/A",
-            location: `${parsedCsv?.['City'] || ''} ${parsedCsv?.['State'] || ''}`.trim() || resume.parsedData?.location || "N/A",
-            skills:   parsedCsv?.['Languages']      || resume.parsedData?.skills    || "N/A",
-            experience: parsedCsv?.['Total Experience'] || resume.parsedData?.experience || "N/A",
+            location: `${cpPersonal.city || parsedCsv?.['City'] || ''} ${cpPersonal.state || parsedCsv?.['State'] || ''}`.trim() || resume.parsedData?.location || "N/A",
+            skills:   (candidateProfile.skills?.length ? candidateProfile.skills.join(', ') : null) || parsedCsv?.['Languages'] || resume.parsedData?.skills || "N/A",
+            experience: cpPro.totalExperience || parsedCsv?.['Total Experience'] || resume.parsedData?.experience || "N/A",
             status:     resume.status,
             fileSize:   resume.fileSize,
             uploadDate: resume.uploadDate || resume.createdAt,
@@ -312,27 +441,27 @@ const parseCsvRow = (row, headers) => {
             csvMatched: !!csvMatchedData,
             csvFileName: csvMatch?.originalName || "N/A",
             fullName:      parsedCsv?.['Full Name']    || candidateName,
-            gender:        parsedCsv?.['Gender']        || "N/A",
-            dob:           parsedCsv?.['DOB']           || "N/A",
-            city:          parsedCsv?.['City']          || "N/A",
-            state:         parsedCsv?.['State']         || "N/A",
-            languages:     parsedCsv?.['Languages']     || "N/A",
-            maritalStatus: parsedCsv?.['Marital Status']|| "N/A",
+            gender:        cpPersonal.gender        || parsedCsv?.['Gender']        || "N/A",
+            dob:           cpPersonal.dob           || parsedCsv?.['DOB']           || "N/A",
+            city:          cpPersonal.city          || parsedCsv?.['City']          || "N/A",
+            state:         cpPersonal.state         || parsedCsv?.['State']         || "N/A",
+            languages:     cpPersonal.languages     || parsedCsv?.['Languages']     || "N/A",
+            maritalStatus: cpPersonal.maritalStatus || parsedCsv?.['Marital Status']|| "N/A",
             linkedinId:    parsedCsv?.['Linkedin ID']   || "N/A",
             facebookId:    parsedCsv?.['Facebook ID']   || "N/A",
             instagramId:   parsedCsv?.['Instagram ID']  || "N/A",
             snapchat:      parsedCsv?.['Snapchat']      || "N/A",
-            sector:             parsedCsv?.['Sector']             || "N/A",
-            category:           parsedCsv?.['Category']           || "N/A",
-            product:            parsedCsv?.['Product']            || "N/A",
-            channel:            parsedCsv?.['Channel']            || "N/A",
-            currentDesignation: parsedCsv?.['Current Designation']|| "N/A",
-            currentDepartment:  parsedCsv?.['Current Department'] || "N/A",
-            currentCTC:    parsedCsv?.['Current CTC']          || "N/A",
-            expectedCTC:   parsedCsv?.['Expected CTC']         || "N/A",
-            noticePeriod:  parsedCsv?.['Notice Period']        || "N/A",
-            totalExperience: parsedCsv?.['Total Experience']   || "N/A",
-            jobChangeStatus: parsedCsv?.['Status for Job Change'] || "N/A",
+            sector:             cpPro.sector             || parsedCsv?.['Sector']             || "N/A",
+            category:           cpPro.category           || parsedCsv?.['Category']           || "N/A",
+            product:            cpPro.product            || parsedCsv?.['Product']            || "N/A",
+            channel:            cpPro.channel            || parsedCsv?.['Channel']            || "N/A",
+            currentDesignation: cpPro.currentDesignation || parsedCsv?.['Current Designation']|| "N/A",
+            currentDepartment:  cpPro.currentDepartment  || parsedCsv?.['Current Department'] || "N/A",
+            currentCTC:    cpPro.currentCTC    || parsedCsv?.['Current CTC']          || "N/A",
+            expectedCTC:   cpPro.expectedCTC   || parsedCsv?.['Expected CTC']         || "N/A",
+            noticePeriod:  cpPro.noticePeriod  || parsedCsv?.['Notice Period']        || "N/A",
+            totalExperience: cpPro.totalExperience || parsedCsv?.['Total Experience']   || "N/A",
+            jobChangeStatus: cpPro.jobChangeStatus || parsedCsv?.['Status for Job Change'] || "N/A",
           };
         });
 
@@ -346,7 +475,6 @@ const parseCsvRow = (row, headers) => {
         });
 
         setCombinedData(combined);
-        toast.success(`Loaded ${totalResumes} resumes. ${matchedResumes} matched with CSV data.`);
       }
     } catch (error) {
       console.error("Error fetching combined data:", error);
@@ -359,26 +487,65 @@ const parseCsvRow = (row, headers) => {
   // ─── Filter / Sort ────────────────────────────────────────────────────────────
 
   const filterAndSortData = () => {
+    // Show nothing until the user types a search query or picks a sidebar filter
+    if (!searchQuery.trim() && !hasActiveFilters) {
+      setFilteredData([]);
+      return;
+    }
+
     let filtered = combinedData.filter(item => {
       const q = searchQuery.toLowerCase();
       const matchesSearch =
+        !q ||
         item.candidateName.toLowerCase().includes(q) ||
         item.email.toLowerCase().includes(q) ||
         String(item.phone || '').includes(q) ||
         item.sector.toLowerCase().includes(q) ||
         item.category.toLowerCase().includes(q) ||
+        item.product.toLowerCase().includes(q) ||
+        item.channel.toLowerCase().includes(q) ||
         item.city.toLowerCase().includes(q) ||
+        item.state.toLowerCase().includes(q) ||
         item.currentDesignation.toLowerCase().includes(q) ||
         item.currentDepartment.toLowerCase().includes(q) ||
         item.currentCTC.toLowerCase().includes(q) ||
-        item.languages.toLowerCase().includes(q);
+        item.expectedCTC.toLowerCase().includes(q) ||
+        item.totalExperience.toLowerCase().includes(q) ||
+        item.noticePeriod.toLowerCase().includes(q) ||
+        item.languages.toLowerCase().includes(q) ||
+        item.jobChangeStatus.toLowerCase().includes(q) ||
+        item.maritalStatus.toLowerCase().includes(q) ||
+        item.fullName.toLowerCase().includes(q);
 
       const matchesStatus =
         filterStatus === "all" ||
         (filterStatus === "matched"   && item.csvMatched) ||
         (filterStatus === "unmatched" && !item.csvMatched);
 
-      return matchesSearch && matchesStatus;
+      const matchesCategory    = selectedCategory.length === 0    || selectedCategory.includes(item.category);
+      const matchesDesignation = selectedDesignation.length === 0 || selectedDesignation.includes(item.currentDesignation);
+      const matchesProduct     = selectedProduct.length === 0     || selectedProduct.includes(item.product);
+      const matchesChannel     = selectedChannel.length === 0     || selectedChannel.includes(item.channel);
+      const matchesLocation    = selectedLocation.length === 0    || selectedLocation.includes(item.city);
+      const matchesJobStatus   = selectedJobStatus.length === 0   || selectedJobStatus.includes(item.jobChangeStatus);
+
+      const matchesNotice = selectedNotice.length === 0 || (() => {
+        const days = noticePeriodToDays(item.noticePeriod);
+        return NoticePeriodBuckets.some((b) => selectedNotice.includes(b.label) && b.test(days));
+      })();
+
+      const matchesCtc = selectedCtc.length === 0 || (() => {
+        const rupees = parseCtcToRupees(item.expectedCTC);
+        if (rupees === null) return false;
+        return selectedCtc.some((label) => {
+          const range = CtcRanges.find((r) => r.label === label);
+          return range && rupees >= range.min && rupees < range.max;
+        });
+      })();
+
+      return matchesSearch && matchesStatus && matchesCategory && matchesDesignation &&
+        matchesProduct && matchesChannel && matchesLocation && matchesJobStatus &&
+        matchesNotice && matchesCtc;
     });
 
     filtered.sort((a, b) => {
@@ -438,16 +605,9 @@ const parseCsvRow = (row, headers) => {
         [''],
         ['Compensation & Experience',''],
         ['Current CTC', candidate.currentCTC],
-        ['Expected CTC', candidate.expectedCTC],
         ['Total Experience', candidate.totalExperience],
         ['Notice Period', candidate.noticePeriod],
         ['Job Change Status', candidate.jobChangeStatus],
-        [''],
-        ['Social Media',''],
-        ['LinkedIn', candidate.linkedinId],
-        ['Facebook', candidate.facebookId],
-        ['Instagram', candidate.instagramId],
-        ['Snapchat', candidate.snapchat],
       ];
       const ws = XLSX.utils.aoa_to_sheet(csvData);
       ws['!cols'] = [{ wch: 30 }, { wch: 50 }];
@@ -474,7 +634,7 @@ const parseCsvRow = (row, headers) => {
       setSelectedCandidates([]);
       setSelectAll(false);
     } else {
-      setSelectedCandidates(filteredData.filter(c => !c.rejected && !c.accepted).map(c => c._id));
+      setSelectedCandidates(filteredData.map(c => c._id));
       setSelectAll(true);
     }
   };
@@ -501,17 +661,15 @@ const parseCsvRow = (row, headers) => {
       const excelData = [[
         'Sr. No.','Full Name','Gender','DOB','Email','Phone','City','State',
         'Marital Status','Languages','Sector','Category','Product','Channel',
-        'Current Designation','Current Department','Current CTC','Expected CTC',
-        'Total Experience','Notice Period','Job Change Status','LinkedIn',
-        'Facebook','Instagram','Snapchat'
+        'Current Designation','Current Department','Current CTC',
+        'Total Experience','Notice Period','Job Change Status'
       ]];
       selectedData.forEach((c, i) => {
         excelData.push([
           i + 1, c.fullName, c.gender, c.dob, c.email, c.phone, c.city, c.state,
           c.maritalStatus, c.languages, c.sector, c.category, c.product, c.channel,
-          c.currentDesignation, c.currentDepartment, c.currentCTC, c.expectedCTC,
-          c.totalExperience, c.noticePeriod, c.jobChangeStatus,
-          c.linkedinId, c.facebookId, c.instagramId, c.snapchat
+          c.currentDesignation, c.currentDepartment, c.currentCTC,
+          c.totalExperience, c.noticePeriod, c.jobChangeStatus
         ]);
       });
       const ws = XLSX.utils.aoa_to_sheet(excelData);
@@ -526,6 +684,36 @@ const parseCsvRow = (row, headers) => {
       console.error("Download error:", error);
       toast.error("Failed to download candidate information");
     }
+  };
+
+  const deleteSelectedCandidates = async () => {
+    if (selectedCandidates.length === 0) return;
+    const count = selectedCandidates.length;
+    let deleted = 0;
+    for (const id of selectedCandidates) {
+      try {
+        const { data } = await axios.delete(
+          `${backendUrl}/api/bulk-upload/files/${id}?type=resume`,
+          { headers: { token: companyToken } }
+        );
+        if (data.success) deleted++;
+      } catch {
+        /* skip individual failures */
+      }
+    }
+    setCombinedData(prev => prev.filter(c => !selectedCandidates.includes(c._id)));
+    setSelectedCandidates([]);
+    setSelectAll(false);
+    if (deleted === count) toast.success(`Deleted ${deleted} candidate(s)`);
+    else toast.warning(`Deleted ${deleted} of ${count} candidate(s)`);
+  };
+
+  // Called by CandidateDetailsModal after a successful save — merges the
+  // saved fields (and refreshed candidateProfile) back into table state so
+  // the row reflects the edit immediately, without a full refetch.
+  const handleCandidateUpdated = (id, patch) => {
+    setCombinedData(prev => prev.map(c => (c._id === id ? { ...c, ...patch } : c)));
+    setSelectedCandidate(prev => (prev && prev._id === id ? { ...prev, ...patch } : prev));
   };
 
   const formatFileSize = (bytes) => {
@@ -551,6 +739,7 @@ const parseCsvRow = (row, headers) => {
   // ─── Render ───────────────────────────────────────────────────────────────────
 
   return (
+    <>
     <motion.div
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -588,12 +777,52 @@ const parseCsvRow = (row, headers) => {
               <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search by name, city, designation, department, CTC, phone..."
+                placeholder="Search by name, designation, department, category, product, channel, experience, CTC, location..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2.5 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-sm sm:text-base"
               />
             </div>
+          </div>
+
+          {/* Filters — one row */}
+          <div ref={filterBarRef} className="flex flex-wrap items-center gap-2 mb-4 pb-4 border-b border-gray-100">
+            
+            <FilterDropdown
+              title="Category" options={categoryOptions} selected={selectedCategory}
+              onChange={setSelectedCategory} isOpen={openDropdown === "category"} onToggle={() => toggleDropdown("category")}
+            />
+            <FilterDropdown
+              title="Designation" options={designationOptions} selected={selectedDesignation}
+              onChange={setSelectedDesignation} isOpen={openDropdown === "designation"} onToggle={() => toggleDropdown("designation")}
+            />
+            <FilterDropdown
+              title="Product" options={productOptions} selected={selectedProduct}
+              onChange={setSelectedProduct} isOpen={openDropdown === "product"} onToggle={() => toggleDropdown("product")}
+            />
+            <FilterDropdown
+              title="Channel" options={channelOptions} selected={selectedChannel}
+              onChange={setSelectedChannel} isOpen={openDropdown === "channel"} onToggle={() => toggleDropdown("channel")}
+            />
+            <FilterDropdown
+              title="Location" options={locationOptions} selected={selectedLocation}
+              onChange={setSelectedLocation} isOpen={openDropdown === "location"} onToggle={() => toggleDropdown("location")}
+            />
+            <FilterDropdown
+              title="Job Change Status" options={jobStatusOptions} selected={selectedJobStatus}
+              onChange={setSelectedJobStatus} isOpen={openDropdown === "jobStatus"} onToggle={() => toggleDropdown("jobStatus")}
+            />
+            <FilterDropdown
+              title="Notice Period" options={NoticePeriodBuckets.map((b) => b.label)} selected={selectedNotice}
+              onChange={setSelectedNotice} isOpen={openDropdown === "notice"} onToggle={() => toggleDropdown("notice")}
+            />
+            <FilterDropdown
+              title="Expected CTC" options={CtcRanges.map((r) => r.label)} selected={selectedCtc}
+              onChange={setSelectedCtc} isOpen={openDropdown === "ctc"} onToggle={() => toggleDropdown("ctc")}
+            />
+            {hasActiveFilters ? (
+              <button onClick={clearAllFilters} className="text-sm text-red-600 hover:underline font-medium ml-1">Clear All</button>
+            ) : null}
           </div>
 
           {/* Filter Buttons */}
@@ -638,6 +867,12 @@ const parseCsvRow = (row, headers) => {
                   <FiDownload /><span>Download Information</span>
                 </button>
                 <button
+                  onClick={deleteSelectedCandidates}
+                  className="flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
+                >
+                  <FiTrash2 /><span>Delete</span>
+                </button>
+                <button
                   onClick={() => { setSelectedCandidates([]); setSelectAll(false); }}
                   className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm"
                 >
@@ -662,15 +897,11 @@ const parseCsvRow = (row, headers) => {
               </h3>
             </div>
 
-            <div className="block lg:hidden p-3 bg-blue-50 border-b border-blue-200">
-              <p className="text-xs text-blue-800 text-center">💡 Swipe left to see all columns →</p>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px]">
+            <div>
+              <table className="w-full table-fixed">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="py-3 px-3 sm:px-4 text-center text-xs sm:text-sm font-medium text-gray-700 w-12">
+                    <th className="py-3 px-1.5 sm:px-2 text-center text-xs sm:text-sm font-medium text-gray-700 w-[3%]">
                       <input
                         type="checkbox"
                         checked={selectAll}
@@ -678,16 +909,17 @@ const parseCsvRow = (row, headers) => {
                         className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
                       />
                     </th>
-                    <th className="py-3 px-3 sm:px-4 text-left text-xs sm:text-sm font-medium text-gray-700 w-16">Sr. No.</th>
-                    <th className="py-3 px-3 sm:px-6 text-left text-xs sm:text-sm font-medium text-gray-700">Name</th>
-                    <th className="py-3 px-3 sm:px-6 text-left text-xs sm:text-sm font-medium text-gray-700">Designation</th>
-                    <th className="py-3 px-3 sm:px-6 text-left text-xs sm:text-sm font-medium text-gray-700">Department</th>
-                    <th className="py-3 px-3 sm:px-6 text-left text-xs sm:text-sm font-medium text-gray-700">Category</th>
-                    <th className="py-3 px-3 sm:px-6 text-left text-xs sm:text-sm font-medium text-gray-700">Product</th>
-                    <th className="py-3 px-3 sm:px-6 text-left text-xs sm:text-sm font-medium text-gray-700">Experience</th>
-                    <th className="py-3 px-3 sm:px-6 text-left text-xs sm:text-sm font-medium text-gray-700">CTC</th>
-                    <th className="py-3 px-3 sm:px-6 text-left text-xs sm:text-sm font-medium text-gray-700">Location</th>
-                    <th className="py-3 px-3 sm:px-6 text-center text-xs sm:text-sm font-medium text-gray-700">Action</th>
+                    <th className="py-3 px-1.5 sm:px-2 text-left text-xs sm:text-sm font-medium text-gray-700 w-[4%]">No.</th>
+                    <th className="py-3 px-1.5 sm:px-2 text-left text-xs sm:text-sm font-medium text-gray-700 w-[14%]">Name</th>
+                    <th className="py-3 px-1.5 sm:px-2 text-left text-xs sm:text-sm font-medium text-gray-700 w-[9%]">Designation</th>
+                    <th className="py-3 px-1.5 sm:px-2 text-left text-xs sm:text-sm font-medium text-gray-700 w-[8%]">Department</th>
+                    <th className="py-3 px-1.5 sm:px-2 text-left text-xs sm:text-sm font-medium text-gray-700 w-[8%]">Category</th>
+                    <th className="py-3 px-1.5 sm:px-2 text-left text-xs sm:text-sm font-medium text-gray-700 w-[8%]">Product</th>
+                    <th className="py-3 px-1.5 sm:px-2 text-left text-xs sm:text-sm font-medium text-gray-700 w-[8%]">Channel</th>
+                    <th className="py-3 px-1.5 sm:px-2 text-left text-xs sm:text-sm font-medium text-gray-700 w-[7%]">Experience</th>
+                    <th className="py-3 px-1.5 sm:px-2 text-left text-xs sm:text-sm font-medium text-gray-700 w-[7%]">CTC</th>
+                    <th className="py-3 px-1.5 sm:px-2 text-left text-xs sm:text-sm font-medium text-gray-700 w-[8%]">Location</th>
+                    <th className="py-3 px-1.5 sm:px-2 text-center text-xs sm:text-sm font-medium text-gray-700 w-[16%]">Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -700,104 +932,109 @@ const parseCsvRow = (row, headers) => {
                       className="border-b border-gray-200 hover:bg-gray-50 transition-colors"
                     >
                       {/* Checkbox */}
-                      <td className="py-3 sm:py-4 px-3 sm:px-4 text-center">
+                      <td className="py-3 sm:py-4 px-1.5 sm:px-2 text-center">
                         <input
                           type="checkbox"
                           checked={selectedCandidates.includes(candidate._id)}
                           onChange={() => handleSelectCandidate(candidate._id)}
-                          disabled={candidate.rejected || candidate.accepted}
-                          className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500 disabled:opacity-30 disabled:cursor-not-allowed"
+                          className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
                         />
                       </td>
 
                       {/* Sr. No. */}
-                      <td className="py-3 sm:py-4 px-3 sm:px-4 text-sm font-medium text-gray-700">
+                      <td className="py-3 sm:py-4 px-1.5 sm:px-2 text-sm font-medium text-gray-700">
                         {index + 1}
                       </td>
 
                       {/* Name */}
-                      <td className="py-3 sm:py-4 px-3 sm:px-6">
-                        <div className="flex items-center space-x-2 sm:space-x-3">
+                      <td className="py-3 sm:py-4 px-1.5 sm:px-2">
+                        <div className="flex items-center gap-1.5 sm:gap-2">
                           <div
-                            className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-white font-bold text-sm sm:text-base flex-shrink-0"
+                            className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-white font-bold text-xs sm:text-sm flex-shrink-0"
                             style={{ backgroundColor: candidate.csvMatched ? '#00C851' : '#FF6666' }}
                           >
                             {candidate.candidateName.charAt(0).toUpperCase()}
                           </div>
                           <div className="min-w-0">
-                            <p className="font-medium text-gray-900 text-xs sm:text-sm truncate">
+                            <p className="font-medium text-gray-900 text-xs sm:text-sm line-clamp-2 break-words">
                               {candidate.candidateName}
-                            </p>
-                            <p className="text-xs text-gray-500 truncate hidden sm:block">
-                              {candidate.resumeName}
                             </p>
                           </div>
                         </div>
                       </td>
 
                       {/* Designation */}
-                      <td className="py-3 sm:py-4 px-3 sm:px-6 text-xs sm:text-sm text-gray-600">
-                        <span className="truncate block">{candidate.currentDesignation || '—'}</span>
+                      <td className="py-3 sm:py-4 px-1.5 sm:px-2 text-xs sm:text-sm text-gray-600">
+                        <span className="line-clamp-2 break-words">{candidate.currentDesignation || '—'}</span>
                       </td>
 
                       {/* Department */}
-                      <td className="py-3 sm:py-4 px-3 sm:px-6 text-xs sm:text-sm text-gray-600">
-                        <span className="truncate block">{candidate.currentDepartment || '—'}</span>
+                      <td className="py-3 sm:py-4 px-1.5 sm:px-2 text-xs sm:text-sm text-gray-600">
+                        <span className="line-clamp-2 break-words">{candidate.currentDepartment || '—'}</span>
                       </td>
 
                       {/* Category */}
-                      <td className="py-3 sm:py-4 px-3 sm:px-6 text-xs sm:text-sm text-gray-600">
-                        <span className="truncate block">{candidate.category || '—'}</span>
+                      <td className="py-3 sm:py-4 px-1.5 sm:px-2 text-xs sm:text-sm text-gray-600">
+                        <span className="line-clamp-2 break-words">{candidate.category || '—'}</span>
                       </td>
 
                       {/* Product */}
-                      <td className="py-3 sm:py-4 px-3 sm:px-6 text-xs sm:text-sm text-gray-600">
-                        <span className="truncate block">{candidate.product || '—'}</span>
+                      <td className="py-3 sm:py-4 px-1.5 sm:px-2 text-xs sm:text-sm text-gray-600">
+                        <span className="line-clamp-2 break-words">{candidate.product || '—'}</span>
+                      </td>
+
+                      {/* Channel */}
+                      <td className="py-3 sm:py-4 px-1.5 sm:px-2 text-xs sm:text-sm text-gray-600">
+                        <span className="line-clamp-2 break-words">{candidate.channel || '—'}</span>
                       </td>
 
                       {/* Experience */}
-                      <td className="py-3 sm:py-4 px-3 sm:px-6 text-xs sm:text-sm text-gray-600">
-                        <span className="truncate block">{candidate.totalExperience || '—'}</span>
+                      <td className="py-3 sm:py-4 px-1.5 sm:px-2 text-xs sm:text-sm text-gray-600">
+                        <span className="line-clamp-2 break-words">{candidate.totalExperience || '—'}</span>
                       </td>
 
                       {/* CTC */}
-                      <td className="py-3 sm:py-4 px-3 sm:px-6 text-xs sm:text-sm text-gray-600">
-                        <span className="truncate block">{candidate.currentCTC || '—'}</span>
+                      <td className="py-3 sm:py-4 px-1.5 sm:px-2 text-xs sm:text-sm text-gray-600">
+                        <span className="line-clamp-2 break-words">{candidate.currentCTC || '—'}</span>
                       </td>
 
                       {/* Location */}
-                      <td className="py-3 sm:py-4 px-3 sm:px-6 text-xs sm:text-sm text-gray-600">
-                        <span className="truncate block">{candidate.city || '—'}</span>
+                      <td className="py-3 sm:py-4 px-1.5 sm:px-2 text-xs sm:text-sm text-gray-600">
+                        <span className="line-clamp-2 break-words">{candidate.city || '—'}</span>
                       </td>
 
                       {/* ── ACTION ── */}
-                      <td className="py-3 sm:py-4 px-3 sm:px-6">
-                        {candidate.rejected ? (
-                          /* ── REJECTED ── */
-                          <span className="text-xs font-semibold text-red-500 bg-red-50 px-2 py-1 rounded-full border border-red-200">
-                            Rejected
-                          </span>
-                        ) : candidate.accepted ? (
-                          /* ── ACCEPTED ── */
-                          <div className="flex justify-center items-center gap-2">
+                      <td className="py-3 sm:py-4 px-1.5 sm:px-2">
+                        <div className="flex items-center flex-wrap gap-1">
+
+                          {/* Edit — always visible */}
+                          <button
+                            onClick={() => { setSelectedCandidate(candidate); setShowDetailModal(true); }}
+                            className="p-1.5 sm:p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Edit candidate details"
+                          >
+                            <FiEdit2 size={16} />
+                          </button>
+
+                          {/* Status badge */}
+                          {candidate.rejected && (
+                            <span className="text-xs font-semibold text-red-500 bg-red-50 px-2 py-1 rounded-full border border-red-200">
+                              Rejected
+                            </span>
+                          )}
+                          {candidate.accepted && (
                             <span className="text-xs font-semibold text-green-600 bg-green-50 px-2 py-1 rounded-full border border-green-200">
                               Accepted
                             </span>
-                            <button
-                              onClick={() => {
-                                setViewingAssessment(candidate);
-                                setShowAssessmentModal(true);
-                              }}
-                              className="p-1.5 sm:p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                              title="View Assessment"
-                            >
-                              <FiEye size={16} />
-                            </button>
-                          </div>
-                        ) : (
-                          /* ── PENDING ── */
-                          <div className="flex justify-center items-center flex-wrap gap-1 sm:gap-2">
-                            {/* Download CV */}
+                          )}
+
+                          {/* View Assessment — only when accepted */}
+                          {candidate.accepted && (
+                            <AssessmentPopup candidate={candidate} />
+                          )}
+
+                          {/* Download CV — only when pending */}
+                          {!candidate.rejected && !candidate.accepted && (
                             <button
                               onClick={() => downloadResume(candidate.resumeFile)}
                               className="p-1.5 sm:p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
@@ -805,44 +1042,50 @@ const parseCsvRow = (row, headers) => {
                             >
                               <FiDownload size={16} />
                             </button>
+                          )}
 
-                            {/* Open Assessment */}
-                            <button
-                              onClick={() => {
-                                const url = `/assessment?email=${encodeURIComponent(candidate.email || '')}&name=${encodeURIComponent(candidate.candidateName || '')}&phone=${encodeURIComponent(candidate.phone || '')}&applicationId=${encodeURIComponent(candidate._id || '')}`;
-                                window.open(url, '_blank', 'noopener,noreferrer');
-                              }}
-                              className="p-1.5 sm:p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-                              title="Accept (Open Assessment)"
-                            >
-                              <FiCheck size={16} />
-                            </button>
+                          {/* Accept / Re-assess — always visible */}
+                          <button
+                            onClick={() => {
+                              const url = `/assessment?email=${encodeURIComponent(candidate.email || '')}&name=${encodeURIComponent(candidate.candidateName || '')}&phone=${encodeURIComponent(candidate.phone || '')}&applicationId=${encodeURIComponent(candidate._id || '')}`;
+                              window.open(url, '_blank', 'noopener,noreferrer');
+                            }}
+                            className="p-1.5 sm:p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                            title={candidate.accepted || candidate.rejected ? "Re-assess candidate" : "Accept (Open Assessment)"}
+                          >
+                            <FiCheck size={16} />
+                          </button>
 
-                            {/* Reject */}
-                            <button
-                              onClick={async () => {
-                                try {
-                                  await axios.post(
-                                    `${backendUrl}/api/bulk-upload/reject/${candidate._id}`,
-                                    {},
-                                    { headers: { token: companyToken } }
-                                  );
+                          {/* Reject — always visible */}
+                          <button
+                            onClick={async () => {
+                              try {
+                                const { data } = await axios.post(
+                                  `${backendUrl}/api/bulk-upload/reject/${candidate._id}`,
+                                  {},
+                                  { headers: { token: companyToken } }
+                                );
+                                if (data.success) {
                                   setCombinedData(prev =>
-                                    prev.map(c => c._id === candidate._id ? { ...c, rejected: true } : c)
+                                    prev.map(c => c._id === candidate._id
+                                      ? { ...c, rejected: data.data.rejected, accepted: data.data.accepted }
+                                      : c
+                                    )
                                   );
                                   setSelectedCandidates(prev => prev.filter(id => id !== candidate._id));
                                   toast.info(`${candidate.candidateName} rejected`);
-                                } catch {
-                                  toast.error("Failed to reject candidate");
                                 }
-                              }}
-                              className="p-1.5 sm:p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                              title="Reject"
-                            >
-                              <FiX size={16} />
-                            </button>
-                          </div>
-                        )}
+                              } catch {
+                                toast.error("Failed to reject candidate");
+                              }
+                            }}
+                            className="p-1.5 sm:p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Reject"
+                          >
+                            <FiX size={16} />
+                          </button>
+
+                        </div>
                       </td>
                     </motion.tr>
                   ))}
@@ -851,317 +1094,46 @@ const parseCsvRow = (row, headers) => {
             </div>
           </div>
         ) : (
-          <div className="bg-white rounded-lg sm:rounded-xl shadow-md p-8 text-center">
-            <FiFileText size={48} className="mx-auto text-gray-400 mb-4" />
-            <p className="text-gray-600 mb-2 text-sm sm:text-base">No resumes found</p>
-            <p className="text-xs sm:text-sm text-gray-500">Upload resumes and CSV files to see combined data here</p>
+          <div className="bg-white rounded-lg sm:rounded-xl shadow-md p-12 text-center">
+            {searchQuery.trim() ? (
+              <>
+                <FiSearch size={48} className="mx-auto text-gray-300 mb-4" />
+                <p className="text-gray-600 font-medium mb-1">No results found</p>
+                <p className="text-xs sm:text-sm text-gray-400">Try a different keyword</p>
+              </>
+            ) : (
+              <>
+                <FiSearch size={48} className="mx-auto text-gray-300 mb-4" />
+                <p className="text-gray-600 font-medium mb-1">Search to view candidates</p>
+                <p className="text-xs sm:text-sm text-gray-400">
+                  Type a name, designation, category, product, location, CTC or any keyword above — or pick a filter
+                </p>
+              </>
+            )}
           </div>
         )}
       </div>
+    </motion.div>
 
       {/* ══════════════════════════════════════════════════════════
-          DETAIL MODAL (existing)
+          EDIT CANDIDATE MODAL — multi-tab (Candidate Info, Personal,
+          Professional, Education, Skills, Documents)
       ══════════════════════════════════════════════════════════ */}
       <AnimatePresence>
         {showDetailModal && selectedCandidate && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-start sm:items-center justify-center z-50 p-0 sm:p-4 overflow-y-auto"
-            onClick={() => setShowDetailModal(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white w-full sm:rounded-xl shadow-2xl sm:max-w-4xl sm:my-8 max-h-screen sm:max-h-[90vh] flex flex-col"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200">
-                <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
-                  <div
-                    className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-white font-bold text-base sm:text-lg flex-shrink-0"
-                    style={{ backgroundColor: selectedCandidate.csvMatched ? '#00C851' : '#FF6666' }}
-                  >
-                    {selectedCandidate.candidateName.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <h3 className="text-lg sm:text-xl font-semibold truncate" style={{ color: '#020330' }}>
-                      {selectedCandidate.candidateName}
-                    </h3>
-                    <p className="text-xs sm:text-sm text-gray-600 truncate">{selectedCandidate.resumeName}</p>
-                  </div>
-                </div>
-                <button onClick={() => setShowDetailModal(false)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0 ml-2">
-                  <FiX className="text-xl text-gray-600" />
-                </button>
-              </div>
-
-              <div className="flex-1 overflow-auto p-4 sm:p-6">
-                {/* Contact */}
-                <div className="mb-6">
-                  <h4 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4" style={{ color: '#020330' }}>📋 Contact Information</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                    {[
-                      { label: "Full Name",     value: selectedCandidate.fullName },
-                      { label: "Gender",        value: selectedCandidate.gender },
-                      { label: "Date of Birth", value: selectedCandidate.dob },
-                    ].map(f => (
-                      <div key={f.label} className="bg-gray-50 p-3 sm:p-4 rounded-lg">
-                        <label className="text-xs sm:text-sm text-gray-600 block mb-1">{f.label}</label>
-                        <p className="text-sm text-gray-900 font-medium">{f.value}</p>
-                      </div>
-                    ))}
-                    <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
-                      <label className="text-xs sm:text-sm text-gray-600 block mb-1">Email</label>
-                      <div className="flex items-center gap-2 text-gray-900 text-sm">
-                        <FiMail size={14} className="text-red-500 flex-shrink-0" />
-                        <a href={`mailto:${selectedCandidate.email}`} className="hover:text-red-500 break-all">{selectedCandidate.email}</a>
-                      </div>
-                    </div>
-                    <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
-                      <label className="text-xs sm:text-sm text-gray-600 block mb-1">Phone</label>
-                      <div className="flex items-center gap-2 text-gray-900 text-sm">
-                        <FiPhone size={14} className="text-red-500 flex-shrink-0" />
-                        <a href={`tel:${selectedCandidate.phone}`} className="hover:text-red-500">{selectedCandidate.phone}</a>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Professional */}
-                <div className="mb-6">
-                  <h4 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4" style={{ color: '#020330' }}>💼 Professional Details</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                    {[
-                      { label: "Sector",             value: selectedCandidate.sector },
-                      { label: "Category",           value: selectedCandidate.category },
-                      { label: "Product",            value: selectedCandidate.product },
-                      { label: "Channel",            value: selectedCandidate.channel },
-                      { label: "Current Designation",value: selectedCandidate.currentDesignation },
-                      { label: "Current Department", value: selectedCandidate.currentDepartment },
-                    ].map(f => (
-                      <div key={f.label} className="bg-blue-50 p-3 sm:p-4 rounded-lg border-l-4 border-blue-500">
-                        <label className="text-xs sm:text-sm text-gray-600 block mb-1">{f.label}</label>
-                        <p className="text-sm text-gray-900 font-medium">{f.value}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Personal */}
-                <div className="mb-6">
-                  <h4 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4" style={{ color: '#020330' }}>👤 Personal Information</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-                    {[
-                      { label: "City",           value: selectedCandidate.city },
-                      { label: "State",          value: selectedCandidate.state },
-                      { label: "Marital Status", value: selectedCandidate.maritalStatus },
-                    ].map(f => (
-                      <div key={f.label} className="bg-gray-50 p-3 sm:p-4 rounded-lg">
-                        <label className="text-xs sm:text-sm text-gray-600 block mb-1">{f.label}</label>
-                        <p className="text-sm text-gray-900 font-medium">{f.value}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Compensation */}
-                <div className="mb-6">
-                  <h4 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4" style={{ color: '#020330' }}>💰 Compensation & Experience</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                    {[
-                      { label: "Current CTC",    value: selectedCandidate.currentCTC },
-                      { label: "Expected CTC",   value: selectedCandidate.expectedCTC },
-                      { label: "Total Experience",value: selectedCandidate.totalExperience },
-                      { label: "Notice Period",   value: selectedCandidate.noticePeriod },
-                    ].map(f => (
-                      <div key={f.label} className="bg-green-50 p-3 sm:p-4 rounded-lg border-l-4 border-green-500">
-                        <label className="text-xs sm:text-sm text-gray-600 block mb-1">{f.label}</label>
-                        <p className="text-sm text-gray-900 font-medium">{f.value}</p>
-                      </div>
-                    ))}
-                    <div className="bg-green-50 p-3 sm:p-4 rounded-lg border-l-4 border-green-500 sm:col-span-2">
-                      <label className="text-xs sm:text-sm text-gray-600 block mb-1">Job Change Status</label>
-                      <p className="text-sm text-gray-900 font-medium">{selectedCandidate.jobChangeStatus}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Social Media */}
-                <div className="mb-6">
-                  <h4 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4" style={{ color: '#020330' }}>🔗 Social Media Links</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                    <div className="bg-purple-50 p-3 sm:p-4 rounded-lg border-l-4 border-purple-500">
-                      <label className="text-xs sm:text-sm text-gray-600 block mb-1">LinkedIn ID</label>
-                      <a
-                        href={selectedCandidate.linkedinId !== "N/A" ? `https://linkedin.com/in/${selectedCandidate.linkedinId}` : "#"}
-                        target="_blank" rel="noopener noreferrer"
-                        className="text-sm text-blue-600 hover:text-blue-800 break-all"
-                      >
-                        {selectedCandidate.linkedinId}
-                      </a>
-                    </div>
-                    {[
-                      { label: "Facebook ID",  value: selectedCandidate.facebookId },
-                      { label: "Instagram ID", value: selectedCandidate.instagramId },
-                      { label: "Snapchat",     value: selectedCandidate.snapchat },
-                    ].map(f => (
-                      <div key={f.label} className="bg-purple-50 p-3 sm:p-4 rounded-lg border-l-4 border-purple-500">
-                        <label className="text-xs sm:text-sm text-gray-600 block mb-1">{f.label}</label>
-                        <p className="text-sm text-gray-900 font-medium break-all">{f.value}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Languages */}
-                <div className="mb-6">
-                  <h4 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4" style={{ color: '#020330' }}>🗣️ Languages</h4>
-                  <div className="bg-yellow-50 p-3 sm:p-4 rounded-lg border-l-4 border-yellow-500">
-                    <p className="text-sm text-gray-900">{selectedCandidate.languages}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 p-4 sm:p-6 border-t border-gray-200 bg-gray-50">
-                <button onClick={() => downloadCandidateInfo(selectedCandidate)} className="flex items-center justify-center space-x-2 px-4 py-2.5 sm:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm sm:text-base">
-                  <FiDownload /><span>Download Information</span>
-                </button>
-                <button onClick={() => downloadResume(selectedCandidate.resumeFile)} className="flex items-center justify-center space-x-2 px-4 py-2.5 sm:py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm sm:text-base">
-                  <FiDownload /><span>Download Resume</span>
-                </button>
-                <button onClick={() => setShowDetailModal(false)} className="px-4 py-2.5 sm:py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm sm:text-base">
-                  Close
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
+          <CandidateDetailsModal
+            candidate={selectedCandidate}
+            backendUrl={backendUrl}
+            companyToken={companyToken}
+            onClose={() => setShowDetailModal(false)}
+            onDownloadResume={downloadResume}
+            onDownloadInfo={downloadCandidateInfo}
+            onUpdated={handleCandidateUpdated}
+          />
         )}
       </AnimatePresence>
 
-      {/* ══════════════════════════════════════════════════════════
-          ASSESSMENT VIEW MODAL
-      ══════════════════════════════════════════════════════════ */}
-      <AnimatePresence>
-        {showAssessmentModal && viewingAssessment && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-            onClick={() => setShowAssessmentModal(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white w-full sm:rounded-xl shadow-2xl sm:max-w-2xl max-h-[90vh] flex flex-col"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Header */}
-              <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200">
-                <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <div className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center text-white font-bold text-base flex-shrink-0">
-                    {viewingAssessment.candidateName.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="min-w-0">
-                    <h3 className="text-lg font-semibold truncate" style={{ color: '#020330' }}>
-                      Assessment — {viewingAssessment.candidateName}
-                    </h3>
-                    <p className="text-xs text-gray-500 truncate">{viewingAssessment.email}</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowAssessmentModal(false)}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0 ml-2"
-                >
-                  <FiX className="text-xl text-gray-600" />
-                </button>
-              </div>
-
-              {/* Content */}
-              <div className="flex-1 overflow-auto p-4 sm:p-6 space-y-4">
-
-                {/* Candidate basic info */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
-                    Candidate Info
-                  </h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm text-gray-700">
-                    <div>
-                      <span className="text-gray-400 block text-xs mb-0.5">Name</span>
-                      {viewingAssessment.assessmentData?.candidateName || viewingAssessment.candidateName}
-                    </div>
-                    <div>
-                      <span className="text-gray-400 block text-xs mb-0.5">Email</span>
-                      {viewingAssessment.assessmentData?.candidateEmail || viewingAssessment.email}
-                    </div>
-                    <div>
-                      <span className="text-gray-400 block text-xs mb-0.5">Phone</span>
-                      {viewingAssessment.assessmentData?.candidatePhone || viewingAssessment.phone}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Remarks */}
-                {Array.isArray(viewingAssessment.assessmentData?.remarks) &&
-                viewingAssessment.assessmentData.remarks.length > 0 ? (
-                  <div className="space-y-3">
-                    <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                      Remarks
-                    </h4>
-                    {viewingAssessment.assessmentData.remarks.map((r, i) => (
-                      <div
-                        key={i}
-                        className={`rounded-lg px-4 py-3 border ${ROLE_COLORS[r.role] || ROLE_COLORS.recruiter}`}
-                      >
-                        <div className="flex items-center gap-2 mb-1.5">
-                          <FiShield size={12} />
-                          <span className="text-xs font-semibold uppercase">
-                            {ROLE_LABELS[r.role] || r.role}
-                          </span>
-                          {r.submittedAt && (
-                            <span className="ml-auto text-xs opacity-60 flex items-center gap-1">
-                              <FiClock size={10} /> {formatDate(r.submittedAt)}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-sm leading-relaxed">{r.text}</p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-10 text-gray-400">
-                    <FiFileText size={40} className="mx-auto mb-3 text-gray-300" />
-                    <p className="text-sm">No remarks found in assessment</p>
-                  </div>
-                )}
-
-                {/* Submitted at */}
-                {viewingAssessment.assessmentData?.submittedAt && (
-                  <p className="text-xs text-gray-400 text-right pt-1">
-                    Submitted: {formatDate(viewingAssessment.assessmentData.submittedAt)}
-                  </p>
-                )}
-              </div>
-
-              {/* Footer */}
-              <div className="flex justify-end p-4 sm:p-6 border-t border-gray-200 bg-gray-50">
-                <button
-                  onClick={() => setShowAssessmentModal(false)}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm"
-                >
-                  Close
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-    </motion.div>
+    </>
   );
 };
 

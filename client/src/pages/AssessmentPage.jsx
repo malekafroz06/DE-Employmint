@@ -152,12 +152,11 @@ const handleFinalSubmit = async () => {
     const stepKey = "management";
     const roleKey = userRole || stepKey;
 
-    // ✅ Check BOTH the textarea (new/editing) AND already-saved remark
     const textToSubmit = remarks[stepKey]?.trim();
     const alreadySaved = getSaved(stepKey);
 
-    // Only submit if there's new text in textarea (new entry or edit)
-    // If already saved and no new text, skip the remark POST (it's already in DB)
+    let finalRemarks = savedRemarks; // ← start with current state
+
     if (textToSubmit) {
       const payload = {
         candidateName,
@@ -168,25 +167,35 @@ const handleFinalSubmit = async () => {
       };
 
       const res = await fetch(`${BACKEND_URL}/api/candidates/assessment`, {
-        method:  "POST",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify(payload),
+        body: JSON.stringify(payload),
       });
       const result = await res.json();
       if (!res.ok) {
         alert(`Failed to save remark: ${result.message || "Unknown error"}`);
         return;
       }
-      if (result.data?.remarks) setSavedRemarks(result.data.remarks);
+
+      // ✅ Capture updated remarks synchronously before proceeding
+      if (result.data?.remarks) {
+        finalRemarks = result.data.remarks;
+        setSavedRemarks(finalRemarks);
+      } else {
+        const filtered = savedRemarks.filter((r) => r.role !== roleKey);
+        finalRemarks = [
+          ...filtered,
+          { role: roleKey, text: textToSubmit, submittedAt: new Date().toISOString() },
+        ];
+        setSavedRemarks(finalRemarks);
+      }
 
     } else if (!alreadySaved) {
-      // No text entered AND nothing saved — warn the user
       alert("Please enter Manager Remarks before submitting.");
       return;
     }
-    // If alreadySaved && !textToSubmit → remark already in DB, just proceed
+    // else: already saved, finalRemarks = savedRemarks which already has it
 
-    // Mark as accepted in bulk-upload
     if (applicationId && companyToken) {
       try {
         await axios.post(
@@ -196,7 +205,7 @@ const handleFinalSubmit = async () => {
               candidateName,
               candidateEmail,
               candidatePhone,
-              remarks: savedRemarks,
+              remarks: finalRemarks, // ✅ was `savedRemarks` — now uses fresh copy
               submittedAt: new Date().toISOString(),
             },
           },
@@ -223,16 +232,15 @@ const handleFinalSubmit = async () => {
     // Broadcast to parent tab
     try {
       const bc = new BroadcastChannel("application_updates");
-      bc.postMessage({ 
-      type: "APPLICATION_ACCEPTED", 
-      applicationId,           // job application _id (for ViewApplications)
-      candidateEmail,          // ← ADD THIS (for SearchResume to match by email)
-  });
+      bc.postMessage({
+        type: "APPLICATION_ACCEPTED",
+        applicationId,
+        candidateEmail,
+      });
       bc.close();
     } catch { /* not supported */ }
 
     setSubmitted(true);
-
   } finally {
     setLoading(false);
   }

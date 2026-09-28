@@ -22,6 +22,7 @@ import employerProfileRoutes from './routes/employerProfileRoutes.js';
 import bulkUpload from './routes/bulkUpload.js';
 import adminRoutes from './routes/adminRoutes.js';
 import contactRoutes from './routes/contactRoutes.js';
+import hiringPulseRoutes from './routes/hiringPulseRoutes.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 import { sendDailyDigestAt9AM } from './services/jobNotificationService.js'; 
@@ -47,18 +48,31 @@ await connectDB();
 startJobAlertSystem();
 
 app.use(cors());
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '20mb' }));
+app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 app.use(clerkMiddleware({
   authorizedParties: [],  // leave empty for development
 }));
-// Serve static files
+// Serve static files (works if Nginx proxies /uploads/ to Node)
 app.use('/uploads', express.static(uploadsDir, {
-  setHeaders: (res, path) => {
-    res.set('Cache-Control', 'public, max-age=31536000');
+  setHeaders: (res) => {
+    res.set('Access-Control-Allow-Origin', '*');
     res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.set('Cache-Control', 'public, max-age=31536000');
   }
 }));
+
+// Fallback: serve upload files via /api/file/* (always works via Nginx /api/ proxy)
+app.get('/api/file/*', (req, res) => {
+  const relativePath = req.params[0];
+  const filePath = path.join(uploadsDir, relativePath);
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ success: false, message: 'File not found' });
+  }
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.setHeader('Cache-Control', 'public, max-age=31536000');
+  res.sendFile(filePath);
+});
 
 app.get("/", (req, res) => res.send("API Working"));
 
@@ -89,6 +103,7 @@ app.use('/api/job-alerts', jobAlertRoutes);
 app.use('/api/candidates', candidateRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/contact', contactRoutes);
+app.use('/api/hiring-pulse', hiringPulseRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

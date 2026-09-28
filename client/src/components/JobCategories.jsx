@@ -89,7 +89,11 @@ const JobCategories = () => {
       categories: [
         {
           id: 7, name: "Asset Finance Company (AFC)", icon: Building2, designation: "Asset Finance Company (AFC)",
-          products: ["Commercial Vehicle Loans", "Construction Equipment Loans", "Tractor Loan"]
+          products: [
+            "Commercial Vehicle Loans", "Construction Equipment Loans", "Tractor Loan",
+            "Used Commercial Vehicle Loan", "Car Finance", "Useed Car Finance",
+            "Passenger Vehicle Finance", "Machinery Finance", "Equipment Finance"
+          ]
         },
         {
           id: 8, name: "Loan Company (LC)", icon: DollarSign, designation: "Loan Company (LC)",
