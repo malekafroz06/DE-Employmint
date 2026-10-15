@@ -59,7 +59,7 @@ const JobCategories = () => {
       categories: [
         {
           id: 1, name: "Stock Market", icon: TrendingUp, designation: "Stock Market",
-          products: ["Equity", "Commodity", "Currency"]
+          products: ["Equity", "Commodity", "Currency", "PMS", "AIF", "Insurance", "Bond"]
         },
         {
           id: 2, name: "Asset Management", icon: BarChart3, designation: "Asset Management",

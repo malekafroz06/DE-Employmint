@@ -34,7 +34,7 @@ const DEFAULT_CATEGORY = SectorCategories[DEFAULT_SECTOR][0];
 const CategoryProducts = {
   // ── Capital Market ──────────────────────────────────────────────
   "Stock Market": [
-    "Equity", "Commodity", "Currency"
+    "Equity", "Commodity", "Currency", "PMS", "AIF", "Insurance", "Bond"
   ],
   "Asset Management": [
     "Mutual Fund", "SIP", "ETF"

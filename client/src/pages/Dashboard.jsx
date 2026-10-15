@@ -226,7 +226,7 @@ const Dashboard = () => {
                 />
                 <div className="min-w-0">
                   <p className="text-gray-900 font-bold text-sm sm:text-base leading-tight truncate">Employmint</p>
-                  <p className="text-[10px] sm:text-[11px] text-gray-400 uppercase tracking-wider truncate">Recruiter Portal</p>
+                  <p className="text-[10px] sm:text-[11px] text-gray-400 tracking-wide truncate">BFSI Talent Pipeline</p>
                 </div>
               </div>
 

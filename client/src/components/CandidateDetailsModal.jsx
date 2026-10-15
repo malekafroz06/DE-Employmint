@@ -27,7 +27,7 @@ const SectorCategories = {
 const sectorOptions = Object.keys(SectorCategories);
 
 const CategoryProducts = {
-  "Stock Market": ["Equity", "Commodity", "Currency"],
+  "Stock Market": ["Equity", "Commodity", "Currency", "PMS", "AIF", "Insurance", "Bond"],
   "Asset Management": ["Mutual Fund", "SIP", "ETF"],
   "Portfolio Management": ["Discretionary Portfolio Management", "Non-Discretionary Portfolio Management"],
   "Wealth Management": ["Wealth Planning", "Investment Advisory"],
