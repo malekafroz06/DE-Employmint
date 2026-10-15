@@ -15,6 +15,7 @@ const jobSchema = new mongoose.Schema({
     level:{type:String,required:true},
     noticeperiod:{type:String,required:false,default: "Not specified"},
     salary: {type:Number,required:true},
+    sector: {type:String,required:false,default: ""},
       jobcategory: {type:String,required:false,default: "Not specified"},
         jobchannel: {type:String,required:false,default: "Not specified"},
     date: {type:Number,required:true},

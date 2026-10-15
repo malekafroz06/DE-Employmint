@@ -140,16 +140,11 @@ const SearchResume = () => {
   const [filteredData, setFilteredData]           = useState([]);
   const [isLoading, setIsLoading]                 = useState(false);
   const [searchQuery, setSearchQuery]             = useState("");
-  const [filterStatus, setFilterStatus]           = useState("all");
   const [sortBy, setSortBy]                       = useState("date");
   const [selectedCandidates, setSelectedCandidates] = useState([]);
   const [selectAll, setSelectAll]                 = useState(false);
   const [selectedCandidate, setSelectedCandidate] = useState(null);
   const [showDetailModal, setShowDetailModal]     = useState(false);
-
-  const [matchingStats, setMatchingStats] = useState({
-    total: 0, matched: 0, unmatched: 0, matchRate: 0
-  });
 
   // ── Top filter bar (same filters as the public job-search page, in one row) ──
   const [selectedCategory, setSelectedCategory]     = useState([]);
@@ -199,7 +194,7 @@ const SearchResume = () => {
 
   useEffect(() => {
     filterAndSortData();
-  }, [combinedData, searchQuery, filterStatus, sortBy,
+  }, [combinedData, searchQuery, sortBy,
       selectedCategory, selectedDesignation, selectedProduct, selectedChannel,
       selectedLocation, selectedJobStatus, selectedNotice, selectedCtc]);
 
@@ -276,146 +271,24 @@ const SearchResume = () => {
     .join(' ');
 };
 
-  const normalizeName = (name) => {
-    if (!name) return "";
-    return name.toLowerCase().replace(/\s+/g, "").replace(/[^a-z]/g, "");
-  };
-
-  const namesMatch = (name1, name2) => {
-  const n1 = normalizeName(name1);
-  const n2 = normalizeName(name2);
-
-  // 1. Exact full-name match
-  if (n1 === n2) return true;
-
-  // 2. Substring match ONLY if length difference is very small (typo tolerance)
-  if (n1.includes(n2) || n2.includes(n1)) {
-    if (Math.abs(n1.length - n2.length) <= 2) return true; // tighter: was 3
-  }
-
-  // 3. First + Last name must BOTH match (not just first name alone)
-    const w1 = name1.toLowerCase().split(/\s+/).filter(w => w.length > 1);
-    const w2 = name2.toLowerCase().split(/\s+/).filter(w => w.length > 1);
-
-    if (w1.length >= 2 && w2.length >= 2) {
-      const firstMatch = normalizeName(w1[0]) === normalizeName(w2[0]);
-      const lastMatch  = normalizeName(w1[w1.length - 1]) === normalizeName(w2[w2.length - 1]);
-      if (firstMatch && lastMatch) return true;
-    }
-
-    // 4. Single-name candidates: only match if name is long enough (≥6 chars) to be unique
-    if (w1.length === 1 && w2.length >= 1) {
-      const f1 = normalizeName(w1[0]);
-      const f2 = normalizeName(w2[0]);
-      if (f1 === f2 && f1.length >= 6) return true;
-    }
-
-    return false;
-  };
-
-    const getCsvDataByName = (candidateName, csvFile) => {
-      if (!csvFile?.data || !Array.isArray(csvFile.data)) return null;
-      const headerIndex = csvFile.data.findIndex(row =>
-        row && row[0] && String(row[0]).toLowerCase().includes('full')
-      );
-      const dataRows = headerIndex >= 0 ? csvFile.data.slice(headerIndex + 1) : csvFile.data;
-      return dataRows.find(row => {
-        if (!row || row.length < 1 || !row[0]) return false;
-        return namesMatch(candidateName, String(row[0]));
-      }) || null;
-    };
-// Add this helper — call it once after parsing csvFile.data
-const buildHeaderMap = (csvFile) => {
-  if (!csvFile?.data || csvFile.data.length === 0) return [];
-  // Find the header row (row containing "Full Name")
-  const headerRow = csvFile.data.find(row =>
-    row && row[0] && String(row[0]).toLowerCase().includes('full')
-  );
-  return headerRow ? headerRow.map(h => String(h || '').trim()) : [];
-};
-
-// Replace parseCsvRow with this version that takes headers as a parameter
-const parseCsvRow = (row, headers) => {
-  if (!row || !headers || headers.length === 0) return {};
-  const data = {};
-  headers.forEach((header, i) => {
-    const val = row[i];
-    data[header] = (val !== undefined && val !== null && val !== '') 
-      ? String(val).trim() 
-      : "N/A";
-  });
-  return data;
-};
-
   // ─── Fetch ────────────────────────────────────────────────────────────────────
+  // Candidate data comes only from the resume itself (auto-parsed on upload)
+  // plus recruiter edits — old CSV/Excel sheets are no longer matched in.
 
   const fetchCombinedData = async () => {
     setIsLoading(true);
     try {
-      const [resumesRes, csvRes] = await Promise.all([
-        axios.get(`${backendUrl}/api/bulk-upload/files?type=resumes&limit=1000`, {
-          headers: { token: companyToken }
-        }),
-        axios.get(`${backendUrl}/api/bulk-upload/files?type=csv&limit=1000`, {
-          headers: { token: companyToken }
-        })
-      ]);
+      const resumesRes = await axios.get(`${backendUrl}/api/bulk-upload/files?type=resumes&limit=1000`, {
+        headers: { token: companyToken }
+      });
 
-      if (resumesRes.data.success && csvRes.data.success) {
-        const resumes  = (resumesRes.data.data?.files || resumesRes.data.files || []).filter(Boolean);
-        const csvFiles = (csvRes.data.data?.files    || csvRes.data.files    || []).filter(Boolean);
+      if (resumesRes.data.success) {
+        const resumes = (resumesRes.data.data?.files || resumesRes.data.files || []).filter(Boolean);
 
-        const parsedCsvFiles = await Promise.all(
-          csvFiles.map(async (csvFile) => {
-            if (csvFile.data && Array.isArray(csvFile.data) && csvFile.data.length > 0) return csvFile;
-            try {
-              const response = await axios.get(
-                `${backendUrl}/api/bulk-upload/download/${csvFile._id}`,
-                { headers: { token: companyToken }, responseType: 'blob' }
-              );
-              const fileName = csvFile.originalName.toLowerCase();
-
-              if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
-                const arrayBuffer = await response.data.arrayBuffer();
-                const workbook    = XLSX.read(arrayBuffer, { type: 'array' });
-                const ws          = workbook.Sheets[workbook.SheetNames[0]];
-                const jsonData    = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
-                return { ...csvFile, data: jsonData.filter(row => row.some(cell => cell !== '')) };
-              } else if (fileName.endsWith('.csv')) {
-                const text      = await response.data.text();
-                const firstLine = text.split('\n')[0];
-                const delimiter = firstLine.includes('\t') ? '\t' : ',';
-                const rows = text.split('\n').map(row => {
-                  if (delimiter === '\t') return row.split('\t').map(c => c.trim());
-                  const regex = /(".*?"|[^,]+)(?=\s*,|\s*$)/g;
-                  return row.match(regex)?.map(c => c.replace(/^"|"$/g, '').trim()) || [];
-                }).filter(row => row.length > 1 && row.some(c => c !== ''));
-                return { ...csvFile, data: rows };
-              }
-              return csvFile;
-            } catch (error) {
-              console.error('Error fetching/parsing CSV:', csvFile.originalName, error);
-              return csvFile;
-            }
-          })
-        );
-
-        const combined = resumes.filter(Boolean).map(resume => {
+        const combined = resumes.map(resume => {
           const resumeFileName = resume.originalName || "";
-          const extractedName  = extractCandidateName(resumeFileName);
-          const candidateName  = resume.parsedData?.name || extractedName;
+          const candidateName  = resume.parsedData?.name || extractCandidateName(resumeFileName);
 
-          let csvMatch = null, csvMatchedData = null;
-          for (const csvFile of parsedCsvFiles) {
-            csvMatchedData = getCsvDataByName(candidateName, csvFile);
-            if (csvMatchedData) { csvMatch = csvFile; break; }
-          }
-
-          const csvHeaders = csvMatch ? buildHeaderMap(csvMatch) : [];
-          const parsedCsv  = csvMatchedData ? parseCsvRow(csvMatchedData, csvHeaders) : null;
-
-          // Recruiter edits made from the "Edit" screen always win over the
-          // value auto-matched from the uploaded CSV.
           const candidateProfile = resume.candidateProfile || {};
           const cpPersonal = candidateProfile.personal || {};
           const cpPro      = candidateProfile.professional || {};
@@ -428,50 +301,34 @@ const parseCsvRow = (row, headers) => {
             resumeName:     resumeFileName,
             candidateName,
             candidateProfile,
-            email:    parsedCsv?.['Email ID']  || resume.parsedData?.email    || "N/A",
-            phone:    parsedCsv?.['Mobile No'] || resume.parsedData?.phone    || "N/A",
-            location: `${cpPersonal.city || parsedCsv?.['City'] || ''} ${cpPersonal.state || parsedCsv?.['State'] || ''}`.trim() || resume.parsedData?.location || "N/A",
-            skills:   (candidateProfile.skills?.length ? candidateProfile.skills.join(', ') : null) || parsedCsv?.['Languages'] || resume.parsedData?.skills || "N/A",
-            experience: cpPro.totalExperience || parsedCsv?.['Total Experience'] || resume.parsedData?.experience || "N/A",
+            email:    resume.parsedData?.email || "N/A",
+            phone:    resume.parsedData?.phone || "N/A",
+            location: `${cpPersonal.city || ''} ${cpPersonal.state || ''}`.trim() || "N/A",
+            skills:   (candidateProfile.skills?.length ? candidateProfile.skills.map(s => s?.name || s).filter(Boolean).join(', ') : null) || (resume.parsedData?.skills?.length ? resume.parsedData.skills.join(', ') : null) || "N/A",
+            experience: cpPro.totalExperience || resume.parsedData?.experience || "N/A",
             status:     resume.status,
             fileSize:   resume.fileSize,
             uploadDate: resume.uploadDate || resume.createdAt,
             resumeFile: resume,
-            csvData:    parsedCsv,
-            csvMatched: !!csvMatchedData,
-            csvFileName: csvMatch?.originalName || "N/A",
-            fullName:      parsedCsv?.['Full Name']    || candidateName,
-            gender:        cpPersonal.gender        || parsedCsv?.['Gender']        || "N/A",
-            dob:           cpPersonal.dob           || parsedCsv?.['DOB']           || "N/A",
-            city:          cpPersonal.city          || parsedCsv?.['City']          || "N/A",
-            state:         cpPersonal.state         || parsedCsv?.['State']         || "N/A",
-            languages:     cpPersonal.languages     || parsedCsv?.['Languages']     || "N/A",
-            maritalStatus: cpPersonal.maritalStatus || parsedCsv?.['Marital Status']|| "N/A",
-            linkedinId:    parsedCsv?.['Linkedin ID']   || "N/A",
-            facebookId:    parsedCsv?.['Facebook ID']   || "N/A",
-            instagramId:   parsedCsv?.['Instagram ID']  || "N/A",
-            snapchat:      parsedCsv?.['Snapchat']      || "N/A",
-            sector:             cpPro.sector             || parsedCsv?.['Sector']             || "N/A",
-            category:           cpPro.category           || parsedCsv?.['Category']           || "N/A",
-            product:            cpPro.product            || parsedCsv?.['Product']            || "N/A",
-            channel:            cpPro.channel            || parsedCsv?.['Channel']            || "N/A",
-            currentDesignation: cpPro.currentDesignation || parsedCsv?.['Current Designation']|| "N/A",
-            currentDepartment:  cpPro.currentDepartment  || parsedCsv?.['Current Department'] || "N/A",
-            currentCTC:    cpPro.currentCTC    || parsedCsv?.['Current CTC']          || "N/A",
-            expectedCTC:   cpPro.expectedCTC   || parsedCsv?.['Expected CTC']         || "N/A",
-            noticePeriod:  cpPro.noticePeriod  || parsedCsv?.['Notice Period']        || "N/A",
-            totalExperience: cpPro.totalExperience || parsedCsv?.['Total Experience']   || "N/A",
-            jobChangeStatus: cpPro.jobChangeStatus || parsedCsv?.['Status for Job Change'] || "N/A",
+            fullName:      candidateName,
+            gender:        cpPersonal.gender        || "N/A",
+            dob:           cpPersonal.dob           || "N/A",
+            city:          cpPersonal.city          || "N/A",
+            state:         cpPersonal.state         || "N/A",
+            languages:     cpPersonal.languages     || "N/A",
+            maritalStatus: cpPersonal.maritalStatus || "N/A",
+            sector:             cpPro.sector             || "N/A",
+            category:           cpPro.category           || "N/A",
+            product:            cpPro.product            || "N/A",
+            channel:            cpPro.channel            || "N/A",
+            currentDesignation: cpPro.currentDesignation || "N/A",
+            currentDepartment:  cpPro.currentDepartment  || "N/A",
+            currentCTC:    cpPro.currentCTC    || "N/A",
+            expectedCTC:   cpPro.expectedCTC   || "N/A",
+            noticePeriod:  cpPro.noticePeriod  || "N/A",
+            totalExperience: cpPro.totalExperience || "N/A",
+            jobChangeStatus: cpPro.jobChangeStatus || "N/A",
           };
-        });
-
-        const totalResumes   = combined.length;
-        const matchedResumes = combined.filter(c => c.csvMatched).length;
-        setMatchingStats({
-          total:     totalResumes,
-          matched:   matchedResumes,
-          unmatched: totalResumes - matchedResumes,
-          matchRate: totalResumes > 0 ? Math.round((matchedResumes / totalResumes) * 100) : 0
         });
 
         setCombinedData(combined);
@@ -487,12 +344,6 @@ const parseCsvRow = (row, headers) => {
   // ─── Filter / Sort ────────────────────────────────────────────────────────────
 
   const filterAndSortData = () => {
-    // Show nothing until the user types a search query or picks a sidebar filter
-    if (!searchQuery.trim() && !hasActiveFilters) {
-      setFilteredData([]);
-      return;
-    }
-
     let filtered = combinedData.filter(item => {
       const q = searchQuery.toLowerCase();
       const matchesSearch =
@@ -517,11 +368,6 @@ const parseCsvRow = (row, headers) => {
         item.maritalStatus.toLowerCase().includes(q) ||
         item.fullName.toLowerCase().includes(q);
 
-      const matchesStatus =
-        filterStatus === "all" ||
-        (filterStatus === "matched"   && item.csvMatched) ||
-        (filterStatus === "unmatched" && !item.csvMatched);
-
       const matchesCategory    = selectedCategory.length === 0    || selectedCategory.includes(item.category);
       const matchesDesignation = selectedDesignation.length === 0 || selectedDesignation.includes(item.currentDesignation);
       const matchesProduct     = selectedProduct.length === 0     || selectedProduct.includes(item.product);
@@ -543,7 +389,7 @@ const parseCsvRow = (row, headers) => {
         });
       })();
 
-      return matchesSearch && matchesStatus && matchesCategory && matchesDesignation &&
+      return matchesSearch && matchesCategory && matchesDesignation &&
         matchesProduct && matchesChannel && matchesLocation && matchesJobStatus &&
         matchesNotice && matchesCtc;
     });
@@ -551,7 +397,6 @@ const parseCsvRow = (row, headers) => {
     filtered.sort((a, b) => {
       if (sortBy === "name")    return a.candidateName.localeCompare(b.candidateName);
       if (sortBy === "date")    return new Date(b.uploadDate) - new Date(a.uploadDate);
-      if (sortBy === "matched") return (b.csvMatched ? 1 : 0) - (a.csvMatched ? 1 : 0);
       return 0;
     });
 
@@ -756,7 +601,7 @@ const parseCsvRow = (row, headers) => {
                 Search Resume
               </h1>
               <p className="text-sm sm:text-base text-gray-600">
-                View combined resume and candidate details from CSV uploads
+                Candidate details auto-filled from uploaded resumes
               </p>
             </div>
             <button
@@ -825,26 +670,9 @@ const parseCsvRow = (row, headers) => {
             ) : null}
           </div>
 
-          {/* Filter Buttons */}
-          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-            {[
-              { key: "all",       label: `All (${combinedData.length})`,                              active: "bg-red-500",    inactive: "" },
-              { key: "matched",   label: `Matched (${combinedData.filter(d => d.csvMatched).length})`, active: "bg-green-500",  inactive: "" },
-              { key: "unmatched", label: `Unmatched (${combinedData.filter(d => !d.csvMatched).length})`, active: "bg-orange-500", inactive: "" },
-            ].map(btn => (
-              <button
-                key={btn.key}
-                onClick={() => setFilterStatus(btn.key)}
-                className={`flex-1 sm:flex-none px-4 py-2.5 sm:py-2 rounded-lg font-medium transition-all text-sm sm:text-base ${
-                  filterStatus === btn.key
-                    ? `${btn.active} text-white shadow-md`
-                    : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                }`}
-              >
-                {btn.label}
-              </button>
-            ))}
-          </div>
+          <p className="text-sm text-gray-600">
+            Total uploaded resumes: <span className="font-semibold text-gray-900">{combinedData.length}</span>
+          </p>
 
           {/* Bulk Action Bar */}
           {selectedCandidates.length > 0 && (
@@ -887,7 +715,7 @@ const parseCsvRow = (row, headers) => {
         {isLoading ? (
           <div className="bg-white rounded-lg sm:rounded-xl shadow-md p-8 text-center">
             <FiRefreshCw className="mx-auto text-4xl text-gray-400 mb-4 animate-spin" />
-            <p className="text-gray-600 text-sm sm:text-base">Loading and matching resumes with CSV data...</p>
+            <p className="text-gray-600 text-sm sm:text-base">Loading resumes...</p>
           </div>
         ) : filteredData.length > 0 ? (
           <div className="bg-white rounded-lg sm:rounded-xl shadow-md overflow-hidden">
@@ -928,7 +756,7 @@ const parseCsvRow = (row, headers) => {
                       key={candidate._id}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3, delay: index * 0.05 }}
+                      transition={{ duration: 0.3, delay: Math.min(index, 20) * 0.03 }}
                       className="border-b border-gray-200 hover:bg-gray-50 transition-colors"
                     >
                       {/* Checkbox */}
@@ -951,7 +779,7 @@ const parseCsvRow = (row, headers) => {
                         <div className="flex items-center gap-1.5 sm:gap-2">
                           <div
                             className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-white font-bold text-xs sm:text-sm flex-shrink-0"
-                            style={{ backgroundColor: candidate.csvMatched ? '#00C851' : '#FF6666' }}
+                            style={{ backgroundColor: '#020330' }}
                           >
                             {candidate.candidateName.charAt(0).toUpperCase()}
                           </div>
@@ -1095,7 +923,7 @@ const parseCsvRow = (row, headers) => {
           </div>
         ) : (
           <div className="bg-white rounded-lg sm:rounded-xl shadow-md p-12 text-center">
-            {searchQuery.trim() ? (
+            {searchQuery.trim() || hasActiveFilters ? (
               <>
                 <FiSearch size={48} className="mx-auto text-gray-300 mb-4" />
                 <p className="text-gray-600 font-medium mb-1">No results found</p>
@@ -1104,9 +932,9 @@ const parseCsvRow = (row, headers) => {
             ) : (
               <>
                 <FiSearch size={48} className="mx-auto text-gray-300 mb-4" />
-                <p className="text-gray-600 font-medium mb-1">Search to view candidates</p>
+                <p className="text-gray-600 font-medium mb-1">No resumes uploaded yet</p>
                 <p className="text-xs sm:text-sm text-gray-400">
-                  Type a name, designation, category, product, location, CTC or any keyword above — or pick a filter
+                  Upload resumes from Bulk Upload to see them here
                 </p>
               </>
             )}

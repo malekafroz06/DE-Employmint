@@ -3,7 +3,7 @@ import { useClerk, UserButton, useUser } from "@clerk/clerk-react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { AppContext } from "../context/AppContext";
 import { Zap, Menu, X, User } from "lucide-react";
-import DEEmploymintIcon from "../assets/DEEmploymintIcon.png";
+import DEEmploymintIcon from "../assets/DELogo.png";
 import { motion, AnimatePresence } from "framer-motion";
 
 const Navbar = () => {
@@ -158,22 +158,23 @@ const Navbar = () => {
         >
           {/* Logo */}
           <div
-            className="flex items-center gap-2 cursor-pointer group flex-shrink-0"
+            className="flex items-center gap-0 cursor-pointer group flex-shrink-0"
             onClick={() => navigate("/")}
           >
             <div
-              className={`p-1.5 sm:p-2 rounded-lg ${
+              className={`rounded-lg ${
                 scrolled ? "shadow-lg" : ""
               } group-hover:shadow-red-500/30 transition-all duration-300`}
             >
               <img
                 src={DEEmploymintIcon}
                 alt="DEEmploymint"
-                className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 object-contain"
+                className="h-14 sm:h-16 lg:h-20 w-auto object-contain"
               />
             </div>
-            <span className="text-lg sm:text-xl lg:text-2xl font-bold whitespace-nowrap" style={{ color: "#020330" }}>
-              DE Employmint
+            {/* Negative margin offsets the white padding baked into the logo image */}
+            <span className="-ml-2 sm:-ml-3 text-lg sm:text-xl lg:text-2xl font-bold whitespace-nowrap" style={{ color: "#020330" }}>
+              Employmint
             </span>
           </div>
 
@@ -401,14 +402,14 @@ const Navbar = () => {
             <div className="relative bg-white/95 backdrop-blur-lg shadow-xl border-b border-gray-100 mx-2 sm:mx-4 mt-3 rounded-2xl overflow-hidden max-w-md mx-auto">
               {/* Header */}
               <div className="flex items-center justify-between p-4 border-b border-gray-100">
-                <div className="flex items-center gap-2">
-                  <img 
-                    src={DEEmploymintIcon} 
-                    alt="DEEmploymint" 
-                    className="w-8 h-8 object-contain"
+                <div className="flex items-center">
+                  <img
+                    src={DEEmploymintIcon}
+                    alt="DEEmploymint"
+                    className="h-12 w-auto object-contain"
                   />
-                  <span className="text-lg font-bold" style={{ color: "#020330" }}>
-                    DE Employmint
+                  <span className="-ml-2 text-lg font-bold" style={{ color: "#020330" }}>
+                    Employmint
                   </span>
                 </div>
                 <button

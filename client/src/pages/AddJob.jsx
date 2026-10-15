@@ -13,36 +13,22 @@ const JobChannels = [
   "Sub Broker", "IAF", "DSA", "Other"
 ];
 
-// Job Category Options
-const JobCategories = [
-  // Capital Market
-  "Stock Market",
-  "Asset Management",
-  "Portfolio Management",
-  "Wealth Management",
-  "Alternative Investment Fund",
-  "Investment Banking",
-
-  // NBFC Sector
-  "Asset Finance Company (AFC)",
-  "Loan Company (LC)",
-  "Microfinance Institution (MFI)",
-  "Housing Finance Company (HFC)",
-  "Gold Loan NBFC",
-  "Retail NBFC (Consumer Finance)",
-
-  // Insurance Sector
-  "Life Insurance",
-  "General Insurance",
-
-  // Prop Trading
-  "Fundamental Analysis",
-  "Technical Analysis",
-  "Quant Analysis",
-  "Algo Trading",
-
-  "Other"
-];
+// Sector → Categories (same grouping as the Job Categories page / Edit Candidate)
+const SectorCategories = {
+  "Capital Market": [
+    "Stock Market", "Asset Management", "Portfolio Management",
+    "Wealth Management", "Alternative Investment Fund", "Investment Banking",
+  ],
+  "NBFC Sector": [
+    "Asset Finance Company (AFC)", "Loan Company (LC)", "Microfinance Institution (MFI)",
+    "Housing Finance Company (HFC)", "Gold Loan NBFC", "Retail NBFC (Consumer Finance)",
+  ],
+  "Insurance Sector": ["Life Insurance", "General Insurance"],
+  "Prop Trading": ["Fundamental Analysis", "Technical Analysis", "Quant Analysis", "Algo Trading"],
+};
+const JobSectors = Object.keys(SectorCategories);
+const DEFAULT_SECTOR = JobSectors[0];
+const DEFAULT_CATEGORY = SectorCategories[DEFAULT_SECTOR][0];
 
 // Products per Category
 const CategoryProducts = {
@@ -134,9 +120,10 @@ const AddJob = () => {
 
   const [level, setLevel] = useState("Fresher");
   const [jobchannel, setJobChannel] = useState("Agency Channel");
-  const [jobcategory, setJobCategory] = useState("Stock Market");
+  const [jobsector, setJobSector] = useState(DEFAULT_SECTOR);
+  const [jobcategory, setJobCategory] = useState(DEFAULT_CATEGORY);
   const [selectedProducts, setSelectedProducts] = useState(
-    [CategoryProducts["Stock Market"][0]]
+    [CategoryProducts[DEFAULT_CATEGORY][0]]
   );
 
   const [noticeperiod, setNoticeperiod] = useState("Immediate Joiner");
@@ -231,6 +218,13 @@ const AddJob = () => {
     );
   };
 
+  // ── Sector change → reset category (and its products) to the sector's first ─
+  const handleSectorChange = (e) => {
+    const value = e.target.value;
+    setJobSector(value);
+    handleCategoryChange({ target: { value: SectorCategories[value][0] } });
+  };
+
   // ── Category change ───────────────────────────────────────────────────────
   const handleCategoryChange = (e) => {
     const value = e.target.value;
@@ -294,6 +288,7 @@ const AddJob = () => {
           jobcategory: finalCategory,
           noticeperiod,
           salary: salaryNum,
+          sector: jobsector,
           department: department.trim(),
         },
         { headers: { token: companyToken, "Content-Type": "application/json" } }
@@ -307,8 +302,9 @@ const AddJob = () => {
       setLocationInput("");
       setLevel("Fresher");
       setJobChannel("Agency Channel");
-      setJobCategory("Stock Market");  // ← also fix this, "Equity Broking" doesn't exist in JobCategories
-      setSelectedProducts([CategoryProducts["Stock Market"][0]]);  // ← match above
+      setJobSector(DEFAULT_SECTOR);
+      setJobCategory(DEFAULT_CATEGORY);
+      setSelectedProducts([CategoryProducts[DEFAULT_CATEGORY][0]]);
       setCategoryTouched(false);
       setProductTouched(false);
       setNoticeperiod("Immediate Joiner");
@@ -551,7 +547,21 @@ const AddJob = () => {
 
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
 
-                {/* Category */}
+                {/* Sector */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Sector</label>
+                  <select
+                    value={jobsector}
+                    onChange={handleSectorChange}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white transition-all duration-200"
+                  >
+                    {JobSectors.map((s) => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Category — only the selected sector's categories */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
                   <select
@@ -559,8 +569,8 @@ const AddJob = () => {
                     onChange={handleCategoryChange}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white transition-all duration-200"
                   >
-                    {JobCategories.map((cat, i) => (
-                      <option key={i} value={cat}>{cat}</option>
+                    {[...SectorCategories[jobsector], "Other"].map((cat) => (
+                      <option key={cat} value={cat}>{cat}</option>
                     ))}
                   </select>
                   {showOtherCategory && (
@@ -722,6 +732,7 @@ const AddJob = () => {
                     {locations.map((loc) => (
                       <span key={loc} className="px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">{loc}</span>
                     ))}
+                    <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">{jobsector}</span>
                     <span className="px-3 py-1 rounded-full text-xs font-medium bg-fuchsia-100 text-fuchsia-800">{getDisplayCategory()}</span>
                     {selectedProducts.map((p) => (
                       <span key={p} className="px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">{p}</span>

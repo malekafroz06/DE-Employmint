@@ -13,6 +13,8 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { OAuth2Client } from 'google-auth-library';
 import SubUser from "../models/SubUser.js";
+import Resume from "../models/Resume.js";
+import User from "../models/User.js";
 import { freshJobFilter, JOB_MAX_AGE_MS } from "../utils/jobExpiry.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -581,6 +583,7 @@ export const postJob = async (req, res) => {
       description,
       location,
       salary,
+      sector,
       jobcategory,
       jobchannel,
       level,
@@ -604,6 +607,7 @@ export const postJob = async (req, res) => {
       companyId,
       date: Date.now(),
       level,
+      sector: sector || "",
       jobcategory: jobcategory || "Not specified",
       jobchannel: jobchannel || "Not specified",
       noticeperiod: noticeperiod || "Not specified",
@@ -668,10 +672,33 @@ export const getCompanyPostedJobs = async (req, res) => {
       });
     }
 
+    // "Available CVs" = every CV on the whole site whose position (current
+    // designation) is the same as the job's position — bulk-uploaded resumes
+    // from all companies plus job seekers who uploaded a resume themselves.
+    const normPosition = (v) =>
+      String(v || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+
+    const [resumeDesignations, userDesignations] = await Promise.all([
+      Resume.aggregate([
+        { $group: { _id: "$candidateProfile.professional.currentDesignation", count: { $sum: 1 } } },
+      ]),
+      User.aggregate([
+        { $match: { resume: { $nin: ["", null] } } },
+        { $group: { _id: "$currentDesignation", count: { $sum: 1 } } },
+      ]),
+    ]);
+
+    const cvCountByPosition = new Map();
+    [...resumeDesignations, ...userDesignations].forEach(({ _id, count }) => {
+      const key = normPosition(_id);
+      if (key) cvCountByPosition.set(key, (cvCountByPosition.get(key) || 0) + count);
+    });
+
     const jobsData = await Promise.all(
       jobs.map(async (job) => {
-        const applicants = await JobApplication.find({ jobId: job._id });
-        return { ...job.toObject(), applicants: applicants.length };
+        const applicants = await JobApplication.countDocuments({ jobId: job._id });
+        const availableCvs = cvCountByPosition.get(normPosition(job.designation || job.title)) || 0;
+        return { ...job.toObject(), applicants, availableCvs };
       })
     );
 

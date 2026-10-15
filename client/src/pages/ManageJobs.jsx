@@ -305,6 +305,12 @@ const ManageJobs = () => {
                   >
                     Visible
                   </th>
+                  <th
+                    className="py-4 px-6 text-center sm:text-[16px] font-semibold"
+                    style={{ color: '#020330' }}
+                  >
+                    Available CVs
+                  </th>
                   <th 
                     className="py-4 px-6 text-center sm:text-[16px] font-semibold"
                     style={{ color: '#020330' }}
@@ -373,6 +379,18 @@ const ManageJobs = () => {
                             `}</style>
                           </div>
                         </label>
+                      </div>
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="flex justify-center">
+                        <span
+                          className={`px-3 py-1 rounded-full text-sm font-medium ${
+                            job.availableCvs > 0 ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"
+                          }`}
+                          title={`CVs on the site with position "${job.designation || job.title}"`}
+                        >
+                          {job.availableCvs || 0}
+                        </span>
                       </div>
                     </td>
                     <td className="py-4 px-6">

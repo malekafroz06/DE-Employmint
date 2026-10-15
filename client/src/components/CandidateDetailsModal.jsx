@@ -11,7 +11,53 @@ import {
 const genderOptions = ["Male", "Female", "Other"];
 const maritalStatusOptions = ["Single", "Married"];
 const jobChangeStatusOptions = ["Actively Looking", "Open to Offers", "Not Looking"];
-const sectorOptions = ["Life Insurance", "General Insurance", "Equity Broking", "Equity Research", "Wealth Management", "Other"];
+// Sector → Category → Product, same structure as the Job Categories page / AddJob.jsx
+const SectorCategories = {
+  "Capital Market": [
+    "Stock Market", "Asset Management", "Portfolio Management",
+    "Wealth Management", "Alternative Investment Fund", "Investment Banking",
+  ],
+  "NBFC Sector": [
+    "Asset Finance Company (AFC)", "Loan Company (LC)", "Microfinance Institution (MFI)",
+    "Housing Finance Company (HFC)", "Gold Loan NBFC", "Retail NBFC (Consumer Finance)",
+  ],
+  "Insurance Sector": ["Life Insurance", "General Insurance"],
+  "Prop Trading": ["Fundamental Analysis", "Technical Analysis", "Quant Analysis", "Algo Trading"],
+};
+const sectorOptions = Object.keys(SectorCategories);
+
+const CategoryProducts = {
+  "Stock Market": ["Equity", "Commodity", "Currency"],
+  "Asset Management": ["Mutual Fund", "SIP", "ETF"],
+  "Portfolio Management": ["Discretionary Portfolio Management", "Non-Discretionary Portfolio Management"],
+  "Wealth Management": ["Wealth Planning", "Investment Advisory"],
+  "Alternative Investment Fund": ["Private Equity", "Venture Capital", "Hedge Funds"],
+  "Investment Banking": ["IPO Advisory", "M&A", "Capital Raising", "Debt Syndication"],
+  "Asset Finance Company (AFC)": [
+    "Commercial Vehicle Loans", "Construction Equipment Loans", "Tractor Loan",
+    "Used Commercial Vehicle Loan", "Car Finance", "Used Car Finance",
+    "Passenger Vehicle Finance", "Machinery Finance", "Equipment Finance",
+  ],
+  "Loan Company (LC)": ["Personal Loans", "Business Loans", "MSME Loans"],
+  "Microfinance Institution (MFI)": ["Group Loans", "Small Ticket Loans", "Micro Loans", "Women Group Lending", "Rural Credit"],
+  "Housing Finance Company (HFC)": ["Home Loans", "Loan Against Property (LAP)", "Affordable Housing Loans"],
+  "Gold Loan NBFC": ["Gold Loans (Secured Loans)"],
+  "Retail NBFC (Consumer Finance)": ["Consumer Durable Loans"],
+  "Life Insurance": ["Term Plans", "Endowment Plan", "ULIPs"],
+  "General Insurance": [
+    "Motor Insurance", "Health Insurance", "Travel Insurance", "Property Insurance",
+    "Fire Insurance", "Marine Insurance", "Burglary Insurance",
+  ],
+  "Fundamental Analysis": ["Buy Side", "Sell Side"],
+  "Technical Analysis": ["Derivative", "Non Derivative"],
+  "Quant Analysis": ["Quant Modeling"],
+  "Algo Trading": ["Algorithmic Trading Strategies"],
+};
+
+// Keep a previously-saved value selectable even if it isn't in the list
+// (e.g. old free-text data from CSV), so opening the form doesn't wipe it.
+const withCurrent = (options, current) =>
+  current && !options.includes(current) ? [current, ...options] : options;
 const educationLevelOptions = ["10th", "12th", "Diploma", "Graduate", "Post Graduate", "Doctorate", "Other"];
 const modeOfEducationOptions = ["Full Time", "Part Time", "Distance / Correspondence", "Online"];
 const skillCategoryOptions = ["Sales", "Product Knowledge", "Communication", "Leadership", "Technical", "Compliance", "Other"];
@@ -148,6 +194,14 @@ const CandidateDetailsModal = ({ candidate, backendUrl, companyToken, onClose, o
       );
       if (data.success) {
         toast.success("CV updated");
+        // The server fills empty fields from the new CV — show them in the open form
+        const cp = data.data.candidateProfile || {};
+        const fillEmpty = (prev, src = {}) =>
+          Object.fromEntries(Object.entries(prev).map(([k, v]) => [k, v || src[k] || ""]));
+        setPersonal((prev) => fillEmpty(prev, cp.personal));
+        setProfessional((prev) => fillEmpty(prev, cp.professional));
+        if (Array.isArray(cp.skills)) setSkills(cp.skills);
+        if (Array.isArray(cp.education)) setEducation(cp.education);
         onUpdated?.(candidateId, {
           resumeName: data.data.resumeName,
           fileSize: data.data.fileSize,
@@ -327,13 +381,22 @@ const CandidateDetailsModal = ({ candidate, backendUrl, companyToken, onClose, o
           <div className="flex items-center gap-3 min-w-0">
             <div
               className="w-11 h-11 rounded-full flex items-center justify-center text-white font-bold text-base flex-shrink-0"
-              style={{ backgroundColor: candidate.csvMatched ? "#00C851" : "#FF6666" }}
+              style={{ backgroundColor: "#020330" }}
             >
               {candidate.candidateName?.charAt(0).toUpperCase() || "?"}
             </div>
             <div className="min-w-0">
               <h3 className="text-lg font-bold text-gray-900 truncate">Edit Candidate — {candidate.candidateName}</h3>
-              <p className="text-xs text-gray-500 truncate">{candidate.resumeName}</p>
+              <p className="text-xs text-gray-500 truncate">
+                {candidate.resumeName}
+                <span className="mx-1.5">·</span>
+                Last edited:{" "}
+                <span className="font-medium text-gray-700">
+                  {candidate.candidateProfile?.lastVerified
+                    ? new Date(candidate.candidateProfile.lastVerified).toLocaleString()
+                    : "Never"}
+                </span>
+              </p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded-lg transition-colors flex-shrink-0">
@@ -390,7 +453,7 @@ const CandidateDetailsModal = ({ candidate, backendUrl, companyToken, onClose, o
                     </p>
                   </div>
                   <div className="bg-gray-50 p-4 rounded-lg">
-                    <label className="text-xs text-gray-500 block mb-1">Last Verified</label>
+                    <label className="text-xs text-gray-500 block mb-1">Last Edited</label>
                     <p className="text-sm font-semibold text-gray-900">
                       {candidate.candidateProfile?.lastVerified
                         ? new Date(candidate.candidateProfile.lastVerified).toLocaleString()
@@ -398,8 +461,8 @@ const CandidateDetailsModal = ({ candidate, backendUrl, companyToken, onClose, o
                     </p>
                   </div>
                 </div>
-                <p className="text-xs text-gray-400">Last Verified updates automatically whenever any change is saved for this candidate.</p>
-                <p className="text-xs text-gray-400">Name, email and phone come from the uploaded resume / CSV and aren&apos;t editable here.</p>
+                <p className="text-xs text-gray-400">Last Edited updates automatically whenever any change is saved for this candidate.</p>
+                <p className="text-xs text-gray-400">Name, email and phone come from the uploaded resume and aren&apos;t editable here.</p>
                 <div className="flex justify-end pt-2">
                   <button
                     onClick={() => onDownloadInfo?.(candidate)}
@@ -456,16 +519,36 @@ const CandidateDetailsModal = ({ candidate, backendUrl, companyToken, onClose, o
               <div className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                   <Field label="Sector">
-                    <select className={inputCls} value={professional.sector} onChange={(e) => setProfessional((p) => ({ ...p, sector: e.target.value }))}>
-                      <option value="">Select</option>
-                      {sectorOptions.map((s) => <option key={s} value={s}>{s}</option>)}
+                    <select
+                      className={inputCls}
+                      value={professional.sector}
+                      onChange={(e) => setProfessional((p) => ({ ...p, sector: e.target.value, category: "", product: "" }))}
+                    >
+                      <option value="">Select Sector</option>
+                      {withCurrent(sectorOptions, professional.sector).map((s) => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </Field>
                   <Field label="Category">
-                    <input type="text" className={inputCls} value={professional.category} onChange={(e) => setProfessional((p) => ({ ...p, category: e.target.value }))} />
+                    <select
+                      className={inputCls}
+                      value={professional.category}
+                      disabled={!professional.sector}
+                      onChange={(e) => setProfessional((p) => ({ ...p, category: e.target.value, product: "" }))}
+                    >
+                      <option value="">{professional.sector ? "Select Category" : "Select a sector first"}</option>
+                      {withCurrent(SectorCategories[professional.sector] || [], professional.category).map((c) => <option key={c} value={c}>{c}</option>)}
+                    </select>
                   </Field>
                   <Field label="Product">
-                    <input type="text" className={inputCls} value={professional.product} onChange={(e) => setProfessional((p) => ({ ...p, product: e.target.value }))} />
+                    <select
+                      className={inputCls}
+                      value={professional.product}
+                      disabled={!professional.category}
+                      onChange={(e) => setProfessional((p) => ({ ...p, product: e.target.value }))}
+                    >
+                      <option value="">{professional.category ? "Select Product" : "Select a category first"}</option>
+                      {withCurrent(CategoryProducts[professional.category] || [], professional.product).map((pr) => <option key={pr} value={pr}>{pr}</option>)}
+                    </select>
                   </Field>
                   <Field label="Channel">
                     <input type="text" className={inputCls} value={professional.channel} onChange={(e) => setProfessional((p) => ({ ...p, channel: e.target.value }))} />

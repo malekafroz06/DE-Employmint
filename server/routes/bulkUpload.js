@@ -8,6 +8,7 @@ import mongoose from 'mongoose';
 import Resume from '../models/Resume.js';
 import CsvData from '../models/CsvData.js';  
 import ResumeProcessor from '../utils/resumeProcessor.js';
+import { buildProfileFillOps } from '../utils/resumeProfileParser.js';
 import CSVProcessor from '../utils/csvProcessor.js';
 import SubUser from '../models/SubUser.js';
 const router = express.Router();
@@ -197,10 +198,11 @@ router.post('/upload-resumes', verifyCompanyToken, requireBulkUploadPermission, 
           const fileExt = path.extname(file.originalname).substring(1).toLowerCase();
           let extractedText = '';
           let parsedData = {};
+          let parsedProfile = null;
 
           try {
             extractedText = await ResumeProcessor.extractTextFromFile(file.path, fileExt);
-            parsedData = ResumeProcessor.parseResumeData(extractedText);
+            ({ parsedData, candidateProfile: parsedProfile } = ResumeProcessor.parseResumeProfile(extractedText));
           } catch (parseError) {
             console.error('Error parsing resume:', file.originalname, parseError);
           }
@@ -225,7 +227,9 @@ router.post('/upload-resumes', verifyCompanyToken, requireBulkUploadPermission, 
                   extractedText,
                   parsedData,
                   status: 'processed',
-                  'metadata.uploadBatch': uploadBatch
+                  'metadata.uploadBatch': uploadBatch,
+                  // Only fill profile fields that are still empty — never overwrite recruiter edits
+                  ...(parsedProfile ? buildProfileFillOps(existing.candidateProfile, parsedProfile) : {})
                 }
               },
               { new: true }
@@ -243,6 +247,7 @@ router.post('/upload-resumes', verifyCompanyToken, requireBulkUploadPermission, 
               filePath: file.path,
               extractedText,
               parsedData,
+              ...(parsedProfile ? { candidateProfile: parsedProfile } : {}),
               status: 'processed',
               metadata: { uploadBatch }
             });
@@ -739,10 +744,21 @@ router.post('/candidate/:id/resume', verifyCompanyToken, requireBulkUploadPermis
       const oldFilePath = existing.filePath;
       const ext = path.extname(req.file.originalname).toLowerCase().replace('.', '');
 
+      // Parse the new CV and fill any profile fields that are still empty
+      let parsedOps = {};
+      try {
+        const extractedText = await ResumeProcessor.extractTextFromFile(req.file.path, ext);
+        const { parsedData, candidateProfile } = ResumeProcessor.parseResumeProfile(extractedText);
+        parsedOps = { extractedText, parsedData, ...buildProfileFillOps(existing.candidateProfile, candidateProfile) };
+      } catch (parseError) {
+        console.error('Error parsing replaced CV:', req.file.originalname, parseError);
+      }
+
       const updated = await Resume.findOneAndUpdate(
         { _id: req.params.id, ...companyIdQuery(req.companyId) },
         {
           $set: {
+            ...parsedOps,
             fileName: req.file.filename,
             originalName: req.file.originalname,
             fileSize: req.file.size,

@@ -2,7 +2,7 @@ import React, { useState, useContext, useRef, useEffect } from "react";
 import { AppContext } from "../context/AppContext";
 import { toast } from "react-toastify";
 import { motion } from "framer-motion";
-import { useOutletContext } from "react-router-dom";
+import { useOutletContext, useNavigate } from "react-router-dom";
 import axios from "axios";
 import * as XLSX from 'xlsx';
 import {
@@ -18,7 +18,8 @@ const BulkUpload = () => {
   const { companyToken, backendUrl } = useContext(AppContext);
   const outletContext = useOutletContext();
   const { isLoggedIn, showLoginNotification } = outletContext || {};
-  
+  const navigate = useNavigate();
+
   const [isUploading, setIsUploading] = useState(false);
   const [activeTab, setActiveTab] = useState("resumes");
   const [dragActive, setDragActive] = useState(false);
@@ -284,6 +285,11 @@ const BulkUpload = () => {
         // if (type === "resumes") {
         //   toast.info("Resume names extracted successfully. Please upload CSV to match candidate data.");
         // }
+
+        // Once resumes are parsed, take the recruiter straight to Search Resume
+        if (type === "resumes" && processedFiles > 0) {
+          navigate("/dashboard/search-resume");
+        }
       } else {
         toast.error(data.message || "Upload failed");
       }
