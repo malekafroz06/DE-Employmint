@@ -34,7 +34,7 @@ const DEFAULT_CATEGORY = SectorCategories[DEFAULT_SECTOR][0];
 const CategoryProducts = {
   // ── Capital Market ──────────────────────────────────────────────
   "Stock Market": [
-    "Equity", "Commodity", "Currency", "PMS", "AIF", "Insurance", "Bond"
+    "Equity", "Commodity", "Currency", "PMS", "AIF", "Insurance", "Bond", "MF"
   ],
   "Asset Management": [
     "Mutual Fund", "SIP", "ETF"
@@ -394,6 +394,35 @@ const AddJob = () => {
         </div>
       </div>
 
+      {/* ── Live Candidate Pool Insights — shown on every step ── */}
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="text-sm font-semibold text-gray-700">Candidate Pool Insights</h4>
+          <span className="text-xs text-gray-400">
+            {insightsLoading ? "Updating…" : "Updates as you fill the form"}
+          </span>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+          {[
+            { label: "Available Candidates", value: insights.availableCandidates, color: "text-gray-800", ring: "border-gray-200" },
+            { label: "Strong Matches", value: insights.strongMatches, color: "text-red-600", ring: "border-red-200" },
+            { label: "Actively Looking", value: insights.activelyLooking, color: "text-emerald-600", ring: "border-emerald-200" },
+            { label: "Notice ≤ 30 days", value: insights.noticePeriodUnder30, color: "text-amber-600", ring: "border-amber-200" },
+            { label: "Expected CTC within budget", value: insights.expectedCtcWithinBudget, color: "text-violet-600", ring: "border-violet-200" },
+          ].map((box) => (
+            <div
+              key={box.label}
+              className={`bg-white rounded-xl shadow-sm border ${box.ring} p-4 flex flex-col justify-between transition-all duration-200`}
+            >
+              <span className={`text-2xl font-bold ${box.color} ${insightsLoading ? "opacity-40" : ""}`}>
+                {Number(box.value || 0).toLocaleString()}
+              </span>
+              <span className="mt-1 text-xs font-medium text-gray-500 leading-tight">{box.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <form onSubmit={onSubmitHandler} className="relative">
         {/* ── Step 1: Basic Info ── */}
         <motion.div
@@ -483,35 +512,6 @@ const AddJob = () => {
             </div>
           </div>
 
-          {/* ── Live Candidate Pool Insights ── */}
-          <div className="mb-6">
-            <div className="flex items-center justify-between mb-3">
-              <h4 className="text-sm font-semibold text-gray-700">Candidate Pool Insights</h4>
-              <span className="text-xs text-gray-400">
-                {insightsLoading ? "Updating…" : "Updates as you fill the form"}
-              </span>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
-              {[
-                { label: "Available Candidates", value: insights.availableCandidates, color: "text-gray-800", ring: "border-gray-200" },
-                { label: "Strong Matches", value: insights.strongMatches, color: "text-red-600", ring: "border-red-200" },
-                { label: "Actively Looking", value: insights.activelyLooking, color: "text-emerald-600", ring: "border-emerald-200" },
-                { label: "Notice ≤ 30 days", value: insights.noticePeriodUnder30, color: "text-amber-600", ring: "border-amber-200" },
-                { label: "Expected CTC within budget", value: insights.expectedCtcWithinBudget, color: "text-violet-600", ring: "border-violet-200" },
-              ].map((box) => (
-                <div
-                  key={box.label}
-                  className={`bg-white rounded-xl shadow-sm border ${box.ring} p-4 flex flex-col justify-between transition-all duration-200`}
-                >
-                  <span className={`text-2xl font-bold ${box.color} ${insightsLoading ? "opacity-40" : ""}`}>
-                    {Number(box.value || 0).toLocaleString()}
-                  </span>
-                  <span className="mt-1 text-xs font-medium text-gray-500 leading-tight">{box.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
           <div className="flex justify-end">
             <button
               type="button"
@@ -541,7 +541,10 @@ const AddJob = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Job Description <span className="text-red-500">*</span>
                 </label>
-                <div ref={editorRef} className="w-full border border-gray-300 rounded-lg min-h-48" />
+                {/* Clicking anywhere in the box focuses the editor (Quill's own typing area is only one line tall when empty) */}
+                <div className="job-description-editor" onClick={(e) => { if (!e.target.closest(".ql-toolbar")) quillRef.current?.focus(); }}>
+                  <div ref={editorRef} className="w-full border border-gray-300 rounded-b-lg" />
+                </div>
                 <p className="mt-1 text-xs text-gray-500">Be specific about responsibilities, requirements, and benefits</p>
               </div>
 

@@ -2,7 +2,7 @@
 import React, { useContext, useEffect, useState } from "react";
 import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { AppContext } from "../context/AppContext";
-import DEEmploymintIcon from "../assets/DELogo.png";
+import DEEmploymintIcon from "../assets/DELogoTransparent.png";
 import { motion, AnimatePresence } from "framer-motion";
 import { FiPlusCircle, FiFolder, FiMail, FiUser, FiHome, FiUpload, FiAlertCircle, FiPackage, FiMenu, FiX, FiUsers, FiSearch, FiLogOut, FiChevronRight } from "react-icons/fi";
 import { toast } from "react-toastify";
@@ -22,7 +22,7 @@ const getNavItems = (isSubUser, subUserRole, permissions) => {
     
     if (permissions?.canManageBulkUpload) {
       subUserItems.push({ path: "bulk-upload", label: "Resume Parse", icon: <FiUpload /> });
-      subUserItems.push({ path: "search-resume", label: "Candidate Profile", icon: <FiSearch /> });
+      subUserItems.push({ path: "search-resume", label: "Candidate Library", icon: <FiSearch /> });
     }
     
     return subUserItems;
@@ -35,7 +35,7 @@ const getNavItems = (isSubUser, subUserRole, permissions) => {
     { path: "view-applications", label: "Applications", icon: <FiMail /> },
     { path: "add-job", label: "Post New Job", icon: <FiPlusCircle /> },
     { path: "bulk-upload", label: "Resume Parse", icon: <FiUpload /> },
-    { path: "search-resume", label: "Candidate Profile", icon: <FiSearch /> },
+    { path: "search-resume", label: "Candidate Library", icon: <FiSearch /> },
     //{ path: "manage-package", label: "Manage Package", icon: <FiPackage /> },
     //{ path: "my-team", label: "My Team", icon: <FiUsers /> },
     //{ path: "main-dashboard", label: "Dashboard", icon: <FiUsers /> },
@@ -216,16 +216,16 @@ const Dashboard = () => {
             <div className="p-4 sm:p-5 flex-1 overflow-y-auto">
               {/* Brand */}
               <div
-                className="flex items-center gap-1 mb-5 sm:mb-6 cursor-pointer"
+                className="flex items-center gap-2.5 mb-5 sm:mb-6 cursor-pointer"
                 onClick={() => navigate("/")}
               >
                 <img
                   src={DEEmploymintIcon}
                   alt="Logo"
-                  className="h-14 sm:h-16 w-auto object-contain flex-shrink-0"
+                  className="h-8 sm:h-9 w-auto object-contain flex-shrink-0"
                 />
                 <div className="min-w-0">
-                  <p className="text-gray-900 font-bold text-sm sm:text-base leading-tight truncate">Employmint</p>
+                  <p className="text-gray-900 font-bold text-sm sm:text-base leading-tight truncate">DE employmint</p>
                   <p className="text-[10px] sm:text-[11px] text-gray-400 tracking-wide truncate">BFSI Talent Pipeline</p>
                 </div>
               </div>

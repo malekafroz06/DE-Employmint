@@ -14,6 +14,13 @@ import {
   FiRefreshCw
 } from "react-icons/fi";
 
+// Must match server/routes/bulkUpload.js (multer fileSize limit and upload.array counts)
+const MAX_FILE_SIZE_MB = 15;
+const UPLOAD_LIMITS = {
+  resumes: { maxFiles: 20 },
+  csv: { maxFiles: 10 },
+};
+
 const BulkUpload = () => {
   const { companyToken, backendUrl } = useContext(AppContext);
   const outletContext = useOutletContext();
@@ -222,10 +229,22 @@ const BulkUpload = () => {
 
     if (validFiles.length === 0) {
       toast.error(
-        type === "resumes" 
+        type === "resumes"
           ? "Please select valid resume files (PDF, DOC, DOCX)"
           : "Please select valid CSV or Excel files (CSV, XLSX, XLS)"
       );
+      return;
+    }
+
+    // Same limits the server enforces — checked here so the user gets a clear message
+    const { maxFiles } = UPLOAD_LIMITS[type];
+    if (validFiles.length > maxFiles) {
+      toast.error(`You can upload up to ${maxFiles} files at a time. You selected ${validFiles.length}.`);
+      return;
+    }
+    const oversized = validFiles.filter((file) => file.size > MAX_FILE_SIZE_MB * 1024 * 1024);
+    if (oversized.length) {
+      toast.error(`Each file must be ${MAX_FILE_SIZE_MB} MB or smaller. Too large: ${oversized.map((f) => f.name).join(", ")}`);
       return;
     }
 
@@ -348,7 +367,7 @@ const BulkUpload = () => {
                 className="text-2xl md:text-3xl font-bold mb-2"
                 style={{ color: '#020330' }}
               >
-                Bulk Upload
+                Resume Parse
               </h1>
               <p className="text-gray-600">Upload multiple resumes for bulk processing</p>
             </div>
@@ -496,6 +515,14 @@ const BulkUpload = () => {
                   : "Supported formats: CSV, XLSX, XLS"
                 }
               </p>
+              <div className="mt-3 flex flex-wrap justify-center gap-2 text-xs">
+                <span className="px-3 py-1 rounded-full bg-gray-100 text-gray-700">
+                  Max file size: <strong>{MAX_FILE_SIZE_MB} MB</strong> per file
+                </span>
+                <span className="px-3 py-1 rounded-full bg-gray-100 text-gray-700">
+                  Up to <strong>{UPLOAD_LIMITS[activeTab].maxFiles} {activeTab === "resumes" ? "resumes" : "files"}</strong> at a time
+                </span>
+              </div>
             </div>
           </div>
         </div>

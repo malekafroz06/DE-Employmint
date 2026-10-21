@@ -2,7 +2,7 @@
 import React, { useContext, useEffect, useState } from "react";
 import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { AppContext } from "../context/AppContext";
-import DEEmploymintIcon from "../assets/DEEmploymintIcon.png";
+import DEEmploymintIcon from "../assets/DELogoTransparent.png";
 import { motion, AnimatePresence } from "framer-motion";
 import { FiUser, FiBriefcase, FiBell, FiHome, FiMenu, FiX } from "react-icons/fi";
 import { useClerk } from "@clerk/clerk-react";
@@ -142,12 +142,17 @@ const [hasInitiallyOpened, setHasInitiallyOpened] = useState(false);
             )}
 
             <div className="p-4 sm:p-6">
-              <img 
-                src={DEEmploymintIcon} 
-                alt="Logo" 
-                className="h-12 sm:h-16 mb-6 sm:mb-8 cursor-pointer" 
-                onClick={() => navigate("/")} 
-              />
+              <div
+                className="flex items-center gap-2.5 mb-6 sm:mb-8 cursor-pointer"
+                onClick={() => navigate("/")}
+              >
+                <img
+                  src={DEEmploymintIcon}
+                  alt="Logo"
+                  className="h-8 sm:h-9 w-auto object-contain flex-shrink-0"
+                />
+                <p className="text-gray-900 font-bold text-sm sm:text-base leading-tight truncate">DE employmint</p>
+              </div>
               
               <div className="space-y-2 sm:space-y-3">
                 {/* Home Button - Above other nav items */}

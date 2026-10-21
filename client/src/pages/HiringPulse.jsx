@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { toast } from "react-toastify";
 import axios from "axios";
 import { AppContext } from "../context/AppContext";
-import DEEmploymintIcon from "../assets/DEEmploymintIcon.png";
+import DEEmploymintIcon from "../assets/DELogoTransparent.png";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import {
@@ -84,7 +84,36 @@ const EmptyState = ({ children }) => (
   <p className="text-xs text-gray-400 group-hover:text-white/50 italic transition-colors duration-300">{children}</p>
 );
 
-const StatGrid = ({ stats, cols = "sm:grid-cols-4" }) => (
+const StatContent = ({ s }) => {
+  const delta = deltaLabel(s.deltaPct);
+  return (
+    <>
+      <div className="w-12 h-12 rounded-full flex items-center justify-center text-lg" style={{ backgroundColor: "#FEE2E2", color: RED }}>
+        {s.icon}
+      </div>
+      <div className="text-lg font-extrabold text-gray-900 group-hover:text-white leading-tight transition-colors duration-300">{s.value}</div>
+      <div className="text-xs font-semibold text-gray-600 group-hover:text-white/70 transition-colors duration-300">{s.label}</div>
+      {delta ? (
+        <div className="text-[11px] font-bold flex items-center gap-1" style={{ color: delta.up ? GREEN : "#B91C1C" }}>
+          {delta.up ? <FiTrendingUp size={11} /> : <FiTrendingDown size={11} />} {delta.text}
+        </div>
+      ) : (
+        s.sub && <div className="text-[11px] text-gray-400 group-hover:text-white/50 font-medium transition-colors duration-300">{s.sub}</div>
+      )}
+    </>
+  );
+};
+
+// separate = each stat in its own square card instead of one shared card
+const StatGrid = ({ stats, cols = "sm:grid-cols-4", separate = false }) => separate ? (
+  <div className={`grid grid-cols-2 ${cols} gap-4`}>
+    {stats.map((s, i) => (
+      <Card key={s.label} delay={i * 0.05} className="p-5 flex flex-col gap-2 aspect-square sm:aspect-auto sm:min-h-[11rem]">
+        <StatContent s={s} />
+      </Card>
+    ))}
+  </div>
+) : (
   <Card className="p-6">
     <div className={`grid grid-cols-2 ${cols} gap-4`}>
       {stats.map((s) => {
@@ -251,10 +280,10 @@ const HiringPulse = () => {
       <div className="space-y-6 px-4 sm:px-6 lg:px-8 py-4 sm:py-6 max-w-7xl mx-auto">
       {/* ================= HEADER ================= */}
       <Card className="p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <img src={DEEmploymintIcon} alt="DE Employmint" className="h-10 w-10 rounded-lg object-contain" />
+        <div className="flex items-center gap-2.5 mb-4">
+          <img src={DEEmploymintIcon} alt="DE employmint" className="h-8 w-auto object-contain" />
           <div>
-            <p className="text-sm font-extrabold leading-tight transition-colors duration-300" style={{ color: NAVY }}>DE Employmint</p>
+            <p className="text-sm font-extrabold leading-tight transition-colors duration-300" style={{ color: NAVY }}>DE employmint</p>
             <p className="text-[9px] font-semibold text-gray-400 group-hover:text-white/50 tracking-wide transition-colors duration-300">Infinite Opportunity &bull; Infinite Talent</p>
           </div>
         </div>
@@ -273,11 +302,11 @@ const HiringPulse = () => {
 
       {/* ================= RECRUITER'S INSIGHT ================= */}
       <GroupHeading>Recruiter's Insight</GroupHeading>
-      <StatGrid stats={recruiterInsightStats} cols="sm:grid-cols-4" />
+      <StatGrid stats={recruiterInsightStats} cols="sm:grid-cols-4" separate />
 
       {/* ================= CANDIDATE INSIGHT ================= */}
       <GroupHeading>Candidate Insight</GroupHeading>
-      <StatGrid stats={candidateInsightStats} cols="sm:grid-cols-5" />
+      <StatGrid stats={candidateInsightStats} cols="sm:grid-cols-5" separate />
 
       {/* ================= ROLES / LOCATIONS / COMPANIES ================= */}
       <div className="grid grid-cols-1 lg:grid-cols-[0.85fr_1.15fr_1fr] gap-6">

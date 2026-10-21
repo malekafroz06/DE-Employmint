@@ -43,7 +43,7 @@ const JobCategories = [
 
 // ── Products per Category (from AddJob) ──────────────────────────────────────
 const CategoryProducts = {
-  "Stock Market": ["Equity", "Commodity", "Currency", "PMS", "AIF", "Insurance", "Bond"],
+  "Stock Market": ["Equity", "Commodity", "Currency", "PMS", "AIF", "Insurance", "Bond", "MF"],
   "Asset Management": ["Mutual Fund", "SIP", "ETF"],
   "Portfolio Management": [
     "Discretionary Portfolio Management",

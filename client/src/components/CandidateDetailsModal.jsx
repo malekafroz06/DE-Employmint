@@ -4,7 +4,7 @@ import { toast } from "react-toastify";
 import { motion } from "framer-motion";
 import {
   FiX, FiUser, FiInfo, FiBookOpen, FiAward, FiFileText,
-  FiPlus, FiEdit2, FiTrash2, FiSave, FiDownload, FiUpload, FiMail, FiPhone,
+  FiPlus, FiEdit2, FiTrash2, FiSave, FiDownload, FiUpload, FiMail, FiPhone, FiCheck,
 } from "react-icons/fi";
 
 // ── Shared option lists (kept in sync with MyProfile.jsx / AddJob.jsx) ───────
@@ -27,7 +27,7 @@ const SectorCategories = {
 const sectorOptions = Object.keys(SectorCategories);
 
 const CategoryProducts = {
-  "Stock Market": ["Equity", "Commodity", "Currency", "PMS", "AIF", "Insurance", "Bond"],
+  "Stock Market": ["Equity", "Commodity", "Currency", "PMS", "AIF", "Insurance", "Bond", "MF"],
   "Asset Management": ["Mutual Fund", "SIP", "ETF"],
   "Portfolio Management": ["Discretionary Portfolio Management", "Non-Discretionary Portfolio Management"],
   "Wealth Management": ["Wealth Planning", "Investment Advisory"],
@@ -56,6 +56,9 @@ const CategoryProducts = {
 
 // Keep a previously-saved value selectable even if it isn't in the list
 // (e.g. old free-text data from CSV), so opening the form doesn't wipe it.
+// Multiple products are saved as one comma-separated string: "Equity, MF"
+const splitProducts = (value) => String(value || "").split(",").map((s) => s.trim()).filter(Boolean);
+
 const withCurrent = (options, current) =>
   current && !options.includes(current) ? [current, ...options] : options;
 const educationLevelOptions = ["10th", "12th", "Diploma", "Graduate", "Post Graduate", "Doctorate", "Other"];
@@ -70,7 +73,7 @@ const TABS = [
   { key: "professional", label: "Professional Details", icon: FiUser },
   { key: "education", label: "Education Details", icon: FiBookOpen },
   { key: "skills", label: "Skills & Competency", icon: FiAward },
-  { key: "documents", label: "Document Attachments", icon: FiFileText },
+  { key: "documents", label: "CV/Resume", icon: FiFileText },
 ];
 
 const emptyEducationRow = {
@@ -539,16 +542,37 @@ const CandidateDetailsModal = ({ candidate, backendUrl, companyToken, onClose, o
                       {withCurrent(SectorCategories[professional.sector] || [], professional.category).map((c) => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </Field>
-                  <Field label="Product">
-                    <select
-                      className={inputCls}
-                      value={professional.product}
-                      disabled={!professional.category}
-                      onChange={(e) => setProfessional((p) => ({ ...p, product: e.target.value }))}
-                    >
-                      <option value="">{professional.category ? "Select Product" : "Select a category first"}</option>
-                      {withCurrent(CategoryProducts[professional.category] || [], professional.product).map((pr) => <option key={pr} value={pr}>{pr}</option>)}
-                    </select>
+                  <Field label="Product (select one or more)">
+                    {!professional.category ? (
+                      <div className={`${inputCls} bg-gray-50 text-gray-400`}>Select a category first</div>
+                    ) : (() => {
+                      // Stored as a comma-separated string, e.g. "Equity, MF"
+                      const selected = splitProducts(professional.product);
+                      const options = [...new Set([...(CategoryProducts[professional.category] || []), ...selected])];
+                      const toggle = (pr) => {
+                        const next = selected.includes(pr) ? selected.filter((x) => x !== pr) : [...selected, pr];
+                        setProfessional((p) => ({ ...p, product: next.join(", ") }));
+                      };
+                      return (
+                        <div className="flex flex-wrap gap-2 p-2 border border-gray-300 rounded-lg min-h-[46px]">
+                          {options.map((pr) => {
+                            const on = selected.includes(pr);
+                            return (
+                              <button
+                                key={pr}
+                                type="button"
+                                onClick={() => toggle(pr)}
+                                className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                                  on ? "bg-red-600 border-red-600 text-white" : "bg-white border-gray-300 text-gray-700 hover:border-red-400 hover:text-red-600"
+                                }`}
+                              >
+                                {on && <FiCheck size={12} />}{pr}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
                   </Field>
                   <Field label="Channel">
                     <input type="text" className={inputCls} value={professional.channel} onChange={(e) => setProfessional((p) => ({ ...p, channel: e.target.value }))} />

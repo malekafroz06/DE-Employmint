@@ -1,12 +1,25 @@
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+import { FaLinkedin, FaWhatsapp } from "react-icons/fa";
+import { FiCopy, FiShare2 } from "react-icons/fi";
+import { toast } from "react-toastify";
 import { AppContext } from "../context/AppContext";
 
 const JobCard = ({ job }) => {
   const navigate = useNavigate();
   const { backendUrl } = useContext(AppContext);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const shareRef = useRef(null);
+
+  // Close the share menu when clicking anywhere else
+  useEffect(() => {
+    if (!shareOpen) return;
+    const close = (e) => { if (shareRef.current && !shareRef.current.contains(e.target)) setShareOpen(false); };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [shareOpen]);
 
   const levelMap = {
     "Beginner Level": "Fresher",
@@ -68,6 +81,69 @@ const JobCard = ({ job }) => {
   };
 
   const productTags = getProductTags();
+
+  // ── Share ─────────────────────────────────────────────────────────────────
+  const jobLink = `${window.location.origin}/job/${job._id}`;
+
+  // All job details as a ready-to-post message
+  const buildShareText = () => {
+    const description = stripHtmlTags(job.description).replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+    const lines = [
+      `🚀 We're Hiring: ${job.title || "Job Opening"}`,
+      "",
+      `🏢 Company: ${job.companyId?.name || "Company"}`,
+      `📍 Location: ${job.location || "Remote"}`,
+      job.salary && `💰 Salary: ${formatSalary(job.salary)}`,
+      `🎯 Experience: ${levelMap[job.level] || job.level || "Fresher"}`,
+      job.jobcategory && `📂 Category: ${job.jobcategory}`,
+      productTags.length > 0 && `📦 Product: ${productTags.join(", ")}`,
+      job.jobchannel && `🔗 Channel: ${job.jobchannel}`,
+      job.noticeperiod && `⏳ Notice Period: ${noticePeriodMap[job.noticeperiod] || job.noticeperiod}`,
+      description && description !== "No description provided" && "",
+      description && description !== "No description provided" &&
+        `📝 ${description.length > 400 ? `${description.slice(0, 400)}…` : description}`,
+      "",
+      `👉 Apply here: ${jobLink}`,
+      "",
+      "#hiring #jobs #BFSI #DEemploymint",
+    ];
+    return lines.filter((l) => l !== false && l !== null && l !== undefined).join("\n");
+  };
+
+  const copyToClipboard = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // Fallback for browsers / non-HTTPS pages without the Clipboard API
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand("copy");
+      ta.remove();
+      return ok;
+    }
+  };
+
+  const handleShareClick = async () => {
+    const ok = await copyToClipboard(buildShareText());
+    if (ok) toast.success("Job details copied! Choose where to share.");
+    else toast.error("Couldn't copy automatically — use the share buttons.");
+    setShareOpen(true);
+  };
+
+  const shareOn = (platform) => {
+    const text = buildShareText();
+    const url = platform === "linkedin"
+      // Opens the LinkedIn post composer with the job details already filled in
+      ? `https://www.linkedin.com/feed/?shareActive=true&text=${encodeURIComponent(text)}`
+      : `https://wa.me/?text=${encodeURIComponent(text)}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+    setShareOpen(false);
+  };
 
   return (
     <motion.div
@@ -181,18 +257,50 @@ const JobCard = ({ job }) => {
             </button>
           </div>
 
-          {/* Copy Link */}
-          <button
-            onClick={() => {
-              navigator.clipboard.writeText(
-                `${window.location.origin}/job/${job._id}`
-              );
-              alert("Job link copied!");
-            }}
-            className="w-full px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded shadow-sm hover:bg-gray-200 transition"
-          >
-            Copy Link to Social Media
-          </button>
+          {/* Copy job details + share to LinkedIn / WhatsApp */}
+          <div className="relative" ref={shareRef}>
+            <button
+              onClick={handleShareClick}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded shadow-sm hover:bg-gray-200 transition"
+            >
+              <FiShare2 size={14} /> Copy Link to Social Media
+            </button>
+
+            <AnimatePresence>
+              {shareOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute bottom-full left-0 right-0 mb-2 bg-white border border-gray-200 rounded-lg shadow-xl p-3 z-20"
+                >
+                  <p className="text-xs text-gray-500 mb-2">Job details copied. Share on:</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      onClick={() => shareOn("linkedin")}
+                      className="flex flex-col items-center gap-1 py-2 rounded-lg hover:bg-blue-50 text-[#0A66C2] text-xs font-medium transition"
+                    >
+                      <FaLinkedin size={22} /> LinkedIn
+                    </button>
+                    <button
+                      onClick={() => shareOn("whatsapp")}
+                      className="flex flex-col items-center gap-1 py-2 rounded-lg hover:bg-green-50 text-[#25D366] text-xs font-medium transition"
+                    >
+                      <FaWhatsapp size={22} /> WhatsApp
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (await copyToClipboard(buildShareText())) toast.success("Copied again");
+                        setShareOpen(false);
+                      }}
+                      className="flex flex-col items-center gap-1 py-2 rounded-lg hover:bg-gray-100 text-gray-600 text-xs font-medium transition"
+                    >
+                      <FiCopy size={20} /> Copy
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       </motion.div>
     </motion.div>

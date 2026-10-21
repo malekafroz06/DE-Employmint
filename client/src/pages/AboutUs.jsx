@@ -14,7 +14,7 @@ const AboutUs = () => {
         <div className="relative w-full" style={{ paddingBottom: "42%" }}>
           <img
             src={aboutImage}
-            alt="About DE Employmint"
+            alt="About DE employmint"
             className="absolute inset-0 w-full h-full object-cover object-center"
           />
         </div>
@@ -25,7 +25,7 @@ const AboutUs = () => {
         {/* Heading */}
         <div className="text-center mb-12">
           <h1 className="text-4xl sm:text-5xl font-bold mb-3" style={{ color: "#020330" }}>
-            About <span style={{ color: "#FF0000" }}>DE Employmint</span>
+            About <span style={{ color: "#FF0000" }}>DE employmint</span>
           </h1>
           <div className="mx-auto mt-4 h-1 w-20 rounded-full" style={{ backgroundColor: "#FF0000" }}></div>
         </div>
@@ -35,7 +35,7 @@ const AboutUs = () => {
 
           {/* Intro paragraph */}
           <p className="text-gray-700 text-lg leading-relaxed">
-            At <span className="font-semibold" style={{ color: "#020330" }}>DE Employmint</span>, we leverage years of expertise and experience in
+            At <span className="font-semibold" style={{ color: "#020330" }}>DE employmint</span>, we leverage years of expertise and experience in
             Insurance, Capital Market, Non-Banking Finance and Equity Research recruitment
             to empower staffing agencies, recruitment agencies, solo recruiters, freelance
             and SME to work smarter, close more placements, and scale their business.
@@ -76,7 +76,7 @@ const AboutUs = () => {
 
             <p className="relative z-10 text-base sm:text-lg leading-relaxed font-light">
               <span className="text-red-400 font-bold text-2xl">"</span>
-              <span className="font-semibold text-white">DE Employmint</span> introduces{" "}
+              <span className="font-semibold text-white">DE employmint</span> introduces{" "}
               <span className="text-yellow-300 font-semibold">India's first all-in-one recruitment ecosystem</span>{" "}
               for Insurance, Capital Market, Non-Banking Finance and Equity Research recruiters—including
               staffing agencies, recruitment agencies, solo recruiters, freelance and SME without a website.
@@ -85,7 +85,7 @@ const AboutUs = () => {
               automation, and performance analytics, while also helping recruiters build a professional
               digital presence and strengthen their personal or agency brand.
               <br /><br />
-              Backed by deep industry expertise, DE Employmint ecosystem empowers recruiters to maximize
+              Backed by deep industry expertise, DE employmint ecosystem empowers recruiters to maximize
               productivity, strengthen client relationships, and turn every mandate into measurable success.
               <span className="text-red-400 font-bold text-2xl">"</span>
             </p>

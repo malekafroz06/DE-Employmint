@@ -103,3 +103,12 @@
   .animate-gradient {
     animation: gradient 4s ease infinite;
   }
+/* Post Job → Job Description: make the whole box typeable, not just the first line */
+.job-description-editor .ql-toolbar {
+  border-radius: 0.5rem 0.5rem 0 0;
+}
+.job-description-editor .ql-editor {
+  min-height: 12rem;
+  cursor: text;
+  font-size: 0.9rem;
+}

@@ -17,6 +17,7 @@ import {
   FiChevronUp,
   FiFilter,
 } from "react-icons/fi";
+import * as XLSX from "xlsx";
 import { toast } from "react-toastify";
 import AssessmentPopup from "../components/AssessmentPopup";
 import CandidateDetailsModal from "../components/CandidateDetailsModal";
@@ -68,6 +69,43 @@ const noticePeriodToDays = (raw) => {
   const bare = Number(s.replace(/[^\d.]/g, ""));
   return Number.isFinite(bare) && bare > 0 ? bare : null;
 };
+
+// Age buckets for the Age filter (age is worked out from date of birth)
+const AgeBuckets = [
+  { label: "18 - 25 years", min: 18, max: 25 },
+  { label: "26 - 30 years", min: 26, max: 30 },
+  { label: "31 - 35 years", min: 31, max: 35 },
+  { label: "36 - 40 years", min: 36, max: 40 },
+  { label: "41 - 50 years", min: 41, max: 50 },
+  { label: "Above 50 years", min: 51, max: Infinity },
+];
+
+// "1992-02-15" → 34 (null when DOB is missing or invalid)
+const ageFromDob = (dob) => {
+  if (!dob || dob === "N/A") return null;
+  const d = new Date(dob);
+  if (Number.isNaN(d.getTime())) return null;
+  const now = new Date();
+  let age = now.getFullYear() - d.getFullYear();
+  if (now.getMonth() < d.getMonth() || (now.getMonth() === d.getMonth() && now.getDate() < d.getDate())) age--;
+  return age > 0 && age < 100 ? age : null;
+};
+
+// Deterministic avatar colour per candidate so the list is easy to scan
+const AvatarPalette = [
+  ["#020330", "#2b2f77"], ["#b91c1c", "#ef4444"], ["#0f766e", "#14b8a6"], ["#7c2d12", "#ea580c"],
+  ["#4c1d95", "#8b5cf6"], ["#1e3a8a", "#3b82f6"], ["#831843", "#ec4899"], ["#365314", "#65a30d"],
+];
+const avatarGradient = (name) => {
+  const hash = [...String(name || "?")].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7);
+  const [a, b] = AvatarPalette[hash % AvatarPalette.length];
+  return `linear-gradient(135deg, ${a}, ${b})`;
+};
+const initialsOf = (name) =>
+  String(name || "?").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("") || "?";
+
+// Table cell text — show a dash instead of "N/A"
+const cell = (v) => (v && v !== "N/A" ? v : "—");
 
 // Compact dropdown filter — a button that pops a checkbox list, so all
 // filters sit in one horizontal row instead of a sidebar.
@@ -155,6 +193,8 @@ const SearchResume = () => {
   const [selectedJobStatus, setSelectedJobStatus]   = useState([]);
   const [selectedNotice, setSelectedNotice]         = useState([]);
   const [selectedCtc, setSelectedCtc]               = useState([]);
+  const [selectedAge, setSelectedAge]               = useState([]);
+  const [selectedGender, setSelectedGender]         = useState([]);
   const [openDropdown, setOpenDropdown] = useState(null); // only one dropdown open at a time
   const toggleDropdown = (key) => setOpenDropdown((prev) => (prev === key ? null : key));
   const filterBarRef = useRef(null);
@@ -172,20 +212,23 @@ const SearchResume = () => {
   const uniqueSorted = (arr) => [...new Set(arr.filter((v) => v && v !== "N/A"))].sort();
   const categoryOptions    = uniqueSorted(combinedData.map((c) => c.category));
   const designationOptions = uniqueSorted(combinedData.map((c) => c.currentDesignation));
-  const productOptions     = uniqueSorted(combinedData.map((c) => c.product));
+  // A candidate can have several products saved as "Equity, MF" — list each one separately
+  const splitProducts = (v) => String(v || "").split(",").map((s) => s.trim()).filter(Boolean);
+  const productOptions     = uniqueSorted(combinedData.flatMap((c) => splitProducts(c.product)));
   const channelOptions     = uniqueSorted(combinedData.map((c) => c.channel));
   const locationOptions    = uniqueSorted(combinedData.map((c) => c.city));
   const jobStatusOptions   = uniqueSorted(combinedData.map((c) => c.jobChangeStatus));
+  const genderOptions      = uniqueSorted(["Male", "Female", ...combinedData.map((c) => c.gender)]);
 
   const hasActiveFilters =
     selectedCategory.length || selectedDesignation.length || selectedProduct.length ||
     selectedChannel.length || selectedLocation.length || selectedJobStatus.length ||
-    selectedNotice.length || selectedCtc.length;
+    selectedNotice.length || selectedCtc.length || selectedAge.length || selectedGender.length;
 
   const clearAllFilters = () => {
     setSelectedCategory([]); setSelectedDesignation([]); setSelectedProduct([]);
     setSelectedChannel([]); setSelectedLocation([]); setSelectedJobStatus([]);
-    setSelectedNotice([]); setSelectedCtc([]);
+    setSelectedNotice([]); setSelectedCtc([]); setSelectedAge([]); setSelectedGender([]);
   };
 
   useEffect(() => {
@@ -196,7 +239,7 @@ const SearchResume = () => {
     filterAndSortData();
   }, [combinedData, searchQuery, sortBy,
       selectedCategory, selectedDesignation, selectedProduct, selectedChannel,
-      selectedLocation, selectedJobStatus, selectedNotice, selectedCtc]);
+      selectedLocation, selectedJobStatus, selectedNotice, selectedCtc, selectedAge, selectedGender]);
 
   // Listen for assessment tab completion → mark candidate as accepted in UI immediately
  useEffect(() => {
@@ -323,6 +366,7 @@ const SearchResume = () => {
             channel:            cpPro.channel            || "N/A",
             currentDesignation: cpPro.currentDesignation || "N/A",
             currentDepartment:  cpPro.currentDepartment  || "N/A",
+            currentCompany:     cpPro.currentCompany     || "N/A",
             currentCTC:    cpPro.currentCTC    || "N/A",
             expectedCTC:   cpPro.expectedCTC   || "N/A",
             noticePeriod:  cpPro.noticePeriod  || "N/A",
@@ -370,7 +414,7 @@ const SearchResume = () => {
 
       const matchesCategory    = selectedCategory.length === 0    || selectedCategory.includes(item.category);
       const matchesDesignation = selectedDesignation.length === 0 || selectedDesignation.includes(item.currentDesignation);
-      const matchesProduct     = selectedProduct.length === 0     || selectedProduct.includes(item.product);
+      const matchesProduct     = selectedProduct.length === 0     || splitProducts(item.product).some((p) => selectedProduct.includes(p));
       const matchesChannel     = selectedChannel.length === 0     || selectedChannel.includes(item.channel);
       const matchesLocation    = selectedLocation.length === 0    || selectedLocation.includes(item.city);
       const matchesJobStatus   = selectedJobStatus.length === 0   || selectedJobStatus.includes(item.jobChangeStatus);
@@ -389,9 +433,17 @@ const SearchResume = () => {
         });
       })();
 
+      const matchesAge = selectedAge.length === 0 || (() => {
+        const age = ageFromDob(item.dob);
+        if (age === null) return false;
+        return AgeBuckets.some((b) => selectedAge.includes(b.label) && age >= b.min && age <= b.max);
+      })();
+
+      const matchesGender = selectedGender.length === 0 || selectedGender.includes(item.gender);
+
       return matchesSearch && matchesCategory && matchesDesignation &&
         matchesProduct && matchesChannel && matchesLocation && matchesJobStatus &&
-        matchesNotice && matchesCtc;
+        matchesNotice && matchesCtc && matchesAge && matchesGender;
     });
 
     filtered.sort((a, b) => {
@@ -665,6 +717,14 @@ const SearchResume = () => {
               title="Expected CTC" options={CtcRanges.map((r) => r.label)} selected={selectedCtc}
               onChange={setSelectedCtc} isOpen={openDropdown === "ctc"} onToggle={() => toggleDropdown("ctc")}
             />
+            <FilterDropdown
+              title="Age" options={AgeBuckets.map((b) => b.label)} selected={selectedAge}
+              onChange={setSelectedAge} isOpen={openDropdown === "age"} onToggle={() => toggleDropdown("age")}
+            />
+            <FilterDropdown
+              title="Gender" options={genderOptions} selected={selectedGender}
+              onChange={setSelectedGender} isOpen={openDropdown === "gender"} onToggle={() => toggleDropdown("gender")}
+            />
             {hasActiveFilters ? (
               <button onClick={clearAllFilters} className="text-sm text-red-600 hover:underline font-medium ml-1">Clear All</button>
             ) : null}
@@ -728,8 +788,8 @@ const SearchResume = () => {
             <div>
               <table className="w-full table-fixed">
                 <thead className="bg-gray-50">
-                  <tr>
-                    <th className="py-3 px-1.5 sm:px-2 text-center text-xs sm:text-sm font-medium text-gray-700 w-[3%]">
+                  <tr className="text-[11px] sm:text-xs uppercase tracking-wide text-gray-500">
+                    <th className="py-3 px-1.5 sm:px-2 text-center font-semibold w-[3%]">
                       <input
                         type="checkbox"
                         checked={selectAll}
@@ -737,17 +797,17 @@ const SearchResume = () => {
                         className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
                       />
                     </th>
-                    <th className="py-3 px-1.5 sm:px-2 text-left text-xs sm:text-sm font-medium text-gray-700 w-[4%]">No.</th>
-                    <th className="py-3 px-1.5 sm:px-2 text-left text-xs sm:text-sm font-medium text-gray-700 w-[14%]">Name</th>
-                    <th className="py-3 px-1.5 sm:px-2 text-left text-xs sm:text-sm font-medium text-gray-700 w-[9%]">Designation</th>
-                    <th className="py-3 px-1.5 sm:px-2 text-left text-xs sm:text-sm font-medium text-gray-700 w-[8%]">Department</th>
-                    <th className="py-3 px-1.5 sm:px-2 text-left text-xs sm:text-sm font-medium text-gray-700 w-[8%]">Category</th>
-                    <th className="py-3 px-1.5 sm:px-2 text-left text-xs sm:text-sm font-medium text-gray-700 w-[8%]">Product</th>
-                    <th className="py-3 px-1.5 sm:px-2 text-left text-xs sm:text-sm font-medium text-gray-700 w-[8%]">Channel</th>
-                    <th className="py-3 px-1.5 sm:px-2 text-left text-xs sm:text-sm font-medium text-gray-700 w-[7%]">Experience</th>
-                    <th className="py-3 px-1.5 sm:px-2 text-left text-xs sm:text-sm font-medium text-gray-700 w-[7%]">CTC</th>
-                    <th className="py-3 px-1.5 sm:px-2 text-left text-xs sm:text-sm font-medium text-gray-700 w-[8%]">Location</th>
-                    <th className="py-3 px-1.5 sm:px-2 text-center text-xs sm:text-sm font-medium text-gray-700 w-[16%]">Action</th>
+                    <th className="py-3 px-1.5 sm:px-2 text-left font-semibold w-[4%]">No.</th>
+                    <th className="py-3 px-1.5 sm:px-2 text-left font-semibold w-[15%]">Name</th>
+                    <th className="py-3 px-1.5 sm:px-2 text-left font-semibold w-[9%]">Designation</th>
+                    <th className="py-3 px-1.5 sm:px-2 text-left font-semibold w-[8%]">Department</th>
+                    <th className="py-3 px-1.5 sm:px-2 text-left font-semibold w-[8%]">Category</th>
+                    <th className="py-3 px-1.5 sm:px-2 text-left font-semibold w-[8%]">Product</th>
+                    <th className="py-3 px-1.5 sm:px-2 text-left font-semibold w-[8%]">Channel</th>
+                    <th className="py-3 px-1.5 sm:px-2 text-left font-semibold w-[7%]">Experience</th>
+                    <th className="py-3 px-1.5 sm:px-2 text-left font-semibold w-[6%]">CTC</th>
+                    <th className="py-3 px-1.5 sm:px-2 text-left font-semibold w-[8%]">Location</th>
+                    <th className="py-3 px-1.5 sm:px-2 text-center font-semibold w-[16%]">Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -757,10 +817,12 @@ const SearchResume = () => {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.3, delay: Math.min(index, 20) * 0.03 }}
-                      className="border-b border-gray-200 hover:bg-gray-50 transition-colors"
+                      className={`border-t border-gray-100 transition-colors ${
+                        selectedCandidates.includes(candidate._id) ? "bg-red-50/40" : "hover:bg-gray-50"
+                      }`}
                     >
                       {/* Checkbox */}
-                      <td className="py-3 sm:py-4 px-1.5 sm:px-2 text-center">
+                      <td className="py-4 px-1.5 sm:px-2 text-center">
                         <input
                           type="checkbox"
                           checked={selectedCandidates.includes(candidate._id)}
@@ -770,70 +832,93 @@ const SearchResume = () => {
                       </td>
 
                       {/* Sr. No. */}
-                      <td className="py-3 sm:py-4 px-1.5 sm:px-2 text-sm font-medium text-gray-700">
+                      <td className="py-4 px-1.5 sm:px-2 text-sm font-medium text-gray-500">
                         {index + 1}
                       </td>
 
                       {/* Name */}
-                      <td className="py-3 sm:py-4 px-1.5 sm:px-2">
-                        <div className="flex items-center gap-1.5 sm:gap-2">
+                      <td className="py-4 px-1.5 sm:px-2">
+                        <button
+                          onClick={() => { setSelectedCandidate(candidate); setShowDetailModal(true); }}
+                          className="flex items-center gap-2 sm:gap-2.5 text-left w-full min-w-0 group"
+                        >
                           <div
-                            className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-white font-bold text-xs sm:text-sm flex-shrink-0"
-                            style={{ backgroundColor: '#020330' }}
+                            className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg flex items-center justify-center text-white font-bold text-[11px] sm:text-xs flex-shrink-0 shadow-sm"
+                            style={{ background: avatarGradient(candidate.candidateName) }}
                           >
-                            {candidate.candidateName.charAt(0).toUpperCase()}
+                            {initialsOf(candidate.candidateName)}
                           </div>
                           <div className="min-w-0">
-                            <p className="font-medium text-gray-900 text-xs sm:text-sm line-clamp-2 break-words">
+                            <p className="font-semibold text-gray-900 text-xs sm:text-sm truncate group-hover:text-red-600 transition-colors">
                               {candidate.candidateName}
                             </p>
+                            <p className="text-[11px] sm:text-xs text-gray-500 truncate">
+                              {cell(candidate.currentCompany)}
+                            </p>
                           </div>
-                        </div>
+                        </button>
                       </td>
 
                       {/* Designation */}
-                      <td className="py-3 sm:py-4 px-1.5 sm:px-2 text-xs sm:text-sm text-gray-600">
-                        <span className="line-clamp-2 break-words">{candidate.currentDesignation || '—'}</span>
+                      <td className="py-4 px-1.5 sm:px-2 text-xs sm:text-sm text-gray-700">
+                        <span className="line-clamp-2 break-words">{cell(candidate.currentDesignation)}</span>
                       </td>
 
                       {/* Department */}
-                      <td className="py-3 sm:py-4 px-1.5 sm:px-2 text-xs sm:text-sm text-gray-600">
-                        <span className="line-clamp-2 break-words">{candidate.currentDepartment || '—'}</span>
+                      <td className="py-4 px-1.5 sm:px-2 text-xs sm:text-sm text-gray-700">
+                        <span className="line-clamp-2 break-words">{cell(candidate.currentDepartment)}</span>
                       </td>
 
                       {/* Category */}
-                      <td className="py-3 sm:py-4 px-1.5 sm:px-2 text-xs sm:text-sm text-gray-600">
-                        <span className="line-clamp-2 break-words">{candidate.category || '—'}</span>
+                      <td className="py-4 px-1.5 sm:px-2 text-xs sm:text-sm text-gray-700">
+                        <span className="line-clamp-2 break-words">{cell(candidate.category)}</span>
                       </td>
 
                       {/* Product */}
-                      <td className="py-3 sm:py-4 px-1.5 sm:px-2 text-xs sm:text-sm text-gray-600">
-                        <span className="line-clamp-2 break-words">{candidate.product || '—'}</span>
+                      <td className="py-4 px-1.5 sm:px-2 text-xs sm:text-sm">
+                        <span className={`line-clamp-2 break-words ${candidate.product && candidate.product !== "N/A" ? "text-red-600 font-medium" : "text-gray-700"}`}>
+                          {cell(candidate.product)}
+                        </span>
                       </td>
 
                       {/* Channel */}
-                      <td className="py-3 sm:py-4 px-1.5 sm:px-2 text-xs sm:text-sm text-gray-600">
-                        <span className="line-clamp-2 break-words">{candidate.channel || '—'}</span>
+                      <td className="py-4 px-1.5 sm:px-2 text-xs sm:text-sm text-gray-700">
+                        <span className="line-clamp-2 break-words">{cell(candidate.channel)}</span>
                       </td>
 
                       {/* Experience */}
-                      <td className="py-3 sm:py-4 px-1.5 sm:px-2 text-xs sm:text-sm text-gray-600">
-                        <span className="line-clamp-2 break-words">{candidate.totalExperience || '—'}</span>
+                      <td className="py-4 px-1.5 sm:px-2 text-xs sm:text-sm text-gray-700">
+                        <span className="line-clamp-2 break-words">{cell(candidate.totalExperience)}</span>
                       </td>
 
                       {/* CTC */}
-                      <td className="py-3 sm:py-4 px-1.5 sm:px-2 text-xs sm:text-sm text-gray-600">
-                        <span className="line-clamp-2 break-words">{candidate.currentCTC || '—'}</span>
+                      <td className="py-4 px-1.5 sm:px-2 text-xs sm:text-sm text-gray-700">
+                        <span className="line-clamp-2 break-words">{cell(candidate.currentCTC)}</span>
                       </td>
 
                       {/* Location */}
-                      <td className="py-3 sm:py-4 px-1.5 sm:px-2 text-xs sm:text-sm text-gray-600">
-                        <span className="line-clamp-2 break-words">{candidate.city || '—'}</span>
+                      <td className="py-4 px-1.5 sm:px-2 text-xs sm:text-sm text-gray-700">
+                        <span className="line-clamp-2 break-words">{cell(candidate.city)}</span>
                       </td>
 
                       {/* ── ACTION ── */}
-                      <td className="py-3 sm:py-4 px-1.5 sm:px-2">
-                        <div className="flex items-center flex-wrap gap-1">
+                      <td className="py-4 px-1.5 sm:px-2">
+                        <div className="flex items-center justify-end flex-wrap gap-0.5">
+
+                          {/* Status pill */}
+                          {candidate.rejected ? (
+                            <span className="mr-1 text-[11px] font-semibold text-red-600 bg-red-50 px-2 py-0.5 rounded-full border border-red-200">
+                              Rejected
+                            </span>
+                          ) : candidate.accepted ? (
+                            <span className="mr-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                              Accepted
+                            </span>
+                          ) : (
+                            <span className="mr-1 text-[11px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                              Pending
+                            </span>
+                          )}
 
                           {/* Edit — always visible */}
                           <button
@@ -844,18 +929,6 @@ const SearchResume = () => {
                             <FiEdit2 size={16} />
                           </button>
 
-                          {/* Status badge */}
-                          {candidate.rejected && (
-                            <span className="text-xs font-semibold text-red-500 bg-red-50 px-2 py-1 rounded-full border border-red-200">
-                              Rejected
-                            </span>
-                          )}
-                          {candidate.accepted && (
-                            <span className="text-xs font-semibold text-green-600 bg-green-50 px-2 py-1 rounded-full border border-green-200">
-                              Accepted
-                            </span>
-                          )}
-
                           {/* View Assessment — only when accepted */}
                           {candidate.accepted && (
                             <AssessmentPopup candidate={candidate} />
@@ -865,7 +938,7 @@ const SearchResume = () => {
                           {!candidate.rejected && !candidate.accepted && (
                             <button
                               onClick={() => downloadResume(candidate.resumeFile)}
-                              className="p-1.5 sm:p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                              className="p-1.5 sm:p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
                               title="Download CV"
                             >
                               <FiDownload size={16} />
