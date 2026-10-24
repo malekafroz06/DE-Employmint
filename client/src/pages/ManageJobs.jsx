@@ -394,7 +394,27 @@ const ManageJobs = () => {
                       </div>
                     </td>
                     <td className="py-4 px-6">
-                      <div className="flex justify-center">
+                      <div className="flex justify-center gap-1">
+                        <button
+                          onClick={() => navigate(`/dashboard/edit-job/${job._id}`)}
+                          className="p-2 rounded-lg hover:bg-blue-50 transition-colors group"
+                          title="Edit Job"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-5 w-5 text-gray-400 group-hover:text-blue-600 transition-colors"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                            />
+                          </svg>
+                        </button>
                         <button
                           onClick={() => setDeleteConfirm(job)}
                           className="p-2 rounded-lg hover:bg-red-50 transition-colors group"

@@ -51,6 +51,27 @@ const JobCard = ({ job }) => {
     return dir ? `${backendUrl}/${dir}/${filename}` : `${backendUrl}/${filename}`;
   };
 
+  // "5 minutes ago", "1 hour ago", "20 days ago" ...
+  const getPostedAgo = () => {
+    const posted = new Date(job.date || job.postedAt || job.createdAt).getTime();
+    if (!posted) return null;
+    const seconds = Math.max(0, Math.floor((Date.now() - posted) / 1000));
+    const units = [
+      ["year", 31536000],
+      ["month", 2592000],
+      ["day", 86400],
+      ["hour", 3600],
+      ["minute", 60],
+    ];
+    for (const [unit, secs] of units) {
+      const n = Math.floor(seconds / secs);
+      if (n >= 1) return `${n} ${unit}${n > 1 ? "s" : ""} ago`;
+    }
+    return "Just now";
+  };
+
+  const postedAgo = getPostedAgo();
+
   const stripHtmlTags = (html) => {
     return html ? html.replace(/<[^>]*>?/gm, "") : "No description provided";
   };
@@ -170,18 +191,23 @@ const JobCard = ({ job }) => {
                   {job.companyId?.name || "Company"} - {job.location || "Remote"}
                 </p>
               </div>
-              <div
-                className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold shadow-sm flex-shrink-0 overflow-hidden relative"
-                style={{ backgroundColor: "#ff6666" }}
-              >
-                <span>{getCompanyInitials(job.companyId?.name)}</span>
-                {getCompanyLogoUrl() && (
-                  <img
-                    src={getCompanyLogoUrl()}
-                    alt={job.companyId?.name || "Company"}
-                    className="absolute inset-0 w-full h-full object-cover"
-                    onError={(e) => { e.target.style.display = "none"; }}
-                  />
+              <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                <div
+                  className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold shadow-sm flex-shrink-0 overflow-hidden relative"
+                  style={{ backgroundColor: "#ff6666" }}
+                >
+                  <span>{getCompanyInitials(job.companyId?.name)}</span>
+                  {getCompanyLogoUrl() && (
+                    <img
+                      src={getCompanyLogoUrl()}
+                      alt={job.companyId?.name || "Company"}
+                      className="absolute inset-0 w-full h-full object-cover"
+                      onError={(e) => { e.target.style.display = "none"; }}
+                    />
+                  )}
+                </div>
+                {postedAgo && (
+                  <span className="text-[11px] text-gray-500 whitespace-nowrap">{postedAgo}</span>
                 )}
               </div>
             </div>

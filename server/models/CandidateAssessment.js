@@ -18,7 +18,19 @@ const candidateAssessmentSchema = new mongoose.Schema({
     required: false,
     trim: true
   },
-  
+
+  // Employer the candidate is being referred to, and the date of referral (YYYY-MM-DD)
+  employerName: {
+    type: String,
+    trim: true,
+    default: ''
+  },
+  referredDate: {
+    type: String,
+    trim: true,
+    default: ''
+  },
+
   // Step 1: Consultancy Questions
   consultancy: {
     type: String,

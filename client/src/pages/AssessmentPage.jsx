@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import {
-  Check, User, Mail, Phone, Building, Users, Target,
+  Check, User, Mail, Phone, Building, Building2, Calendar, Users, Target,
   ChevronLeft, ChevronRight, Shield, Clock, MessageSquare,
 } from "lucide-react";
 
@@ -61,6 +61,8 @@ export default function AssessmentPage() {
   const [candidateName,  setCandidateName]  = useState(name);
   const [candidateEmail, setCandidateEmail] = useState(email);
   const [candidatePhone, setCandidatePhone] = useState(phone);
+  const [employerName,   setEmployerName]   = useState("");
+  const [referredDate,   setReferredDate]   = useState("");
 
   const [remarks,      setRemarks]      = useState({ consultancy: "", hr: "", management: "" });
   const [savedRemarks, setSavedRemarks] = useState([]);
@@ -90,6 +92,8 @@ export default function AssessmentPage() {
           setCandidateName(a.candidateName  || name);
           setCandidateEmail(a.candidateEmail || email);
           setCandidatePhone(a.candidatePhone || phone);
+          setEmployerName(a.employerName || "");
+          setReferredDate(a.referredDate || "");
           setSavedRemarks(Array.isArray(a.remarks) ? a.remarks : []);
           setIsExisting(true);
           setLastUpdated(a.lastUpdated || a.submittedAt);
@@ -114,6 +118,8 @@ export default function AssessmentPage() {
       candidateName,
       candidateEmail,
       candidatePhone,
+      employerName,
+      referredDate,
       remarkEntry: { role: roleKey, text },
       assessmentStatus: "completed",
     };
@@ -157,12 +163,21 @@ const handleFinalSubmit = async () => {
 
     let finalRemarks = savedRemarks; // ← start with current state
 
-    if (textToSubmit) {
+    if (!textToSubmit && !alreadySaved) {
+      alert("Please enter Manager Remarks before submitting.");
+      return;
+    }
+
+    // Always save once more so For Employer / Referred Date are stored even
+    // when the manager remark was already submitted earlier
+    {
       const payload = {
         candidateName,
         candidateEmail,
         candidatePhone,
-        remarkEntry: { role: roleKey, text: textToSubmit },
+        employerName,
+        referredDate,
+        ...(textToSubmit ? { remarkEntry: { role: roleKey, text: textToSubmit } } : {}),
         assessmentStatus: "completed",
       };
 
@@ -181,7 +196,7 @@ const handleFinalSubmit = async () => {
       if (result.data?.remarks) {
         finalRemarks = result.data.remarks;
         setSavedRemarks(finalRemarks);
-      } else {
+      } else if (textToSubmit) {
         const filtered = savedRemarks.filter((r) => r.role !== roleKey);
         finalRemarks = [
           ...filtered,
@@ -189,12 +204,7 @@ const handleFinalSubmit = async () => {
         ];
         setSavedRemarks(finalRemarks);
       }
-
-    } else if (!alreadySaved) {
-      alert("Please enter Manager Remarks before submitting.");
-      return;
     }
-    // else: already saved, finalRemarks = savedRemarks which already has it
 
     if (applicationId && companyToken) {
       try {
@@ -205,6 +215,8 @@ const handleFinalSubmit = async () => {
               candidateName,
               candidateEmail,
               candidatePhone,
+              employerName,
+              referredDate,
               remarks: finalRemarks, // ✅ was `savedRemarks` — now uses fresh copy
               submittedAt: new Date().toISOString(),
             },
@@ -285,7 +297,7 @@ const handleFinalSubmit = async () => {
   // ─── Main page ───────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-5xl mx-auto">
 
         {/* Header */}
         <div className="mb-6">
@@ -355,7 +367,7 @@ const handleFinalSubmit = async () => {
           </div>
 
           {/* ── Body ── */}
-          <div className="p-5 min-h-[320px]">
+          <div className="p-6 sm:p-8 min-h-[480px]">
             {loading ? (
               <div className="flex items-center justify-center py-16">
                 <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-red-500" />
@@ -405,6 +417,32 @@ const handleFinalSubmit = async () => {
                           <div className="flex items-center gap-2 text-sm text-gray-700">
                             <Phone size={14} className="text-gray-400 flex-shrink-0" />
                             <span>{candidatePhone || "—"}</span>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                          <div>
+                            <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 mb-1">
+                              <Building2 size={13} className="text-gray-400" /> For Employer
+                            </label>
+                            <input
+                              type="text"
+                              value={employerName}
+                              onChange={(e) => setEmployerName(e.target.value)}
+                              placeholder="Employer / company name"
+                              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 mb-1">
+                              <Calendar size={13} className="text-gray-400" /> Referred Date
+                            </label>
+                            <input
+                              type="date"
+                              value={referredDate}
+                              onChange={(e) => setReferredDate(e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
+                            />
                           </div>
                         </div>
                       </div>
@@ -534,7 +572,7 @@ const handleFinalSubmit = async () => {
                               onChange={(e) =>
                                 setRemarks((prev) => ({ ...prev, [stepKey]: e.target.value }))
                               }
-                              rows={6}
+                              rows={10}
                               placeholder={`Enter ${stepObj.title.toLowerCase()} here...`}
                               className="w-full px-4 py-3 border border-gray-200 rounded-lg resize-none text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
                             />

@@ -3,10 +3,11 @@ import JobApplication from "../models/JobApplication.js";
 import EmployerProfile from "../models/EmployerProfile.js";
 import { freshJobFilter, jobFreshnessCutoff } from "../utils/jobExpiry.js";
 
-// Helper: merge EmployerProfile logo/location into jobs
+// Helper: merge EmployerProfile logo/location/contact person into jobs
 const mergeLogos = async (jobs) => {
     const companyIds = [...new Set(jobs.map(j => j.companyId?._id?.toString()).filter(Boolean))];
-    const profiles = await EmployerProfile.find({ companyId: { $in: companyIds } }).select('companyId logo location');
+    const profiles = await EmployerProfile.find({ companyId: { $in: companyIds } })
+        .select('companyId logo location contactPersonName contactPersonDesignation');
     const profileMap = {};
     profiles.forEach(p => { profileMap[p.companyId.toString()] = p; });
 
@@ -16,6 +17,8 @@ const mergeLogos = async (jobs) => {
             const profile = profileMap[obj.companyId._id?.toString()];
             obj.companyId.image = profile?.logo || obj.companyId.image || '';
             obj.companyId.location = profile?.location || '';
+            obj.companyId.contactPersonName = profile?.contactPersonName || '';
+            obj.companyId.contactPersonDesignation = profile?.contactPersonDesignation || '';
         }
         return obj;
     });

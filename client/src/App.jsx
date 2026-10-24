@@ -182,6 +182,18 @@ const App = () => {
             } 
           />
           
+          {/* Edit Job - same form as Add Job, prefilled (key forces a fresh form vs. add-job) */}
+          <Route
+            path="edit-job/:id"
+            element={
+              <DemoFriendlyRecruiterRoute>
+                <PermissionProtectedRoute permission="canPostJobs">
+                  <AddJob key="edit-job" />
+                </PermissionProtectedRoute>
+              </DemoFriendlyRecruiterRoute>
+            }
+          />
+
           {/* ✅ FIXED: Manage Jobs - Permission-based (canPostJobs) */}
           <Route 
             path="manage-job" 

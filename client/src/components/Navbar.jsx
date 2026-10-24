@@ -166,9 +166,14 @@ const Navbar = () => {
               alt="DEEmploymint"
               className="h-8 sm:h-9 lg:h-10 w-auto object-contain transition-transform duration-300 group-hover:scale-105"
             />
-            <span className="text-lg sm:text-xl lg:text-2xl font-bold whitespace-nowrap" style={{ color: "#020330" }}>
-              DE employmint
-            </span>
+            <div className="flex flex-col leading-tight">
+              <span className="text-lg sm:text-xl lg:text-2xl font-bold whitespace-nowrap" style={{ color: "#020330" }}>
+                DE employmint
+              </span>
+              <span className="text-[9px] sm:text-[10px] lg:text-xs font-medium text-gray-500 whitespace-nowrap tracking-wide">
+                Infinite Opportunity • Infinite Talent
+              </span>
+            </div>
           </div>
 
           {/* Desktop Navigation - Hidden below 1280px so items never get cramped */}

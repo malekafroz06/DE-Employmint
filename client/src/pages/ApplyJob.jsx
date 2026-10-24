@@ -13,7 +13,7 @@ import { toast } from "react-toastify";
 import { useAuth, useClerk } from "@clerk/clerk-react";
 import Calltoaction from "../components/Calltoaction";
 import { motion } from "framer-motion";
-import { FiMapPin, FiBriefcase, FiClock, FiCheckCircle, FiExternalLink, FiMail, FiPhone } from "react-icons/fi";
+import { FiMapPin, FiBriefcase, FiClock, FiCheckCircle, FiExternalLink, FiMail, FiPhone, FiUser } from "react-icons/fi";
 import { TbCurrencyRupee } from "react-icons/tb";
 
 // Company Logo Component with loading state and fallback
@@ -568,6 +568,23 @@ const ApplyJob = () => {
                   </p>
 
                   <div className="space-y-3 mb-4 pb-4 border-b border-gray-100">
+                    {jobData?.companyId?.contactPersonName && (
+                      <div className="flex items-start gap-2 text-sm text-gray-700">
+                        <FiUser className="flex-shrink-0 mt-0.5" style={{ color: '#FF0000' }} />
+                        <span>
+                          <span className="font-medium">{jobData.companyId.contactPersonName}</span>
+                          {jobData.companyId.contactPersonDesignation && (
+                            <span className="text-gray-500"> · {jobData.companyId.contactPersonDesignation}</span>
+                          )}
+                        </span>
+                      </div>
+                    )}
+                    {!jobData?.companyId?.contactPersonName && jobData?.companyId?.contactPersonDesignation && (
+                      <div className="flex items-center gap-2 text-sm text-gray-700">
+                        <FiBriefcase className="flex-shrink-0" style={{ color: '#FF0000' }} />
+                        <span>{jobData.companyId.contactPersonDesignation}</span>
+                      </div>
+                    )}
                     {jobData?.companyId?.email && (
                       <div className="flex items-center gap-2 text-sm text-gray-700">
                         <FiMail className="flex-shrink-0" style={{ color: '#FF0000' }} />

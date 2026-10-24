@@ -60,6 +60,8 @@ router.post('/assessment', async (req, res) => {
       candidateName,
       candidateEmail,
       candidatePhone,
+      employerName,
+      referredDate,
       remarkEntry,
       // Legacy step data (kept for backward compatibility)
       consultancy,
@@ -132,6 +134,8 @@ router.post('/assessment', async (req, res) => {
         lastUpdated: currentDate,
         lastContactedDate: currentDate
       };
+      if (employerName !== undefined) updateData.employerName = String(employerName).trim();
+      if (referredDate !== undefined) updateData.referredDate = String(referredDate).trim();
 
       // Handle remark entry: replace existing remark for same role or push new
       let updatedAssessment;
@@ -165,9 +169,11 @@ router.post('/assessment', async (req, res) => {
       data: {
         id: updatedAssessment._id,
         candidateName: updatedAssessment.candidateName,
+        employerName: updatedAssessment.employerName,
+        referredDate: updatedAssessment.referredDate,
         lastUpdated: updatedAssessment.lastUpdated,
         lastContactedDate: updatedAssessment.lastContactedDate,
-        remarks: updatedAssessment.remarks 
+        remarks: updatedAssessment.remarks
       }
     });
     }
@@ -183,6 +189,8 @@ router.post('/assessment', async (req, res) => {
       candidateName: candidateName.trim(),
       candidateEmail: candidateEmail ? candidateEmail.toLowerCase().trim() : undefined,
       candidatePhone: candidatePhone ? candidatePhone.trim() : undefined,
+      employerName: employerName ? String(employerName).trim() : '',
+      referredDate: referredDate ? String(referredDate).trim() : '',
       remarks: remarksArray,
       consultancy,
       financialStatus,
@@ -441,6 +449,8 @@ router.get('/assessment/:id/download', async (req, res) => {
       'Candidate Name',
       'Email',
       'Phone',
+      'For Employer',
+      'Referred Date',
       'Last Contacted',
       'Consultancy',
       'Financial Status',
@@ -481,6 +491,8 @@ router.get('/assessment/:id/download', async (req, res) => {
       `"${assessment.candidateName || ''}"`,
       `"${assessment.candidateEmail || ''}"`,
       `"${assessment.candidatePhone || ''}"`,
+      `"${assessment.employerName || ''}"`,
+      `"${assessment.referredDate || ''}"`,
       `"${formatDate(assessment.lastContactedDate || assessment.lastUpdated || assessment.submittedAt)}"`,
       `"${assessment.consultancy || ''}"`,
       `"${assessment.financialStatus || ''}"`,

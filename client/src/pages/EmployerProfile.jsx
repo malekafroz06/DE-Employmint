@@ -13,7 +13,8 @@ import {
   FiSave,
   FiX,
   FiCamera,
-  FiUpload
+  FiUpload,
+  FiBriefcase
 } from 'react-icons/fi';
 
 const EmployerProfile = () => {
@@ -37,6 +38,8 @@ const EmployerProfile = () => {
     location: '',
     website: '',
     companySize: '',
+    contactPersonName: '',
+    contactPersonDesignation: '',
     description: '',
     logo: '' // Add logo field
   });
@@ -80,10 +83,12 @@ const EmployerProfile = () => {
         location: companyData.location || '',
         website: companyData.website || '',
         companySize: companyData.companySize || '',
+        contactPersonName: companyData.contactPersonName || '',
+        contactPersonDesignation: companyData.contactPersonDesignation || '',
         description: companyData.description || '',
         logo: companyData.logo || ''
       };
-      
+
       setFormData(newFormData);
       
       // Set logo preview with URL encoding for spaces
@@ -207,6 +212,8 @@ const EmployerProfile = () => {
     profileData.append('location', formData.location.trim());
     profileData.append('website', formData.website.trim());
     profileData.append('companySize', formData.companySize.trim());
+    profileData.append('contactPersonName', formData.contactPersonName.trim());
+    profileData.append('contactPersonDesignation', formData.contactPersonDesignation.trim());
     profileData.append('description', formData.description.trim());
     
     // Add logo if a new file was selected
@@ -244,6 +251,8 @@ const EmployerProfile = () => {
         location: companyData.location || '',
         website: companyData.website || '',
         companySize: companyData.companySize || '',
+        contactPersonName: companyData.contactPersonName || '',
+        contactPersonDesignation: companyData.contactPersonDesignation || '',
         description: companyData.description || '',
         logo: companyData.logo || ''
       };
@@ -277,6 +286,8 @@ const EmployerProfile = () => {
       location: 'Enter location',
       website: 'Enter website',
       companySize: 'e.g., 1-10, 50-100, 200+',
+      contactPersonName: 'Enter contact person name',
+      contactPersonDesignation: 'e.g., HR Manager, Talent Acquisition Head',
       description: 'Tell us about your company...'
     };
     return placeholders[field] || `Enter ${field}`;
@@ -570,6 +581,46 @@ const EmployerProfile = () => {
             />
           ) : (
             <p className="text-gray-800 font-medium">{getDisplayValue('companySize')}</p>
+          )}
+        </div>
+
+        {/* Contact Person Name */}
+        <div className="bg-white/50 backdrop-blur-sm rounded-xl p-4 border border-white/30">
+          <div className="flex items-center gap-3 mb-2">
+            <FiUser className="text-red-500 text-lg" />
+            <label className="text-sm font-semibold text-gray-700">Contact Person Name</label>
+          </div>
+          {isEditing ? (
+            <input
+              type="text"
+              value={formData.contactPersonName}
+              onChange={(e) => handleInputChange('contactPersonName', e.target.value)}
+              disabled={!companyToken}
+              className="w-full p-2 rounded-lg border border-gray-300 bg-white text-gray-800 focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none disabled:opacity-50"
+              placeholder={getPlaceholder('contactPersonName')}
+            />
+          ) : (
+            <p className="text-gray-800 font-medium">{getDisplayValue('contactPersonName')}</p>
+          )}
+        </div>
+
+        {/* Contact Person Designation */}
+        <div className="bg-white/50 backdrop-blur-sm rounded-xl p-4 border border-white/30">
+          <div className="flex items-center gap-3 mb-2">
+            <FiBriefcase className="text-red-500 text-lg" />
+            <label className="text-sm font-semibold text-gray-700">Designation</label>
+          </div>
+          {isEditing ? (
+            <input
+              type="text"
+              value={formData.contactPersonDesignation}
+              onChange={(e) => handleInputChange('contactPersonDesignation', e.target.value)}
+              disabled={!companyToken}
+              className="w-full p-2 rounded-lg border border-gray-300 bg-white text-gray-800 focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none disabled:opacity-50"
+              placeholder={getPlaceholder('contactPersonDesignation')}
+            />
+          ) : (
+            <p className="text-gray-800 font-medium">{getDisplayValue('contactPersonDesignation')}</p>
           )}
         </div>
       </div>

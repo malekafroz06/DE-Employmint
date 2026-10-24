@@ -6,6 +6,8 @@ import {
   getCompanyJobApplicants,
   getCompanyPostedJobs,
   postJob,
+  getCompanyJob,
+  updateJob,
   registerCompany,
   sendResetCode,
   verifyResetCode,
@@ -182,6 +184,8 @@ router.get("/candidate-insights", companyAuthMiddleware, getCandidateInsights);
 
 // ✅ MAIN RECRUITER ONLY - Block Sub-Users
 router.post("/post-job", companyAuthMiddleware, requirePostJobPermission, postJob);
+router.get("/job/:id", companyAuthMiddleware, requirePostJobPermission, getCompanyJob);
+router.put("/job/:id", companyAuthMiddleware, requirePostJobPermission, updateJob);
 router.get("/list-jobs", companyAuthMiddleware, blockSubUsers, getCompanyPostedJobs);
 router.post("/change-visibility", companyAuthMiddleware, blockSubUsers, changeVisiblity);
 

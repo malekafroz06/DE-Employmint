@@ -25,7 +25,19 @@ const employerProfileSchema = new mongoose.Schema({
         trim: true,
         maxlength: [50, 'Company size cannot exceed 50 characters']
     },
-    description: { 
+    contactPersonName: {
+        type: String,
+        trim: true,
+        default: '',
+        maxlength: [100, 'Contact person name cannot exceed 100 characters']
+    },
+    contactPersonDesignation: {
+        type: String,
+        trim: true,
+        default: '',
+        maxlength: [100, 'Designation cannot exceed 100 characters']
+    },
+    description: {
         type: String,
         trim: true,
         maxlength: [2000, 'Description cannot exceed 2000 characters']

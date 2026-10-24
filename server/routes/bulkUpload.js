@@ -567,6 +567,42 @@ const pickFields = (source = {}, allowed) => {
   return out;
 };
 
+// PATCH /candidate/:id/info — save the Candidate Information tab (name, email, phone)
+router.patch('/candidate/:id/info', verifyCompanyToken, requireBulkUploadPermission, async (req, res) => {
+  try {
+    const name = String(req.body.name ?? '').trim();
+    const email = String(req.body.email ?? '').trim();
+    const phone = String(req.body.phone ?? '').trim();
+
+    if (!name) return res.status(400).json({ success: false, message: "Full name is required" });
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ success: false, message: "Please enter a valid email" });
+    }
+
+    const updated = await Resume.findOneAndUpdate(
+      { _id: req.params.id, ...companyIdQuery(req.companyId) },
+      {
+        $set: {
+          'parsedData.name': name,
+          'parsedData.email': email,
+          'parsedData.phone': phone,
+          'candidateProfile.lastVerified': new Date(),
+        },
+      },
+      { new: true }
+    );
+    if (!updated) return res.status(404).json({ success: false, message: "Candidate not found" });
+    res.json({
+      success: true,
+      message: "Candidate information updated",
+      data: { parsedData: updated.parsedData, candidateProfile: updated.candidateProfile },
+    });
+  } catch (error) {
+    console.error('Update candidate info error:', error);
+    res.status(500).json({ success: false, message: "Internal server error: " + error.message });
+  }
+});
+
 // PATCH /candidate/:id/personal — save the Personal Information tab
 router.patch('/candidate/:id/personal', verifyCompanyToken, requireBulkUploadPermission, async (req, res) => {
   try {
@@ -749,6 +785,9 @@ router.post('/candidate/:id/resume', verifyCompanyToken, requireBulkUploadPermis
       try {
         const extractedText = await ResumeProcessor.extractTextFromFile(req.file.path, ext);
         const { parsedData, candidateProfile } = ResumeProcessor.parseResumeProfile(extractedText);
+        // Keep name / email / phone already on record (possibly recruiter-edited); the new CV only fills blanks
+        const prev = existing.parsedData || {};
+        ['name', 'email', 'phone'].forEach((k) => { if (parsedData && prev[k]) parsedData[k] = prev[k]; });
         parsedOps = { extractedText, parsedData, ...buildProfileFillOps(existing.candidateProfile, candidateProfile) };
       } catch (parseError) {
         console.error('Error parsing replaced CV:', req.file.originalname, parseError);

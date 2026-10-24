@@ -80,7 +80,8 @@ const Dashboard = () => {
   // ✅ FIXED: Block unauthorized routes but allow permitted routes
   useEffect(() => {
     if (isSubUser && location.pathname !== '/dashboard') {
-      const currentPath = location.pathname.split('/').pop();
+      // First segment after /dashboard (so /dashboard/edit-job/:id checks "edit-job")
+      const currentPath = location.pathname.split('/')[2];
       
       // Check if current path is in their allowed nav items
       const hasAccess = navItems.some(item => item.path === currentPath);
@@ -226,7 +227,7 @@ const Dashboard = () => {
                 />
                 <div className="min-w-0">
                   <p className="text-gray-900 font-bold text-sm sm:text-base leading-tight truncate">DE employmint</p>
-                  <p className="text-[10px] sm:text-[11px] text-gray-400 tracking-wide truncate">BFSI Talent Pipeline</p>
+                  <p className="text-[10px] sm:text-[11px] font-medium text-gray-600 tracking-wide truncate">BFSI Talent Pipeline</p>
                 </div>
               </div>
 

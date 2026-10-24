@@ -631,6 +631,69 @@ export const postJob = async (req, res) => {
     res.json({ success: false, message: error.message });
   }
 };
+
+// Get one of the company's own jobs (for editing — includes hidden/expired jobs)
+export const getCompanyJob = async (req, res) => {
+  try {
+    const job = await Job.findOne({ _id: req.params.id, companyId: req.company._id });
+    if (!job) {
+      return res.status(404).json({ success: false, message: 'Job not found' });
+    }
+    res.json({ success: true, data: job });
+  } catch (error) {
+    console.error('getCompanyJob error:', error);
+    res.json({ success: false, message: error.message });
+  }
+};
+
+// Update an existing job (keeps its original post date, applicants and visibility)
+export const updateJob = async (req, res) => {
+  try {
+    const {
+      title,
+      designation,
+      description,
+      location,
+      salary,
+      sector,
+      jobcategory,
+      jobchannel,
+      level,
+      noticeperiod,
+      product,
+      department
+    } = req.body;
+
+    const job = await Job.findOne({ _id: req.params.id, companyId: req.company._id });
+    if (!job) {
+      return res.status(404).json({ success: false, message: 'Job not found' });
+    }
+
+    const productArray = typeof product === 'string'
+      ? product.split(',').map(p => p.trim()).filter(Boolean)
+      : Array.isArray(product) ? product : product ? [product] : [];
+
+    job.title = title;
+    job.designation = designation || "";
+    job.description = description;
+    job.location = location;
+    job.salary = Number(salary);
+    job.level = level;
+    job.sector = sector || "";
+    job.jobcategory = jobcategory || "Not specified";
+    job.jobchannel = jobchannel || "Not specified";
+    job.noticeperiod = noticeperiod || "Not specified";
+    job.product = productArray;
+    job.department = department || "";
+
+    const savedJob = await job.save();
+
+    res.json({ success: true, message: 'Job updated successfully!', data: savedJob });
+  } catch (error) {
+    console.error('updateJob error:', error);
+    res.json({ success: false, message: error.message });
+  }
+};
 // Get Company Job Applicants
 
 

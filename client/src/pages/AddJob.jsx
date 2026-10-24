@@ -1,6 +1,7 @@
 import Quill from "quill";
 import React, { useContext, useEffect, useRef, useState } from "react";
 import axios from "axios";
+import { useNavigate, useParams } from "react-router-dom";
 import { AppContext } from "../context/AppContext";
 import { toast } from "react-toastify";
 import { motion } from "framer-motion";
@@ -147,6 +148,78 @@ const AddJob = () => {
 
   const { backendUrl, companyToken } = useContext(AppContext);
 
+  // ── Edit mode: /dashboard/edit-job/:id loads the job into this same form ──
+  const { id: editJobId } = useParams();
+  const isEditMode = !!editJobId;
+  const navigate = useNavigate();
+  const [isLoadingJob, setIsLoadingJob] = useState(isEditMode);
+
+  useEffect(() => {
+    if (!isEditMode || !companyToken) return;
+    const loadJob = async () => {
+      try {
+        const { data } = await axios.get(`${backendUrl}/api/company/job/${editJobId}`, {
+          headers: { token: companyToken },
+        });
+        if (!data.success) {
+          toast.error(data.message || "Job not found");
+          navigate("/dashboard/manage-job");
+          return;
+        }
+        const job = data.data;
+
+        setDesignation(job.designation || job.title || "");
+        setSalary(job.salary ? String(job.salary) : "");
+        setLocations((job.location || "").split(",").map((l) => l.trim()).filter(Boolean));
+        setLevel(job.level || "Fresher");
+        setNoticeperiod(job.noticeperiod && job.noticeperiod !== "Not specified" ? job.noticeperiod : "Immediate Joiner");
+        setDepartment(job.department || "");
+
+        // Sector: saved one, else the sector that contains the saved category
+        const sector = SectorCategories[job.sector]
+          ? job.sector
+          : JobSectors.find((s) => SectorCategories[s].includes(job.jobcategory)) || DEFAULT_SECTOR;
+        setJobSector(sector);
+
+        if (SectorCategories[sector].includes(job.jobcategory)) {
+          setJobCategory(job.jobcategory);
+          setShowOtherCategory(false);
+          setOtherCategory("");
+        } else {
+          setJobCategory("Other");
+          setShowOtherCategory(true);
+          setOtherCategory(job.jobcategory && job.jobcategory !== "Not specified" ? job.jobcategory : "");
+        }
+
+        const products = Array.isArray(job.product) && job.product.length > 0
+          ? job.product
+          : (job.designation || "").split(",").map((p) => p.trim()).filter(Boolean);
+        setSelectedProducts(products);
+
+        if (JobChannels.includes(job.jobchannel)) {
+          setJobChannel(job.jobchannel);
+          setShowOtherChannel(false);
+          setOtherChannel("");
+        } else {
+          setJobChannel("Other");
+          setShowOtherChannel(true);
+          setOtherChannel(job.jobchannel && job.jobchannel !== "Not specified" ? job.jobchannel : "");
+        }
+
+        setCategoryTouched(true);
+        setProductTouched(true);
+
+        if (quillRef.current) quillRef.current.root.innerHTML = job.description || "";
+      } catch (error) {
+        toast.error(error.response?.data?.message || error.message || "Failed to load job");
+        navigate("/dashboard/manage-job");
+      } finally {
+        setIsLoadingJob(false);
+      }
+    };
+    loadJob();
+  }, [editJobId, companyToken, backendUrl]);
+
   // ── Live candidate-pool insights (dynamic counts under Basic Info) ─────────
   const [insights, setInsights] = useState({
     availableCandidates: 0,
@@ -275,24 +348,34 @@ const AddJob = () => {
       const finalChannel = jobchannel === "Other" ? otherChannel.trim() : jobchannel;
       const finalCategory = jobcategory === "Other" ? otherCategory.trim() : jobcategory;
 
-     const { data } = await axios.post(
-        backendUrl + "/api/company/post-job",
-        {
-          title: designation.trim(),      // ← keep 'title' key for backend compatibility
-          designation: designation.trim(), // ← also save as designation
-          description,
-          location: locations.join(", "),
-          product: selectedProducts,       // ← send as array, not joined string
-          level,
-          jobchannel: finalChannel,
-          jobcategory: finalCategory,
-          noticeperiod,
-          salary: salaryNum,
-          sector: jobsector,
-          department: department.trim(),
-        },
-        { headers: { token: companyToken, "Content-Type": "application/json" } }
-      );
+      const jobPayload = {
+        title: designation.trim(),      // ← keep 'title' key for backend compatibility
+        designation: designation.trim(), // ← also save as designation
+        description,
+        location: locations.join(", "),
+        product: selectedProducts,       // ← send as array, not joined string
+        level,
+        jobchannel: finalChannel,
+        jobcategory: finalCategory,
+        noticeperiod,
+        salary: salaryNum,
+        sector: jobsector,
+        department: department.trim(),
+      };
+      const headers = { headers: { token: companyToken, "Content-Type": "application/json" } };
+
+      if (isEditMode) {
+        const { data } = await axios.put(`${backendUrl}/api/company/job/${editJobId}`, jobPayload, headers);
+        if (data.success) {
+          toast.success("Job updated successfully!");
+          navigate("/dashboard/manage-job");
+        } else {
+          toast.error(data.message || "Failed to update job");
+        }
+        return;
+      }
+
+     const { data } = await axios.post(backendUrl + "/api/company/post-job", jobPayload, headers);
 
      if (data.success) {
       toast.success("Job posted successfully!");
@@ -319,7 +402,7 @@ const AddJob = () => {
         toast.error(data.message || "Failed to post job");
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || error.message || "Failed to post job");
+      toast.error(error.response?.data?.message || error.message || (isEditMode ? "Failed to update job" : "Failed to post job"));
     } finally {
       setIsSubmitting(false);
     }
@@ -373,10 +456,19 @@ const AddJob = () => {
   designation.trim() && Number(salary) > 0 && !isNaN(Number(salary)) && locations.length > 0;
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-4xl mx-auto relative">
+      {isLoadingJob && (
+        <div className="absolute inset-0 z-20 bg-white/80 flex items-start justify-center pt-40">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-red-500" />
+        </div>
+      )}
       <div className="mb-8 mt-8">
-        <h2 className="text-2xl md:text-3xl font-bold text-primary">Post a New Position</h2>
-        <p className="text-gray-500 mt-1">Create a job listing to attract the perfect candidates</p>
+        <h2 className="text-2xl md:text-3xl font-bold text-primary">
+          {isEditMode ? "Edit Job" : "Post a New Position"}
+        </h2>
+        <p className="text-gray-500 mt-1">
+          {isEditMode ? "Update the details of your job listing" : "Create a job listing to attract the perfect candidates"}
+        </p>
       </div>
 
       {/* Progress Bar */}
@@ -384,7 +476,7 @@ const AddJob = () => {
         <div className="flex justify-between mb-2">
           <span className="text-sm font-medium text-gray-700">Basic Info</span>
           <span className="text-sm font-medium text-gray-700">Job Details</span>
-          <span className="text-sm font-medium text-gray-700">Preview & Post</span>
+          <span className="text-sm font-medium text-gray-700">{isEditMode ? "Preview & Update" : "Preview & Post"}</span>
         </div>
         <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
           <div
@@ -724,7 +816,7 @@ const AddJob = () => {
           <div className="bg-white rounded-2xl shadow-lg p-8 mb-6">
             <div className="flex items-center mb-6">
               <div className="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center text-red-600 font-semibold mr-3">3</div>
-              <h3 className="text-xl font-semibold text-gray-800">Preview & Post</h3>
+              <h3 className="text-xl font-semibold text-gray-800">{isEditMode ? "Preview & Update" : "Preview & Post"}</h3>
             </div>
 
             <div className="p-6 border border-dashed border-gray-300 rounded-xl bg-gray-50">
@@ -778,9 +870,9 @@ const AddJob = () => {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                   </svg>
-                  Posting...
+                  {isEditMode ? "Updating..." : "Posting..."}
                 </span>
-              ) : "Post Job ✓"}
+              ) : isEditMode ? "Update Job ✓" : "Post Job ✓"}
             </button>
           </div>
         </motion.div>

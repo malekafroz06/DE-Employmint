@@ -170,7 +170,7 @@ const ContactUs = () => {
               <Mail className="w-5 h-5 text-white" />
             </div>
             <h4 className="font-semibold text-gray-800 mb-1">Email Us</h4>
-            <p className="text-sm text-gray-500">support@deemploymint.com</p>
+            <p className="text-sm text-gray-500">hr@deemploymint.com</p>
           </div>
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
             <div className="w-10 h-10 rounded-xl bg-[#020330] flex items-center justify-center mb-3 mx-auto">

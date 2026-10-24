@@ -98,6 +98,12 @@ const CandidateDetailsModal = ({ candidate, backendUrl, companyToken, onClose, o
 
   const profile = candidate.candidateProfile || {};
 
+  const [info, setInfo] = useState({
+    name: candidate.fullName || candidate.candidateName || "",
+    email: candidate.email !== "N/A" ? candidate.email || "" : "",
+    phone: candidate.phone !== "N/A" ? candidate.phone || "" : "",
+  });
+
   const [personal, setPersonal] = useState({
     gender: profile.personal?.gender || (candidate.gender !== "N/A" ? candidate.gender : "") || "",
     dob: profile.personal?.dob || (candidate.dob !== "N/A" ? candidate.dob : "") || "",
@@ -144,6 +150,31 @@ const CandidateDetailsModal = ({ candidate, backendUrl, companyToken, onClose, o
   const candidateId = candidate._id;
 
   // ── Save handlers ──────────────────────────────────────────────────────────
+  const saveInfo = async () => {
+    if (!info.name.trim()) { toast.error("Full name is required"); return; }
+    try {
+      setSavingSection("info");
+      const { data } = await axios.patch(`${backendUrl}/api/bulk-upload/candidate/${candidateId}/info`, info, authHeaders);
+      if (data.success) {
+        toast.success("Candidate information saved");
+        const { name, email, phone } = data.data.parsedData || {};
+        onUpdated?.(candidateId, {
+          candidateName: name,
+          fullName: name,
+          email: email || "N/A",
+          phone: phone || "N/A",
+          candidateProfile: data.data.candidateProfile,
+        });
+      } else {
+        toast.error(data.message || "Failed to save");
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to save candidate information");
+    } finally {
+      setSavingSection(null);
+    }
+  };
+
   const savePersonal = async () => {
     try {
       setSavingSection("personal");
@@ -437,18 +468,21 @@ const CandidateDetailsModal = ({ candidate, backendUrl, companyToken, onClose, o
             {activeTab === "info" && (
               <div className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <label className="text-xs text-gray-500 block mb-1">Full Name</label>
-                    <p className="text-sm font-semibold text-gray-900">{displayVal(candidate.fullName || candidate.candidateName)}</p>
-                  </div>
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <label className="text-xs text-gray-500 block mb-1">Email</label>
-                    <div className="flex items-center gap-2 text-sm text-gray-900"><FiMail size={13} className="text-red-500" />{displayVal(candidate.email)}</div>
-                  </div>
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <label className="text-xs text-gray-500 block mb-1">Phone</label>
-                    <div className="flex items-center gap-2 text-sm text-gray-900"><FiPhone size={13} className="text-red-500" />{displayVal(candidate.phone)}</div>
-                  </div>
+                  <Field label="Full Name *">
+                    <input type="text" className={inputCls} value={info.name} onChange={(e) => setInfo((p) => ({ ...p, name: e.target.value }))} />
+                  </Field>
+                  <Field label="Email">
+                    <div className="relative">
+                      <FiMail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-red-500" />
+                      <input type="email" className={`${inputCls} pl-9`} placeholder="name@example.com" value={info.email} onChange={(e) => setInfo((p) => ({ ...p, email: e.target.value }))} />
+                    </div>
+                  </Field>
+                  <Field label="Phone">
+                    <div className="relative">
+                      <FiPhone size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-red-500" />
+                      <input type="tel" className={`${inputCls} pl-9`} placeholder="e.g. 9876543210" value={info.phone} onChange={(e) => setInfo((p) => ({ ...p, phone: e.target.value }))} />
+                    </div>
+                  </Field>
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <label className="text-xs text-gray-500 block mb-1">Status</label>
                     <p className="text-sm font-semibold text-gray-900">
@@ -465,13 +499,15 @@ const CandidateDetailsModal = ({ candidate, backendUrl, companyToken, onClose, o
                   </div>
                 </div>
                 <p className="text-xs text-gray-400">Last Edited updates automatically whenever any change is saved for this candidate.</p>
-                <p className="text-xs text-gray-400">Name, email and phone come from the uploaded resume and aren&apos;t editable here.</p>
-                <div className="flex justify-end pt-2">
+                <div className="flex justify-end flex-wrap gap-2 pt-2">
                   <button
                     onClick={() => onDownloadInfo?.(candidate)}
                     className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors"
                   >
                     <FiDownload size={14} /> Download Full Information (Excel)
+                  </button>
+                  <button onClick={saveInfo} disabled={savingSection === "info"} className="flex items-center gap-2 px-5 py-2.5 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700 transition-colors disabled:opacity-60">
+                    <FiSave size={14} /> {savingSection === "info" ? "Saving..." : "Save Changes"}
                   </button>
                 </div>
               </div>

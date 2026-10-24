@@ -70,6 +70,29 @@ const noticePeriodToDays = (raw) => {
   return Number.isFinite(bare) && bare > 0 ? bare : null;
 };
 
+// Experience buckets for the Experience filter (in years)
+const ExperienceBuckets = [
+  { label: "Fresher (< 1 year)", min: 0, max: 1 },
+  { label: "1 - 3 years", min: 1, max: 3 },
+  { label: "3 - 5 years", min: 3, max: 5 },
+  { label: "5 - 10 years", min: 5, max: 10 },
+  { label: "Above 10 years", min: 10, max: Infinity },
+];
+
+// Parse a free-text experience string ("5 years", "2 yrs 6 months", "Fresher") → years
+const experienceToYears = (raw) => {
+  const s = String(raw || "").toLowerCase().trim();
+  if (!s || s === "n/a") return null;
+  if (/fresher|no\s*experience/.test(s)) return 0;
+  const years = s.match(/(\d+(?:\.\d+)?)\s*(?:\+\s*)?(?:years?|yrs?|y\b)/);
+  const months = s.match(/(\d+(?:\.\d+)?)\s*(?:months?|mos?|m\b)/);
+  if (years || months) {
+    return (years ? Number(years[1]) : 0) + (months ? Number(months[1]) / 12 : 0);
+  }
+  const bare = parseFloat(s.match(/\d+(?:\.\d+)?/)?.[0]);
+  return Number.isFinite(bare) ? bare : null;
+};
+
 // Age buckets for the Age filter (age is worked out from date of birth)
 const AgeBuckets = [
   { label: "18 - 25 years", min: 18, max: 25 },
@@ -91,16 +114,9 @@ const ageFromDob = (dob) => {
   return age > 0 && age < 100 ? age : null;
 };
 
-// Deterministic avatar colour per candidate so the list is easy to scan
-const AvatarPalette = [
-  ["#020330", "#2b2f77"], ["#b91c1c", "#ef4444"], ["#0f766e", "#14b8a6"], ["#7c2d12", "#ea580c"],
-  ["#4c1d95", "#8b5cf6"], ["#1e3a8a", "#3b82f6"], ["#831843", "#ec4899"], ["#365314", "#65a30d"],
-];
-const avatarGradient = (name) => {
-  const hash = [...String(name || "?")].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7);
-  const [a, b] = AvatarPalette[hash % AvatarPalette.length];
-  return `linear-gradient(135deg, ${a}, ${b})`;
-};
+// Results table pagination
+const RESULTS_PER_PAGE = 10;
+
 const initialsOf = (name) =>
   String(name || "?").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("") || "?";
 
@@ -193,7 +209,8 @@ const SearchResume = () => {
   const [selectedJobStatus, setSelectedJobStatus]   = useState([]);
   const [selectedNotice, setSelectedNotice]         = useState([]);
   const [selectedCtc, setSelectedCtc]               = useState([]);
-  const [selectedAge, setSelectedAge]               = useState([]);
+  const [selectedExperience, setSelectedExperience] = useState([]);
+  const [selectedAge, setSelectedAge]             = useState([]);
   const [selectedGender, setSelectedGender]         = useState([]);
   const [openDropdown, setOpenDropdown] = useState(null); // only one dropdown open at a time
   const toggleDropdown = (key) => setOpenDropdown((prev) => (prev === key ? null : key));
@@ -223,12 +240,14 @@ const SearchResume = () => {
   const hasActiveFilters =
     selectedCategory.length || selectedDesignation.length || selectedProduct.length ||
     selectedChannel.length || selectedLocation.length || selectedJobStatus.length ||
-    selectedNotice.length || selectedCtc.length || selectedAge.length || selectedGender.length;
+    selectedNotice.length || selectedCtc.length || selectedExperience.length ||
+    selectedAge.length || selectedGender.length;
 
   const clearAllFilters = () => {
     setSelectedCategory([]); setSelectedDesignation([]); setSelectedProduct([]);
     setSelectedChannel([]); setSelectedLocation([]); setSelectedJobStatus([]);
-    setSelectedNotice([]); setSelectedCtc([]); setSelectedAge([]); setSelectedGender([]);
+    setSelectedNotice([]); setSelectedCtc([]); setSelectedExperience([]);
+    setSelectedAge([]); setSelectedGender([]);
   };
 
   useEffect(() => {
@@ -239,7 +258,22 @@ const SearchResume = () => {
     filterAndSortData();
   }, [combinedData, searchQuery, sortBy,
       selectedCategory, selectedDesignation, selectedProduct, selectedChannel,
-      selectedLocation, selectedJobStatus, selectedNotice, selectedCtc, selectedAge, selectedGender]);
+      selectedLocation, selectedJobStatus, selectedNotice, selectedCtc, selectedExperience,
+      selectedAge, selectedGender]);
+
+  // ── Pagination (10 per page) — back to page 1 whenever the search/filters/sort change ──
+  const [currentPage, setCurrentPage] = useState(1);
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, sortBy,
+      selectedCategory, selectedDesignation, selectedProduct, selectedChannel,
+      selectedLocation, selectedJobStatus, selectedNotice, selectedCtc, selectedExperience,
+      selectedAge, selectedGender]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredData.length / RESULTS_PER_PAGE));
+  const safePage = Math.min(currentPage, totalPages);
+  const pageStart = (safePage - 1) * RESULTS_PER_PAGE;
+  const pagedData = filteredData.slice(pageStart, pageStart + RESULTS_PER_PAGE);
 
   // Listen for assessment tab completion → mark candidate as accepted in UI immediately
  useEffect(() => {
@@ -425,12 +459,18 @@ const SearchResume = () => {
       })();
 
       const matchesCtc = selectedCtc.length === 0 || (() => {
-        const rupees = parseCtcToRupees(item.expectedCTC);
+        const rupees = parseCtcToRupees(item.currentCTC);
         if (rupees === null) return false;
         return selectedCtc.some((label) => {
           const range = CtcRanges.find((r) => r.label === label);
           return range && rupees >= range.min && rupees < range.max;
         });
+      })();
+
+      const matchesExperience = selectedExperience.length === 0 || (() => {
+        const years = experienceToYears(item.totalExperience);
+        if (years === null) return false;
+        return ExperienceBuckets.some((b) => selectedExperience.includes(b.label) && years >= b.min && years < b.max);
       })();
 
       const matchesAge = selectedAge.length === 0 || (() => {
@@ -443,7 +483,7 @@ const SearchResume = () => {
 
       return matchesSearch && matchesCategory && matchesDesignation &&
         matchesProduct && matchesChannel && matchesLocation && matchesJobStatus &&
-        matchesNotice && matchesCtc && matchesAge && matchesGender;
+        matchesNotice && matchesCtc && matchesExperience && matchesAge && matchesGender;
     });
 
     filtered.sort((a, b) => {
@@ -714,8 +754,12 @@ const SearchResume = () => {
               onChange={setSelectedNotice} isOpen={openDropdown === "notice"} onToggle={() => toggleDropdown("notice")}
             />
             <FilterDropdown
-              title="Expected CTC" options={CtcRanges.map((r) => r.label)} selected={selectedCtc}
+              title="Current CTC" options={CtcRanges.map((r) => r.label)} selected={selectedCtc}
               onChange={setSelectedCtc} isOpen={openDropdown === "ctc"} onToggle={() => toggleDropdown("ctc")}
+            />
+            <FilterDropdown
+              title="Experience" options={ExperienceBuckets.map((b) => b.label)} selected={selectedExperience}
+              onChange={setSelectedExperience} isOpen={openDropdown === "experience"} onToggle={() => toggleDropdown("experience")}
             />
             <FilterDropdown
               title="Age" options={AgeBuckets.map((b) => b.label)} selected={selectedAge}
@@ -811,7 +855,7 @@ const SearchResume = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredData.map((candidate, index) => (
+                  {pagedData.map((candidate, index) => (
                     <motion.tr
                       key={candidate._id}
                       initial={{ opacity: 0, y: 20 }}
@@ -833,7 +877,7 @@ const SearchResume = () => {
 
                       {/* Sr. No. */}
                       <td className="py-4 px-1.5 sm:px-2 text-sm font-medium text-gray-500">
-                        {index + 1}
+                        {pageStart + index + 1}
                       </td>
 
                       {/* Name */}
@@ -844,7 +888,7 @@ const SearchResume = () => {
                         >
                           <div
                             className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg flex items-center justify-center text-white font-bold text-[11px] sm:text-xs flex-shrink-0 shadow-sm"
-                            style={{ background: avatarGradient(candidate.candidateName) }}
+                            style={{ backgroundColor: "#FF0000" }}
                           >
                             {initialsOf(candidate.candidateName)}
                           </div>
@@ -875,10 +919,8 @@ const SearchResume = () => {
                       </td>
 
                       {/* Product */}
-                      <td className="py-4 px-1.5 sm:px-2 text-xs sm:text-sm">
-                        <span className={`line-clamp-2 break-words ${candidate.product && candidate.product !== "N/A" ? "text-red-600 font-medium" : "text-gray-700"}`}>
-                          {cell(candidate.product)}
-                        </span>
+                      <td className="py-4 px-1.5 sm:px-2 text-xs sm:text-sm text-gray-700">
+                        <span className="line-clamp-2 break-words">{cell(candidate.product)}</span>
                       </td>
 
                       {/* Channel */}
@@ -914,11 +956,7 @@ const SearchResume = () => {
                             <span className="mr-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
                               Accepted
                             </span>
-                          ) : (
-                            <span className="mr-1 text-[11px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                              Pending
-                            </span>
-                          )}
+                          ) : null}
 
                           {/* Edit — always visible */}
                           <button
@@ -993,6 +1031,47 @@ const SearchResume = () => {
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination */}
+            {filteredData.length > RESULTS_PER_PAGE && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 sm:px-6 py-4 border-t border-gray-200">
+                <p className="text-sm text-gray-500">
+                  Showing {pageStart + 1}–{Math.min(pageStart + RESULTS_PER_PAGE, filteredData.length)} of {filteredData.length} resumes
+                </p>
+                <div className="flex items-center flex-wrap justify-center gap-2">
+                  <button
+                    onClick={() => setCurrentPage(Math.max(1, safePage - 1))}
+                    disabled={safePage === 1}
+                    className="px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50"
+                    style={{ color: '#020330' }}
+                  >
+                    Previous
+                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className="w-9 h-9 rounded-lg text-sm font-medium transition-colors"
+                      style={
+                        page === safePage
+                          ? { backgroundColor: '#FF0000', color: '#fff' }
+                          : { color: '#020330', border: '1px solid #e5e7eb' }
+                      }
+                    >
+                      {page}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setCurrentPage(Math.min(totalPages, safePage + 1))}
+                    disabled={safePage === totalPages}
+                    className="px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50"
+                    style={{ color: '#020330' }}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="bg-white rounded-lg sm:rounded-xl shadow-md p-12 text-center">

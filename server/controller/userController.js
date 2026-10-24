@@ -1,8 +1,7 @@
 import User from "../models/User.js";
 import JobApplication from "../models/JobApplication.js";
 import Job from "../models/Job.js";
-import fetch from 'node-fetch';
-import PDFParser from 'pdf2json';
+import ResumeProcessor from "../utils/resumeProcessor.js";
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -141,16 +140,29 @@ export const updateUserResume = async (req, res) => {
     const resumeUrl = `/uploads/resumes/${fileName}`;
     fs.unlinkSync(resumeFile.path);
     
-    const updatedUser = await User.findByIdAndUpdate(
-      userData._id,
-      { resume: resumeUrl },
-      { new: true }
-    );
-    
-    res.json({ 
-      success: true, 
-      message: "Resume Updated Successfully",
-      user: updatedUser
+    const user = await User.findById(userData._id);
+    user.resume = resumeUrl;
+
+    // Update the profile with the latest resume's details (non-fatal if parsing fails)
+    let extractedData = null;
+    let filledFields = [];
+    try {
+      extractedData = await parseResumeFile(filePath);
+      if (extractedData) filledFields = applyResumeFields(user, extractedData);
+    } catch (parseError) {
+      console.error("Resume auto-fill failed:", parseError.message);
+    }
+
+    const updatedUser = await user.save();
+
+    res.json({
+      success: true,
+      message: filledFields.length
+        ? `Resume uploaded. ${filledFields.length} profile fields updated from your resume.`
+        : "Resume Updated Successfully",
+      user: updatedUser,
+      extractedData,
+      filledFields
     });
   } catch (error) {
     console.error("Error updating resume:", error);
@@ -242,294 +254,99 @@ export const updateUserProfile = async (req, res) => {
   }
 };
 
-// Resume parsing
-const parseResumeInfo = (text) => {
-  const originalText = text.replace(/\s+/g, ' ').trim();
-  console.log("=== PDF TEXT ANALYSIS ===");
-  console.log("Full extracted text length:", originalText.length);
-  console.log("COMPLETE EXTRACTED TEXT:", originalText);
-  console.log("========================");
-  
-  const lines = originalText.split(/[\n\r]+/)
-    .map(line => line.trim())
-    .filter(line => line.length > 0);
-  
-  console.log("Total lines:", lines.length);
-  console.log("First 15 lines:");
-  lines.slice(0, 15).forEach((line, i) => {
-    console.log(`Line ${i + 1}: "${line}"`);
-  });
-  
-  const result = {
-    fullName: '',
-    gender: '',
-    dob: '',
-    emailId: '',
-    mobileNo: '',
-    currentDesignation: '',
-    currentDepartment: '',
-    totalExperience: '',
-    city: '',
-    state: '',
-    languages: ''
+// ── Resume parsing (same pipeline as recruiter bulk upload / Search Resume) ──
+
+// Map parseResumeProfile() output onto the candidate's flat User fields
+const mapParsedResumeToUser = ({ parsedData, candidateProfile }) => {
+  const personal = candidateProfile?.personal || {};
+  const professional = candidateProfile?.professional || {};
+  const digits = (parsedData?.phone || '').replace(/\D/g, '');
+
+  return {
+    fullName:           parsedData?.name || '',
+    gender:             personal.gender || '',
+    dob:                personal.dob || '',
+    emailId:            parsedData?.email || '',
+    mobileNo:           digits.length >= 10 ? digits.slice(-10) : '',
+    city:               personal.city || '',
+    state:              personal.state || '',
+    languages:          personal.languages || '',
+    maritalStatus:      personal.maritalStatus || '',
+    currentDesignation: professional.currentDesignation || '',
+    currentDepartment:  professional.currentDepartment || '',
+    currentCTC:         professional.currentCTC || '',
+    noticePeriod:       professional.noticePeriod || '',
+    totalExperience:    professional.totalExperience || '',
+    // Parser categories / products / channels use the same lists as the profile form
+    jobCategory:        professional.category || '',
+    selectedProducts:   professional.product || '',
+    jobChannel:         professional.channel || '',
   };
-  
-  // Extract email
-  const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
-  const emailMatches = originalText.match(emailRegex);
-  if (emailMatches && emailMatches.length > 0) {
-    result.emailId = emailMatches[0];
-    console.log("Email found:", result.emailId);
-  }
-  
-  // Extract phone
-  const phoneRegex = /(?:\+91[\s-]?)?[6-9]\d{9}/g;
-  const phoneMatches = originalText.match(phoneRegex);
-  if (phoneMatches && phoneMatches.length > 0) {
-    result.mobileNo = phoneMatches[0].replace(/\D/g, '').slice(-10);
-    console.log("Phone found:", result.mobileNo);
-  }
-  
-  // Extract full name
-  let nameFound = false;
-  for (let i = 0; i < Math.min(3, lines.length) && !nameFound; i++) {
-    const line = lines[i].trim();
-    console.log(`Analyzing line ${i + 1} for name: "${line}"`);
-    
-    if (line.includes('@') || 
-        /\d/.test(line) || 
-        line.length > 50 ||
-        line.length < 4 ||
-        /resume|cv|profile|contact|address|phone|email|mobile|objective|summary|experience|education|skills|projects|work|employment/i.test(line)) {
-      console.log(`Skipping line ${i + 1}: contains excluded content`);
-      continue;
-    }
-    
-    const words = line.split(/\s+/).filter(word => word.length > 0);
-    console.log(`Line ${i + 1} words:`, words);
-    
-    if (words.length >= 2 && words.length <= 4) {
-      const isValidName = words.every(word => {
-        const isProperlyCapitalized = /^[A-Z][a-z]+$/.test(word);
-        const isReasonableLength = word.length >= 2 && word.length <= 15;
-        const isOnlyLetters = /^[A-Za-z]+$/.test(word);
-        const isNotCommonWord = !['The', 'And', 'For', 'With', 'From', 'To', 'In', 'On', 'At', 'By'].includes(word);
-        return isProperlyCapitalized && isReasonableLength && isOnlyLetters && isNotCommonWord;
-      });
-      
-      if (isValidName) {
-        result.fullName = words.join(' ');
-        nameFound = true;
-        console.log(`Full name successfully extracted: ${result.fullName}`);
-        break;
-      }
-    }
-  }
-  
-  // Extract gender
-  const genderRegex = /\b(male|female|m\/f|gender[:\s]*(male|female))\b/i;
-  const genderMatch = originalText.match(genderRegex);
-  if (genderMatch) {
-    const genderText = genderMatch[0].toLowerCase();
-    if (genderText.includes('female')) {
-      result.gender = 'Female';
-    } else if (genderText.includes('male')) {
-      result.gender = 'Male';
-    }
-    console.log("Gender found:", result.gender);
-  }
-  
-  // Extract date of birth
-  const dobRegex = /(?:dob|date of birth|born)[:\s]*(\d{1,2}[-\/]\d{1,2}[-\/]\d{2,4})/i;
-  const dobMatch = originalText.match(dobRegex);
-  if (dobMatch) {
-    result.dob = dobMatch[1];
-    console.log("DOB found:", result.dob);
-  }
-  
-  // Extract experience
-  const expRegex = /(\d+(?:\.\d+)?)\s*(?:\+)?\s*(?:years?|yrs?)/i;
-  const expMatch = originalText.match(expRegex);
-  if (expMatch) {
-    result.totalExperience = `${expMatch[1]} years`;
-    console.log("Experience found:", result.totalExperience);
-  }
-  
-  console.log("=== FINAL EXTRACTION RESULT ===");
-  console.log("Result:", result);
-  
-  const filledFields = Object.entries(result).filter(([key, value]) => 
-    value && value.toString().trim() !== ''
-  ).length;
-  console.log(`Extracted ${filledFields} fields successfully`);
-  
-  return result;
 };
 
-// Extract resume data
+// Extract text (with OCR for image-only PDFs) and parse it into User fields
+const parseResumeFile = async (filePath) => {
+  const ext = path.extname(filePath).slice(1).toLowerCase() || 'pdf';
+  const text = await ResumeProcessor.extractTextFromFile(filePath, ext);
+  if (!text || text.replace(/\s/g, '').length < 10) return null;
+  return mapParsedResumeToUser(ResumeProcessor.parseResumeProfile(text));
+};
+
+// Apply the latest resume's details to the profile. Fields the resume doesn't
+// state are left as they are, so a re-upload never blanks existing details.
+// Returns the names of the fields that were set.
+const applyResumeFields = (user, extracted) => {
+  const filled = [];
+  Object.entries(extracted).forEach(([key, value]) => {
+    if (!value) return;
+    user[key] = value;
+    filled.push(key);
+  });
+  if (filled.includes('fullName')) user.name = user.fullName;
+  // Products belong to a category — don't keep the old category's products
+  if (filled.includes('jobCategory')) {
+    user.otherJobCategory = '';
+    user.selectedProducts = extracted.selectedProducts || '';
+  }
+  if (filled.includes('jobChannel')) user.otherJobChannel = '';
+  return filled;
+};
+
+// Resolve a stored resume URL ("/uploads/resumes/x.pdf") to a file on disk
+const resolveResumePath = (resumeUrl) => {
+  const resumesDir = path.join(__dirname, '../uploads/resumes');
+  const filePath = path.join(resumesDir, path.basename(String(resumeUrl || '').split('?')[0]));
+  return fs.existsSync(filePath) ? filePath : null;
+};
+
+// Extract resume data (used by the "Autofill from resume" button)
 export const extractResumeData = async (req, res) => {
-  let tempFilePath = null;
-  
   try {
     const userId = req.auth?.userId;
-    const { resumeUrl } = req.body;
-
-    console.log("PDF Extraction Debug:");
-    console.log("User ID:", userId);
-    console.log("Resume URL:", resumeUrl);
-
     if (!userId) {
       return res.json({ success: false, message: "User authentication failed" });
     }
 
-    if (!resumeUrl) {
-      return res.json({ success: false, message: "Resume URL is required" });
+    const user = await User.findById(userId);
+    const filePath = resolveResumePath(req.body?.resumeUrl || user?.resume);
+    if (!filePath) {
+      return res.json({ success: false, message: "Resume file not found. Please upload your resume again." });
     }
 
-    console.log("Downloading PDF from:", resumeUrl);
-
-    const response = await fetch(resumeUrl);
-    console.log("Download response status:", response.status);
-    
-    if (!response.ok) {
-      console.error("Failed to download PDF:", response.status, response.statusText);
-      return res.json({
-        success: false,
-        message: `Failed to fetch PDF. Status: ${response.status}. Please check if PDF delivery is enabled in Cloudinary.`
-      });
+    const extractedData = await parseResumeFile(filePath);
+    if (!extractedData) {
+      return res.json({ success: false, message: "Could not read text from this resume. Please fill in details manually." });
     }
 
-    const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    console.log("PDF buffer size:", buffer.length, "bytes");
-
-    if (buffer.length === 0) {
-      throw new Error('Downloaded PDF is empty');
-    }
-
-    const tempDir = path.join(__dirname, '../temp');
-    if (!fs.existsSync(tempDir)) {
-      fs.mkdirSync(tempDir, { recursive: true });
-    }
-
-    tempFilePath = path.join(tempDir, `resume_${userId}_${Date.now()}.pdf`);
-    fs.writeFileSync(tempFilePath, buffer);
-    console.log("Saved PDF to:", tempFilePath);
-
-    const pdfParser = new PDFParser();
-    
-    const parsePDFPromise = new Promise((resolve, reject) => {
-      let timeoutId;
-      
-      pdfParser.on('pdfParser_dataError', (errData) => {
-        clearTimeout(timeoutId);
-        console.error("PDF parsing error:", errData);
-        reject(new Error(`PDF parsing failed: ${errData.parserError}`));
-      });
-
-      pdfParser.on('pdfParser_dataReady', (pdfData) => {
-        clearTimeout(timeoutId);
-        try {
-          console.log("PDF parsed successfully");
-          console.log("Number of pages:", pdfData.Pages?.length || 0);
-          
-          let fullText = '';
-          if (pdfData.Pages && pdfData.Pages.length > 0) {
-            pdfData.Pages.forEach((page, pageIndex) => {
-              console.log(`Processing page ${pageIndex + 1}...`);
-              if (page.Texts && page.Texts.length > 0) {
-                page.Texts.forEach(textItem => {
-                  if (textItem.R && textItem.R.length > 0) {
-                    textItem.R.forEach(textRun => {
-                      if (textRun.T) {
-                        const decodedText = decodeURIComponent(textRun.T);
-                        fullText += decodedText + ' ';
-                      }
-                    });
-                  }
-                });
-                fullText += '\n';
-              }
-            });
-          }
-          
-          const cleanedText = fullText.trim();
-          console.log("Extracted text length:", cleanedText.length);
-          console.log("First 200 characters:", cleanedText.substring(0, 200));
-          
-          resolve(cleanedText);
-        } catch (error) {
-          console.error("Error processing PDF data:", error);
-          reject(error);
-        }
-      });
-
-      timeoutId = setTimeout(() => {
-        console.error("PDF parsing timeout");
-        reject(new Error('PDF parsing timeout'));
-      }, 30000);
-
-      console.log("Starting PDF parsing...");
-      pdfParser.loadPDF(tempFilePath);
-    });
-
-    const extractedText = await parsePDFPromise;
-    
-    if (!extractedText || extractedText.length < 10) {
-      throw new Error('PDF appears to be empty or unreadable');
-    }
-
-    console.log("Text extraction successful, parsing information...");
-
-    const extractedData = parseResumeInfo(extractedText);
-    
-    const filledFields = Object.entries(extractedData).filter(([key, value]) => 
-      value && value.toString().trim() !== ''
-    ).length;
-    console.log("Extraction complete. Filled fields:", filledFields);
-
-    if (tempFilePath && fs.existsSync(tempFilePath)) {
-      fs.unlinkSync(tempFilePath);
-      console.log("Cleaned up temp file");
-    }
-
+    const filledFields = Object.values(extractedData).filter(Boolean).length;
     res.json({
       success: true,
       extractedData,
       message: `Successfully extracted ${filledFields} fields from resume! Please review and modify as needed.`
     });
-
   } catch (error) {
-    console.error("PDF extraction error:", error);
-    
-    if (tempFilePath && fs.existsSync(tempFilePath)) {
-      try {
-        fs.unlinkSync(tempFilePath);
-        console.log("Cleaned up temp file after error");
-      } catch (cleanupError) {
-        console.error("Cleanup error:", cleanupError);
-      }
-    }
-    
-    const extractedData = {
-      fullName: '',
-      gender: '',
-      dob: '',
-      emailId: '',
-      mobileNo: '',
-      currentDesignation: '',
-      currentDepartment: '',
-      totalExperience: '',
-      city: '',
-      state: '',
-      languages: ''
-    };
-
-    res.json({
-      success: true, 
-      extractedData,
-      message: `PDF parsing failed: ${error.message}. Please fill in details manually.`
-    });
+    console.error("Resume extraction error:", error);
+    res.json({ success: false, message: `Resume parsing failed: ${error.message}. Please fill in details manually.` });
   }
 };
 

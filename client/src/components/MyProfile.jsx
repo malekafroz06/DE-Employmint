@@ -89,6 +89,7 @@ const MyProfile = () => {
   const [isEditResume, setIsEditResume] = useState(false);
   const [resume, setResume] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Section editing states
   const [isEditingPersonal, setIsEditingPersonal] = useState(false);
@@ -382,6 +383,8 @@ const MyProfile = () => {
       formData.append("resume", resume);
       const token = await getToken();
       if (!token) { toast.error("Authentication failed. Please login again."); return; }
+      setIsUploading(true);
+      // The server parses the resume and fills empty profile fields
       const response = await fetch(`${backendUrl}/api/users/update-resume`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
@@ -397,6 +400,7 @@ const MyProfile = () => {
     } catch (error) {
       toast.error("Failed to update resume. Please try again.");
     }
+    setIsUploading(false);
     setIsEditResume(false);
     setResume(null);
   };
@@ -441,20 +445,13 @@ const MyProfile = () => {
       if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       const data = await response.json();
       if (data.success && data.extractedData) {
-        setProfileData(prev => ({
-          ...prev,
-          ...(data.extractedData.fullName && { fullName: data.extractedData.fullName }),
-          ...(data.extractedData.gender && { gender: data.extractedData.gender }),
-          ...(data.extractedData.dob && { dob: data.extractedData.dob }),
-          ...(data.extractedData.emailId && { emailId: data.extractedData.emailId }),
-          ...(data.extractedData.mobileNo && { mobileNo: data.extractedData.mobileNo }),
-          ...(data.extractedData.currentDesignation && { currentDesignation: data.extractedData.currentDesignation }),
-          ...(data.extractedData.totalExperience && { totalExperience: data.extractedData.totalExperience }),
-          ...(data.extractedData.currentDepartment && { currentDepartment: data.extractedData.currentDepartment }),
-          ...(data.extractedData.city && { city: data.extractedData.city }),
-          ...(data.extractedData.state && { state: data.extractedData.state }),
-          ...(data.extractedData.languages && { languages: data.extractedData.languages })
-        }));
+        const extracted = Object.fromEntries(
+          Object.entries(data.extractedData).filter(([, value]) => value)
+        );
+        if (extracted.selectedProducts) {
+          extracted.selectedProducts = extracted.selectedProducts.split(',').map(s => s.trim()).filter(Boolean);
+        }
+        setProfileData(prev => ({ ...prev, ...extracted }));
         setIsEditingPersonal(true);
         setIsEditingProfessional(true);
         toast.success(data.message || "Details autofilled from resume! Please review and save.");
@@ -739,12 +736,14 @@ const MyProfile = () => {
 
                   <motion.button
                     onClick={updateResume}
+                    disabled={isUploading}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className="px-6 py-3 text-white font-medium rounded-lg transition-all duration-200 shadow-lg"
+                    className={`flex items-center px-6 py-3 text-white font-medium rounded-lg transition-all duration-200 shadow-lg ${isUploading ? 'opacity-70 cursor-not-allowed' : ''}`}
                     style={{ background: "#FF0000", boxShadow: '0 0 20px rgba(255, 0, 0, 0.25)' }}
                   >
-                    Save Resume
+                    {isUploading && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
+                    {isUploading ? 'Reading resume...' : 'Save Resume'}
                   </motion.button>
                 </motion.div>
               ) : (

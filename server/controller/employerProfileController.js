@@ -75,6 +75,8 @@ export const updateEmployerProfile = async (req, res) => {
             location,
             website,
             companySize,
+            contactPersonName,
+            contactPersonDesignation,
             description
         } = req.body;
 
@@ -141,6 +143,8 @@ export const updateEmployerProfile = async (req, res) => {
             description,
             stats: realStats
         };
+        if (contactPersonName !== undefined) profileUpdateData.contactPersonName = contactPersonName;
+        if (contactPersonDesignation !== undefined) profileUpdateData.contactPersonDesignation = contactPersonDesignation;
 
         // Add logo path if it was uploaded
         if (logoPath) {
