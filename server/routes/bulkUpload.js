@@ -532,7 +532,7 @@ router.post('/accept/:id', verifyCompanyToken, requireBulkUploadPermission, asyn
   try {
     const updated = await Resume.findOneAndUpdate(
       { _id: req.params.id, ...companyIdQuery(req.companyId) },
-      { $set: { accepted: true, rejected: false, assessmentData: req.body.assessmentData || {} } },
+      { $set: { accepted: true, rejected: false, assessmentData: req.body.assessmentData || {}, 'candidateProfile.lastVerified': new Date() } },
       { new: true }
     );
     if (!updated) {

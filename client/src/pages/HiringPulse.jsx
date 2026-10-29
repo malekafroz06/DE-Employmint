@@ -84,6 +84,26 @@ const EmptyState = ({ children }) => (
   <p className="text-xs text-gray-400 group-hover:text-white/50 italic transition-colors duration-300">{children}</p>
 );
 
+// Horizontal X-axis label that wraps long names onto up to 3 lines under the bar
+const WrappedTick = ({ x, y, payload, maxChars = 14, maxLines = 3 }) => {
+  const lines = [];
+  String(payload.value || "").split(/\s+/).forEach((word) => {
+    const last = lines[lines.length - 1];
+    if (last !== undefined && (last + " " + word).length <= maxChars) lines[lines.length - 1] = `${last} ${word}`;
+    else lines.push(word);
+  });
+  const shown = lines.slice(0, maxLines);
+  if (lines.length > maxLines) shown[maxLines - 1] = `${shown[maxLines - 1].slice(0, maxChars - 1)}…`;
+  return (
+    <text x={x} y={y + 12} textAnchor="middle" fontSize={11} fontWeight={600} fill="#374151">
+      <title>{payload.value}</title>
+      {shown.map((line, i) => (
+        <tspan key={i} x={x} dy={i === 0 ? 0 : 13}>{line}</tspan>
+      ))}
+    </text>
+  );
+};
+
 const StatContent = ({ s }) => {
   const delta = deltaLabel(s.deltaPct);
   return (
@@ -224,9 +244,9 @@ const HiringPulse = () => {
   const industrySplitColored = industrySplit.map((seg, i) => ({ ...seg, color: INDUSTRY_COLORS[i % INDUSTRY_COLORS.length] }));
 
   const recruiterInsightStats = [
-    { icon: <FiUserPlus />, value: fmtNum(kpis.newCandidates.value) + "+", label: "New Candidates", deltaPct: kpis.newCandidates.deltaPct },
-    { icon: <FiHome />, value: fmtNum(kpis.newCompanies.value) + "+", label: "New Companies", deltaPct: kpis.newCompanies.deltaPct },
-    { icon: <FiBarChart2 />, value: fmtNum(kpis.applicationsReceived.value) + "+", label: "Applications Received", deltaPct: kpis.applicationsReceived.deltaPct },
+    { icon: <FiUserPlus />, value: fmtNum(kpis.newCandidates.value), label: "New Candidates", deltaPct: kpis.newCandidates.deltaPct },
+    { icon: <FiHome />, value: fmtNum(kpis.newCompanies.value), label: "New Companies", deltaPct: kpis.newCompanies.deltaPct },
+    { icon: <FiBarChart2 />, value: fmtNum(kpis.applicationsReceived.value), label: "Applications Received", deltaPct: kpis.applicationsReceived.deltaPct },
     {
       icon: <FiTrendingUp />,
       value: fastestGrowingIndustry?.label || "—",
@@ -237,8 +257,8 @@ const HiringPulse = () => {
   ];
 
   const candidateInsightStats = [
-    { icon: <FiBriefcase />, value: fmtNum(kpis.activeJobs.value) + "+", label: "Active Jobs", sub: "Currently open" },
-    { icon: <FiHome />, value: fmtNum(kpis.hiringCompanies.value) + "+", label: "Hiring Companies", sub: "Currently hiring" },
+    { icon: <FiBriefcase />, value: fmtNum(kpis.activeJobs.value), label: "Active Jobs", sub: "Currently open" },
+    { icon: <FiHome />, value: fmtNum(kpis.hiringCompanies.value), label: "Hiring Companies", sub: "Currently hiring" },
     {
       icon: <FiTrendingUp />,
       value: fastestGrowingRole?.label || "—",
@@ -256,7 +276,7 @@ const HiringPulse = () => {
       icon: <FiMapPin />,
       value: mostCompetitiveCity?.city || "—",
       label: "Most Competitive City",
-      sub: mostCompetitiveCity ? `${mostCompetitiveCity.jobs}+ Active Jobs` : "Not enough data yet",
+      sub: mostCompetitiveCity ? `${mostCompetitiveCity.jobs} Active Job${mostCompetitiveCity.jobs === 1 ? "" : "s"}` : "Not enough data yet",
     },
   ];
 
@@ -373,7 +393,7 @@ const HiringPulse = () => {
             <>
               <div className="space-y-4">
                 {topCompanies.map((c) => (
-                  <div key={c.name} className="grid grid-cols-[1fr_36px] items-center gap-3">
+                  <div key={c.id || c.name} className="grid grid-cols-[1fr_36px] items-center gap-3">
                     <div>
                       <div className="flex items-baseline justify-between mb-1.5">
                         <span className="text-xs font-bold text-gray-800 group-hover:text-white truncate transition-colors duration-300">{c.name}</span>
@@ -385,7 +405,7 @@ const HiringPulse = () => {
                         />
                       </div>
                     </div>
-                    <span className="text-xs font-extrabold text-right" style={{ color: RED }}>{c.jobs}+</span>
+                    <span className="text-xs font-extrabold text-right" style={{ color: RED }}>{c.jobs}</span>
                   </div>
                 ))}
               </div>
@@ -403,16 +423,14 @@ const HiringPulse = () => {
             <EmptyState>No applications received yet.</EmptyState>
           ) : (
             <ResponsiveContainer width="100%" height={340}>
-              <BarChart data={applicationsByRole} margin={{ left: 0, right: 12, bottom: 60 }}>
+              <BarChart data={applicationsByRole} margin={{ left: 0, right: 12, bottom: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false} />
                 <XAxis
                   type="category"
                   dataKey="name"
                   interval={0}
-                  angle={-35}
-                  textAnchor="end"
-                  height={70}
-                  tick={{ fontSize: 11, fill: "#374151", fontWeight: 600 }}
+                  height={60}
+                  tick={<WrappedTick />}
                   axisLine={false}
                   tickLine={false}
                 />

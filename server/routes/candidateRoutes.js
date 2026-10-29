@@ -1,7 +1,23 @@
 import express from 'express';
 import CandidateAssessment from '../models/CandidateAssessment.js';
+import Resume from '../models/Resume.js';
 
 const router = express.Router();
+
+// An assessment save counts as an edit of the candidate — bump the
+// Search Resume "Last edited" date on every resume with this email
+const touchResumeLastEdited = async (email, date = new Date()) => {
+  if (!email || !email.trim()) return;
+  const escaped = email.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  try {
+    await Resume.updateMany(
+      { 'parsedData.email': { $regex: `^${escaped}$`, $options: 'i' } },
+      { $set: { 'candidateProfile.lastVerified': date } }
+    );
+  } catch (err) {
+    console.error('Failed to update resume last edited date:', err.message);
+  }
+};
 
 // @desc    Get existing assessment by email  
 // @route   GET /api/candidates/assessment/email/:email
@@ -162,7 +178,8 @@ router.post('/assessment', async (req, res) => {
       }
 
       console.log('Assessment updated successfully:');
-      
+      await touchResumeLastEdited(updatedAssessment.candidateEmail, currentDate);
+
       return res.json({
       success: true,
       message: 'Assessment updated successfully',
@@ -217,6 +234,7 @@ router.post('/assessment', async (req, res) => {
 
     const savedAssessment = await assessment.save();
     console.log('Assessment saved successfully:');
+    await touchResumeLastEdited(savedAssessment.candidateEmail, currentDate);
 
     res.status(201).json({
     success: true,
@@ -312,7 +330,8 @@ router.put('/assessment/email/:email', async (req, res) => {
     }
     
     console.log('Assessment updated successfully:', updatedAssessment._id);
-    
+    await touchResumeLastEdited(updatedAssessment.candidateEmail || email, currentDate);
+
     res.json({
       success: true,
       message: 'Assessment updated successfully',

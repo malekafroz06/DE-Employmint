@@ -282,6 +282,20 @@ const SearchResume = () => {
     bc = new BroadcastChannel("application_updates");
     bc.onmessage = (event) => {
 
+      // Any assessment save counts as an edit — refresh "Last edited"
+      if (event.data?.type === "ASSESSMENT_UPDATED" || event.data?.type === "APPLICATION_ACCEPTED") {
+        const { applicationId, candidateEmail } = event.data;
+        const now = new Date().toISOString();
+        setCombinedData(prev =>
+          prev.map(c =>
+            (applicationId && c._id === applicationId) ||
+            (candidateEmail && c.email?.toLowerCase() === candidateEmail.toLowerCase())
+              ? { ...c, candidateProfile: { ...(c.candidateProfile || {}), lastVerified: now } }
+              : c
+          )
+        );
+      }
+
       if (event.data?.type === "APPLICATION_ACCEPTED") {
         const { applicationId, candidateEmail } = event.data;
 

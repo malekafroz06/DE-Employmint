@@ -146,6 +146,13 @@ export default function AssessmentPage() {
 
       setRemarks((prev) => ({ ...prev, [stepKey]: "" }));
       setIsExisting(true);
+
+      // Let the Search Resume tab refresh this candidate's "Last edited" date
+      try {
+        const bc = new BroadcastChannel("application_updates");
+        bc.postMessage({ type: "ASSESSMENT_UPDATED", applicationId, candidateEmail });
+        bc.close();
+      } catch { /* not supported */ }
     } catch {
       alert("Network error. Please try again.");
     } finally {
