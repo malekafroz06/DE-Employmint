@@ -2,6 +2,7 @@ import Job from "../models/Job.js";
 import JobApplication from "../models/JobApplication.js";
 import Company from "../models/Company.js";
 import User from "../models/User.js";
+import Resume from "../models/Resume.js";
 import { freshJobFilter } from "../utils/jobExpiry.js";
 
 const MONTHS_BACK = 7;
@@ -74,6 +75,66 @@ const companyKey = (name) => {
   return words.join("");
 };
 
+// One entry per real person across portal sign-ups (User) and recruiter-uploaded
+// resumes (Resume). The same person can apply on the portal and also have their
+// resume uploaded by one or more recruiters, so records are matched by email,
+// then by mobile number. Sign-ups come first so a candidate's own profile wins
+// over parsed resume details; `firstSeen` is when they first appeared anywhere.
+const buildCandidatePool = (userDocs, resumeDocs) => {
+  const records = [
+    ...userDocs.map((u) => ({
+      email: u.emailId || u.email,
+      phone: u.mobileNo,
+      noticePeriod: u.noticePeriod,
+      totalExperience: u.totalExperience,
+      at: u.createdAt,
+    })),
+    ...resumeDocs.map((r) => ({
+      email: r.parsedData?.email,
+      phone: r.parsedData?.phone,
+      noticePeriod: r.candidateProfile?.professional?.noticePeriod,
+      totalExperience: r.candidateProfile?.professional?.totalExperience,
+      at: r.createdAt || r.uploadDate,
+    })),
+  ];
+
+  const people = [];
+  const byEmail = new Map();
+  const byPhone = new Map();
+  records.forEach((rec) => {
+    const email = String(rec.email || "").trim().toLowerCase();
+    // Placeholder addresses created for sign-ups without an email aren't real identities
+    const emailKey = email && !/@(clerk\.user|placeholder\.internal)$/.test(email) ? email : "";
+    const digits = String(rec.phone || "").replace(/\D/g, "");
+    const phoneKey = digits.length >= 10 ? digits.slice(-10) : "";
+    const at = rec.at ? new Date(rec.at).getTime() : 0;
+
+    let person = (emailKey && byEmail.get(emailKey)) || (phoneKey && byPhone.get(phoneKey));
+    if (!person) {
+      person = { firstSeen: at, noticePeriod: "", totalExperience: "" };
+      people.push(person);
+    }
+    if (at && (!person.firstSeen || at < person.firstSeen)) person.firstSeen = at;
+    if (!person.noticePeriod && rec.noticePeriod) person.noticePeriod = String(rec.noticePeriod);
+    if (!person.totalExperience && rec.totalExperience) person.totalExperience = String(rec.totalExperience);
+    if (emailKey) byEmail.set(emailKey, person);
+    if (phoneKey) byPhone.set(phoneKey, person);
+  });
+  return people;
+};
+
+// "5 years 6 months" → 5.5, "6 months" → 0.5, "3+ yrs" → 3, "Fresher" → 0; null if unknown
+const experienceInYears = (text) => {
+  const s = String(text || "").toLowerCase();
+  if (!s.trim()) return null;
+  if (/fresher/.test(s)) return 0;
+  const years = s.match(/(\d+(?:\.\d+)?)\s*\+?\s*(?:years?|yrs?)/);
+  const months = s.match(/(\d+)\s*(?:months?|mos?)\b/);
+  if (years || months) return (years ? parseFloat(years[1]) : 0) + (months ? Number(months[1]) / 12 : 0);
+  const bare = s.match(/^\s*(\d+(?:\.\d+)?)\s*\+?\s*$/); // a plain number means years
+  return bare ? parseFloat(bare[1]) : null;
+};
+
 // $sum expressions counting postings dated this month vs last month
 const monthSplit = (startOfThisMonthMs, startOfLastMonthMs) => ({
   thisMonth: { $cond: [{ $gte: ["$date", startOfThisMonthMs] }, 1, 0] },
@@ -118,32 +179,37 @@ export const getHiringPulseStats = async (req, res) => {
     const [
       activeJobs,
       hiringCompanyIds,
-      newCandidatesThisMonth,
-      newCandidatesLastMonth,
+      userDocs,
+      resumeDocs,
       companyDocs,
       applicationsThisMonth,
       applicationsLastMonth,
-      totalCandidates,
       topRolesAgg,
       locationsAgg,
       topCompaniesAgg,
       applicationsByRoleAgg,
       industrySplitAgg,
       monthlyTrendAgg,
-      noticePeriodDocs,
-      experienceDocs,
       roleGrowthAgg,
       industryGrowthAgg,
       highestSalaryJob,
     ] = await Promise.all([
       Job.countDocuments(activeJob),
       Job.distinct("companyId", activeJob),
-      User.countDocuments({ createdAt: { $gte: startOfThisMonth } }),
-      User.countDocuments({ createdAt: { $gte: startOfLastMonth, $lt: startOfThisMonth } }),
+      // Candidates who signed up on the portal (and apply to jobs)...
+      User.find({}, { email: 1, emailId: 1, mobileNo: 1, noticePeriod: 1, totalExperience: 1, createdAt: 1 }).lean(),
+      // ...and candidates whose resumes recruiters uploaded and we parsed
+      Resume.find({}, {
+        "parsedData.email": 1,
+        "parsedData.phone": 1,
+        "candidateProfile.professional.noticePeriod": 1,
+        "candidateProfile.professional.totalExperience": 1,
+        createdAt: 1,
+        uploadDate: 1,
+      }).lean(),
       Company.find({}, { name: 1, createdAt: 1 }).lean(),
       JobApplication.countDocuments({ date: { $gte: startOfThisMonthMs } }),
       JobApplication.countDocuments({ date: { $gte: startOfLastMonthMs, $lt: startOfThisMonthMs } }),
-      User.countDocuments({}),
       Job.aggregate([
         { $match: activeJob },
         { $project: { label: roleExpr() } },
@@ -235,8 +301,6 @@ export const getHiringPulseStats = async (req, res) => {
         },
         { $sort: { _id: 1 } },
       ]),
-      User.find({ noticePeriod: { $ne: "" } }, { noticePeriod: 1 }).lean(),
-      User.find({ totalExperience: { $ne: "" } }, { totalExperience: 1 }).lean(),
       Job.aggregate([
         { $match: { date: { $gte: startOfLastMonthMs } } },
         { $project: { label: roleExpr(), date: 1 } },
@@ -316,13 +380,20 @@ export const getHiringPulseStats = async (req, res) => {
       monthlyTrend.push({ month: monthLabel(d.getFullYear(), d.getMonth()), jobs: trendMap.get(key) || 0 });
     }
 
+    // Candidate Intelligence covers everyone on the portal: sign-ups and uploaded resumes
+    const candidatePool = buildCandidatePool(userDocs, resumeDocs);
+    const totalCandidates = candidatePool.length;
+    const newCandidatesThisMonth = candidatePool.filter((p) => p.firstSeen >= startOfThisMonthMs).length;
+    const newCandidatesLastMonth = candidatePool.filter((p) => p.firstSeen >= startOfLastMonthMs && p.firstSeen < startOfThisMonthMs).length;
+
     const immediateRegex = /immediate/i;
     const daysRegex = /(\d+)\s*day/i;
     const monthsRegex = /(\d+)\s*month/i;
     let immediateJoiners = 0;
     let noticePeriodUnder30 = 0;
-    noticePeriodDocs.forEach((u) => {
-      const np = u.noticePeriod || "";
+    candidatePool.forEach((p) => {
+      const np = p.noticePeriod || "";
+      if (!np) return;
       if (immediateRegex.test(np)) {
         immediateJoiners += 1;
         noticePeriodUnder30 += 1;
@@ -333,15 +404,16 @@ export const getHiringPulseStats = async (req, res) => {
         noticePeriodUnder30 += 1;
         return;
       }
+      // "1 month" is 30 days, the same as "30 days" above
       const monthsMatch = np.match(monthsRegex);
-      if (monthsMatch && Number(monthsMatch[1]) === 0) {
+      if (monthsMatch && Number(monthsMatch[1]) <= 1) {
         noticePeriodUnder30 += 1;
       }
     });
 
-    const expValues = experienceDocs
-      .map((u) => parseFloat(String(u.totalExperience).match(/[\d.]+/)?.[0]))
-      .filter((v) => Number.isFinite(v));
+    const expValues = candidatePool
+      .map((p) => experienceInYears(p.totalExperience))
+      .filter((v) => v !== null);
     const avgExperienceYears = expValues.length
       ? Math.round((expValues.reduce((a, b) => a + b, 0) / expValues.length) * 10) / 10
       : null;
