@@ -62,30 +62,46 @@ const roleExpr = () => ({
   },
 });
 
+// Several people from one company (hr@x.com, ceo@x.com) each sign up as their
+// own Company account, so companies are counted by name, not by account.
+// "DE Employmint Pvt. Ltd.", "de-employmint" and "DEEmploymint" share one key.
+const LEGAL_SUFFIX = /^(private|pvt|limited|ltd|llp|inc|incorporated|corp|corporation|opc)$/;
+const companyKey = (name) => {
+  let key = String(name || "").toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, " ").trim();
+  // Drop trailing legal suffixes ("pvt ltd", "private limited", ...)
+  let words = key.split(" ");
+  while (words.length > 1 && LEGAL_SUFFIX.test(words[words.length - 1])) words.pop();
+  return words.join("");
+};
+
 // $sum expressions counting postings dated this month vs last month
 const monthSplit = (startOfThisMonthMs, startOfLastMonthMs) => ({
   thisMonth: { $cond: [{ $gte: ["$date", startOfThisMonthMs] }, 1, 0] },
   lastMonth: { $cond: [{ $and: [{ $gte: ["$date", startOfLastMonthMs] }, { $lt: ["$date", startOfThisMonthMs] }] }, 1, 0] },
 });
 
-// Picks the item with the highest month-over-month growth from a { _id, thisMonth, lastMonth } aggregation,
-// falling back to the item with the highest raw count this month when there isn't enough history to show growth.
+// Picks the item that added the most postings this month compared with last
+// month, from a { label, thisMonth, lastMonth } aggregation. Ranking by jobs
+// added (not %) stops a tiny base winning (1 → 10 is "+900%") and still counts
+// items that had no postings last month (0 → 31). % growth breaks ties.
+// deltaPct is null when there were no postings last month (no % to show).
 const pickFastestGrowing = (rows) => {
-  const named = rows.filter((r) => r.label);
-  if (named.length === 0) return null;
-
-  const withHistory = named.filter((r) => r.lastMonth > 0);
-  if (withHistory.length > 0) {
-    const best = withHistory
-      .map((r) => ({ label: r.label, deltaPct: pctChange(r.thisMonth, r.lastMonth), thisMonth: r.thisMonth }))
-      .sort((a, b) => b.deltaPct - a.deltaPct || b.thisMonth - a.thisMonth || a.label.localeCompare(b.label))[0];
-    if (best.deltaPct > 0) return { label: best.label, deltaPct: best.deltaPct };
-  }
-
-  const byVolume = named
-    .map((r) => ({ label: r.label, thisMonth: r.thisMonth }))
-    .sort((a, b) => b.thisMonth - a.thisMonth || a.label.localeCompare(b.label))[0];
-  return byVolume.thisMonth > 0 ? { label: byVolume.label, deltaPct: null } : null;
+  const best = rows
+    .filter((r) => r.label)
+    .map((r) => ({
+      label: r.label,
+      added: r.thisMonth - r.lastMonth,
+      thisMonth: r.thisMonth,
+      deltaPct: r.lastMonth > 0 ? pctChange(r.thisMonth, r.lastMonth) : null,
+    }))
+    .sort((a, b) =>
+      b.added - a.added ||
+      (b.deltaPct ?? Infinity) - (a.deltaPct ?? Infinity) ||
+      b.thisMonth - a.thisMonth ||
+      a.label.localeCompare(b.label)
+    )[0];
+  if (!best || best.added <= 0) return null;
+  return { label: best.label, deltaPct: best.deltaPct, added: best.added, thisMonth: best.thisMonth };
 };
 
 export const getHiringPulseStats = async (req, res) => {
@@ -104,8 +120,7 @@ export const getHiringPulseStats = async (req, res) => {
       hiringCompanyIds,
       newCandidatesThisMonth,
       newCandidatesLastMonth,
-      newCompaniesThisMonth,
-      newCompaniesLastMonth,
+      companyDocs,
       applicationsThisMonth,
       applicationsLastMonth,
       totalCandidates,
@@ -125,8 +140,7 @@ export const getHiringPulseStats = async (req, res) => {
       Job.distinct("companyId", activeJob),
       User.countDocuments({ createdAt: { $gte: startOfThisMonth } }),
       User.countDocuments({ createdAt: { $gte: startOfLastMonth, $lt: startOfThisMonth } }),
-      Company.countDocuments({ createdAt: { $gte: startOfThisMonth } }),
-      Company.countDocuments({ createdAt: { $gte: startOfLastMonth, $lt: startOfThisMonth } }),
+      Company.find({}, { name: 1, createdAt: 1 }).lean(),
       JobApplication.countDocuments({ date: { $gte: startOfThisMonthMs } }),
       JobApplication.countDocuments({ date: { $gte: startOfLastMonthMs, $lt: startOfThisMonthMs } }),
       User.countDocuments({}),
@@ -166,21 +180,17 @@ export const getHiringPulseStats = async (req, res) => {
           $project: {
             label: 1,
             jobs: 1,
-            companies: { $size: { $reduce: { input: "$companies", initialValue: [], in: { $setUnion: ["$$value", "$$this"] } } } },
+            // Account ids — turned into a by-name company count below
+            companyIds: { $reduce: { input: "$companies", initialValue: [], in: { $setUnion: ["$$value", "$$this"] } } },
           },
         },
         { $sort: { jobs: -1, label: 1 } },
         { $limit: 8 },
       ]),
+      // Active jobs per account — merged per company name (and limited) below
       Job.aggregate([
         { $match: activeJob },
         { $group: { _id: "$companyId", jobs: { $sum: 1 } } },
-        // Look up before limiting, so a deleted company never pushes the list below 6
-        { $lookup: { from: "companies", localField: "_id", foreignField: "_id", as: "company" } },
-        { $unwind: "$company" },
-        { $project: { _id: 0, id: "$_id", name: "$company.name", jobs: 1 } },
-        { $sort: { jobs: -1, name: 1 } },
-        { $limit: 6 },
       ]),
       // Applications per role, using the applied job's designation/title.
       // Older applications have no stored jobTitle, so the job is the source of
@@ -243,7 +253,42 @@ export const getHiringPulseStats = async (req, res) => {
 
     // ── Derived / parsed values ────────────────────────────────────────────
 
-    const hiringCompanies = hiringCompanyIds.length;
+    // Account id → company-name key, so every company count below is by name:
+    // jobs posted from hr@x.com and ceo@x.com add up under one company
+    const accountKey = new Map(companyDocs.map((c) => [String(c._id), companyKey(c.name)]));
+    const accountName = new Map(companyDocs.map((c) => [String(c._id), String(c.name || "").trim()]));
+    const countCompanies = (ids) => new Set(ids.map((id) => accountKey.get(String(id))).filter(Boolean)).size;
+
+    const hiringCompanies = countCompanies(hiringCompanyIds);
+
+    const companyJobs = new Map();
+    topCompaniesAgg.forEach((row) => {
+      const key = accountKey.get(String(row._id));
+      if (!key) return; // account deleted
+      const name = accountName.get(String(row._id));
+      const entry = companyJobs.get(key) || { id: String(row._id), name, jobs: 0, nameJobs: 0 };
+      entry.jobs += row.jobs;
+      // Show the spelling used by the account with the most jobs
+      if (row.jobs > entry.nameJobs) Object.assign(entry, { id: String(row._id), name, nameJobs: row.jobs });
+      companyJobs.set(key, entry);
+    });
+    const topCompanies = [...companyJobs.values()]
+      .sort((a, b) => b.jobs - a.jobs || a.name.localeCompare(b.name))
+      .slice(0, 6)
+      .map(({ id, name, jobs }) => ({ id, name, jobs }));
+
+    // Unique companies by name; a company is "new" in the month its first account signed up
+    const firstSignup = new Map();
+    companyDocs.forEach((c) => {
+      const key = companyKey(c.name);
+      if (!key) return;
+      const at = c.createdAt ? new Date(c.createdAt).getTime() : 0;
+      if (!firstSignup.has(key) || at < firstSignup.get(key)) firstSignup.set(key, at);
+    });
+    const totalCompanies = firstSignup.size;
+    const firstSignups = [...firstSignup.values()];
+    const newCompaniesThisMonth = firstSignups.filter((t) => t >= startOfThisMonthMs).length;
+    const newCompaniesLastMonth = firstSignups.filter((t) => t >= startOfLastMonthMs && t < startOfThisMonthMs).length;
 
     const mostCompetitiveCity = locationsAgg.length
       ? { city: locationsAgg[0].label, jobs: locationsAgg[0].jobs }
@@ -307,6 +352,7 @@ export const getHiringPulseStats = async (req, res) => {
         kpis: {
           activeJobs: { value: activeJobs },
           hiringCompanies: { value: hiringCompanies },
+          totalCompanies: { value: totalCompanies },
           newCandidates: { value: newCandidatesThisMonth, deltaPct: pctChange(newCandidatesThisMonth, newCandidatesLastMonth) },
           newCompanies: { value: newCompaniesThisMonth, deltaPct: pctChange(newCompaniesThisMonth, newCompaniesLastMonth) },
           applicationsReceived: { value: applicationsThisMonth, deltaPct: pctChange(applicationsThisMonth, applicationsLastMonth) },
@@ -316,8 +362,8 @@ export const getHiringPulseStats = async (req, res) => {
         highestSalary: highestSalaryJob ? { title: highestSalaryJob.title, salary: highestSalaryJob.salary } : null,
         mostCompetitiveCity,
         topRoles: topRolesAgg.map((r) => ({ role: r.label, jobs: r.jobs })),
-        locations: locationsAgg.map((r) => ({ city: r.label, jobs: r.jobs, companies: r.companies })),
-        topCompanies: topCompaniesAgg,
+        locations: locationsAgg.map((r) => ({ city: r.label, jobs: r.jobs, companies: countCompanies(r.companyIds) })),
+        topCompanies,
         applicationsByRole: applicationsByRoleAgg.map((r) => ({ name: r.label, value: r.value })),
         industrySplit,
         monthlyTrend,

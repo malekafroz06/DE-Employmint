@@ -51,6 +51,13 @@ const fmtCurrency = (n) => (typeof n === "number" ? `₹${n.toLocaleString()}` :
 
 // Renders a growth delta as "+12% vs last month" (green) or "-4% vs last month" (red).
 // Returns null when there's no meaningful delta to show, so callers can hide the row entirely.
+// "Fastest growing" is ranked by jobs added vs last month, so show that count
+const growthSub = (g) => {
+  if (!g) return "Not enough data yet";
+  if (g.added === undefined) return undefined;
+  return `+${g.added} job${g.added === 1 ? "" : "s"} vs last month`;
+};
+
 const deltaLabel = (deltaPct) => {
   if (deltaPct === null || deltaPct === undefined || Number.isNaN(deltaPct)) return null;
   return { text: `${deltaPct >= 0 ? "+" : ""}${deltaPct}% vs last month`, up: deltaPct >= 0 };
@@ -244,6 +251,7 @@ const HiringPulse = () => {
   const industrySplitColored = industrySplit.map((seg, i) => ({ ...seg, color: INDUSTRY_COLORS[i % INDUSTRY_COLORS.length] }));
 
   const recruiterInsightStats = [
+    { icon: <FiHome />, value: fmtNum(kpis.totalCompanies?.value ?? 0), label: "Total Companies", sub: "Registered on platform" },
     { icon: <FiUserPlus />, value: fmtNum(kpis.newCandidates.value), label: "New Candidates", deltaPct: kpis.newCandidates.deltaPct },
     { icon: <FiHome />, value: fmtNum(kpis.newCompanies.value), label: "New Companies", deltaPct: kpis.newCompanies.deltaPct },
     { icon: <FiBarChart2 />, value: fmtNum(kpis.applicationsReceived.value), label: "Applications Received", deltaPct: kpis.applicationsReceived.deltaPct },
@@ -251,8 +259,7 @@ const HiringPulse = () => {
       icon: <FiTrendingUp />,
       value: fastestGrowingIndustry?.label || "—",
       label: "Fastest Growing Industry",
-      deltaPct: fastestGrowingIndustry?.deltaPct,
-      sub: !fastestGrowingIndustry ? "Not enough data yet" : undefined,
+      sub: growthSub(fastestGrowingIndustry),
     },
   ];
 
@@ -263,8 +270,7 @@ const HiringPulse = () => {
       icon: <FiTrendingUp />,
       value: fastestGrowingRole?.label || "—",
       label: "Fastest Growing Role",
-      deltaPct: fastestGrowingRole?.deltaPct,
-      sub: !fastestGrowingRole ? "Not enough data yet" : undefined,
+      sub: growthSub(fastestGrowingRole),
     },
     {
       icon: <FiTarget />,
@@ -322,7 +328,7 @@ const HiringPulse = () => {
 
       {/* ================= RECRUITER'S INSIGHT ================= */}
       <GroupHeading>Recruiter's Insight</GroupHeading>
-      <StatGrid stats={recruiterInsightStats} cols="sm:grid-cols-4" separate />
+      <StatGrid stats={recruiterInsightStats} cols="sm:grid-cols-5" separate />
 
       {/* ================= CANDIDATE INSIGHT ================= */}
       <GroupHeading>Candidate Insight</GroupHeading>
