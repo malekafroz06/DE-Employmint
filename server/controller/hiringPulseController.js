@@ -258,10 +258,11 @@ export const getHiringPulseStats = async (req, res) => {
         { $match: activeJob },
         { $group: { _id: "$companyId", jobs: { $sum: 1 } } },
       ]),
-      // Applications per role, using the applied job's designation/title.
+      // This month's applications per role, using the applied job's designation/title.
       // Older applications have no stored jobTitle, so the job is the source of
       // truth; the stored jobTitle is only a fallback for deleted jobs.
       JobApplication.aggregate([
+        { $match: { date: { $gte: startOfThisMonthMs } } },
         { $lookup: { from: "jobs", localField: "jobId", foreignField: "_id", as: "job" } },
         {
           $project: {

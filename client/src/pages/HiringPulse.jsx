@@ -424,9 +424,9 @@ const HiringPulse = () => {
       {/* ================= APPLICATIONS / INDUSTRY SPLIT ================= */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="p-6 lg:col-span-2">
-          <SectionTitle>Application Intelligence <span className="normal-case text-gray-400 group-hover:text-white/50 font-medium transition-colors duration-300">— by role</span></SectionTitle>
+          <SectionTitle>Application Intelligence <span className="normal-case text-gray-400 group-hover:text-white/50 font-medium transition-colors duration-300">— by role, this month</span></SectionTitle>
           {applicationsByRole.length === 0 ? (
-            <EmptyState>No applications received yet.</EmptyState>
+            <EmptyState>No applications received this month yet.</EmptyState>
           ) : (
             <ResponsiveContainer width="100%" height={340}>
               <BarChart data={applicationsByRole} margin={{ left: 0, right: 12, bottom: 10 }}>
