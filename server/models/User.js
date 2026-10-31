@@ -1,5 +1,25 @@
 import mongoose from "mongoose";
 
+// Same row shapes as Resume.candidateProfile, so the Edit Candidate popup
+// works for both recruiter-uploaded resumes and the candidate's own profile.
+const educationEntrySchema = new mongoose.Schema({
+  level: { type: String, default: '' },
+  degreeName: { type: String, default: '' },
+  institute: { type: String, default: '' },
+  modeOfEducation: { type: String, default: '' },
+  percentage: { type: String, default: '' },
+  specialization: { type: String, default: '' },
+  isHighestEducation: { type: Boolean, default: false }
+}, { timestamps: true });
+
+const skillEntrySchema = new mongoose.Schema({
+  category: { type: String, default: '' },
+  name: { type: String, default: '' },
+  description: { type: String, default: '' },
+  proficiencyLevel: { type: String, default: '' },
+  isCoreSkill: { type: Boolean, default: false }
+}, { timestamps: true });
+
 const userSchema = new mongoose.Schema({
   _id: { type: String, required: true }, // Clerk user ID
   name: { type: String, required: true },
@@ -45,6 +65,16 @@ const userSchema = new mongoose.Schema({
   selectedProducts: { type: String, default: '' }, // stored as comma-separated string
   jobChannel:       { type: String, default: '' },
   otherJobChannel:  { type: String, default: '' },
+
+  // ── Extra details edited in the Edit Profile popup ──────────────
+  preferredLocation: { type: String, default: '' },
+  currentCompany:    { type: String, default: '' },
+  roleExperience:    { type: String, default: '' },
+  availability:      { type: String, default: '' },
+  hiringStatus:      { type: String, enum: ['', 'Active', 'Passive'], default: '' },
+  skills:            [skillEntrySchema],
+  education:         [educationEntrySchema],
+  profileLastEdited: { type: Date, default: null },
 
   // ── Deprecated — kept only for backward compatibility ───────────
   // Do NOT use these in new code; they will be removed in a future migration

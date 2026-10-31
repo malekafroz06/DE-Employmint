@@ -2,6 +2,7 @@ import User from "../models/User.js";
 import JobApplication from "../models/JobApplication.js";
 import Job from "../models/Job.js";
 import ResumeProcessor from "../utils/resumeProcessor.js";
+import { toCandidateProfile } from "./candidateProfileController.js";
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -147,12 +148,20 @@ export const updateUserResume = async (req, res) => {
     let extractedData = null;
     let filledFields = [];
     try {
-      extractedData = await parseResumeFile(filePath);
-      if (extractedData) filledFields = applyResumeFields(user, extractedData);
+      const parsed = await parseResumeFile(filePath);
+      if (parsed) {
+        extractedData = parsed.fields;
+        filledFields = applyResumeFields(user, extractedData);
+        // Skills / education are tables the candidate edits row by row —
+        // only fill them from the resume while they're still empty
+        if (!user.skills?.length && parsed.skills.length) user.skills = parsed.skills;
+        if (!user.education?.length && parsed.education.length) user.education = parsed.education;
+      }
     } catch (parseError) {
       console.error("Resume auto-fill failed:", parseError.message);
     }
 
+    user.profileLastEdited = new Date();
     const updatedUser = await user.save();
 
     res.json({
@@ -162,7 +171,9 @@ export const updateUserResume = async (req, res) => {
         : "Resume Updated Successfully",
       user: updatedUser,
       extractedData,
-      filledFields
+      filledFields,
+      // Same shape as the recruiter "Replace CV" response, for the Edit Profile popup
+      data: { resumeName: resumeFile.originalname, fileSize: resumeFile.size, candidateProfile: toCandidateProfile(updatedUser) },
     });
   } catch (error) {
     console.error("Error updating resume:", error);
@@ -277,19 +288,26 @@ const mapParsedResumeToUser = ({ parsedData, candidateProfile }) => {
     currentCTC:         professional.currentCTC || '',
     noticePeriod:       professional.noticePeriod || '',
     totalExperience:    professional.totalExperience || '',
-    // Parser categories / products / channels use the same lists as the profile form
+    // Parser sectors / categories / products / channels use the same lists as the profile form
+    sector:             professional.sector || '',
     jobCategory:        professional.category || '',
     selectedProducts:   professional.product || '',
     jobChannel:         professional.channel || '',
   };
 };
 
-// Extract text (with OCR for image-only PDFs) and parse it into User fields
+// Extract text (with OCR for image-only PDFs) and parse it into User fields,
+// plus the skills / education rows found in the resume
 const parseResumeFile = async (filePath) => {
   const ext = path.extname(filePath).slice(1).toLowerCase() || 'pdf';
   const text = await ResumeProcessor.extractTextFromFile(filePath, ext);
   if (!text || text.replace(/\s/g, '').length < 10) return null;
-  return mapParsedResumeToUser(ResumeProcessor.parseResumeProfile(text));
+  const parsed = ResumeProcessor.parseResumeProfile(text);
+  return {
+    fields: mapParsedResumeToUser(parsed),
+    skills: parsed.candidateProfile?.skills || [],
+    education: parsed.candidateProfile?.education || [],
+  };
 };
 
 // Apply the latest resume's details to the profile. Fields the resume doesn't
@@ -333,7 +351,7 @@ export const extractResumeData = async (req, res) => {
       return res.json({ success: false, message: "Resume file not found. Please upload your resume again." });
     }
 
-    const extractedData = await parseResumeFile(filePath);
+    const extractedData = (await parseResumeFile(filePath))?.fields;
     if (!extractedData) {
       return res.json({ success: false, message: "Could not read text from this resume. Please fill in details manually." });
     }
@@ -510,7 +528,7 @@ export const fixUserData = async (req, res) => {
 };
 
 // getOrCreateUser helper
-const getOrCreateUser = async (clerkUserId, claims) => {
+export const getOrCreateUser = async (clerkUserId, claims) => {
   if (!clerkUserId) throw new Error("clerkUserId is required");
 
   // ── 1. Try find by Clerk ID first (fastest path) ──────────────────

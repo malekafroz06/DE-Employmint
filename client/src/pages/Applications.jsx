@@ -1,23 +1,28 @@
 // Responsive Candidate Dashboard Component - same sidebar layout as the recruiter Dashboard
 import React, { useContext, useEffect, useState } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { AppContext } from "../context/AppContext";
 import DEEmploymintIcon from "../assets/DELogoTransparent.png";
 import { motion, AnimatePresence } from "framer-motion";
-import { FiUser, FiBriefcase, FiBell, FiHome, FiMenu, FiX, FiLogOut, FiChevronRight } from "react-icons/fi";
+import { FiUser, FiBriefcase, FiBell, FiHome, FiMenu, FiX, FiLogOut, FiChevronRight, FiUpload } from "react-icons/fi";
 import { useClerk } from "@clerk/clerk-react";
 
 const Applications = () => {
   const { signOut } = useClerk();
   const navigate = useNavigate();
+  const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const { userData, setUserData, setUserToken } = useContext(AppContext);
   const [hasInitiallyOpened, setHasInitiallyOpened] = useState(false);
 
+  // Bare /applications: candidates without a resume start at Resume Parsing,
+  // everyone else at My Profile. Sub-pages are left alone.
   useEffect(() => {
-    if (userData) navigate("/applications/my-profile");
-  }, [userData]);
+    if (!userData || location.pathname.replace(/\/+$/, "") !== "/applications") return;
+    const hasResume = typeof userData.resume === "string" && userData.resume.trim() !== "";
+    navigate(hasResume ? "/applications/my-profile" : "/applications/resume-parsing", { replace: true });
+  }, [userData, location.pathname]);
 
   // Responsive handling - Always open sidebar on mobile when entering applications
   useEffect(() => {
@@ -76,6 +81,7 @@ const Applications = () => {
 
   // Candidate Dashboard Navigation Items
   const navItems = [
+    { path: "resume-parsing", label: "Resume Parsing", icon: <FiUpload /> },
     { path: "my-profile", label: "My Profile", icon: <FiUser /> },
     { path: "applied-jobs", label: "Applied Jobs", icon: <FiBriefcase /> },
     { path: "job-alerts", label: "Job Alerts", icon: <FiBell /> },

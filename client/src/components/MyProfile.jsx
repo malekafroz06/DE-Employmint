@@ -4,6 +4,7 @@ import { toast } from "react-toastify";
 import { motion, AnimatePresence } from "framer-motion";
 import { FileText, File, Edit, Download, User, Briefcase, Upload, Save, RefreshCw, Home, X, Check, Trash2 } from "lucide-react";
 import { AppContext } from "../context/AppContext";
+import CandidateDetailsModal from "./CandidateDetailsModal";
 import { useNavigate, useLocation } from "react-router-dom";
 
 // ── Job Channel Options (from AddJob) ────────────────────────────────────────
@@ -14,32 +15,87 @@ const JobChannels = [
   "Sub Broker", "IAF", "DSA", "Other"
 ];
 
-// ── Job Category Options (from AddJob) ───────────────────────────────────────
-const JobCategories = [
-  // Capital Market
-  "Stock Market",
-  "Asset Management",
-  "Portfolio Management",
-  "Wealth Management",
-  "Alternative Investment Fund",
-  "Investment Banking",
-  // NBFC Sector
-  "Asset Finance Company (AFC)",
-  "Loan Company (LC)",
-  "Microfinance Institution (MFI)",
-  "Housing Finance Company (HFC)",
-  "Gold Loan NBFC",
-  "Retail NBFC (Consumer Finance)",
-  // Insurance Sector
-  "Life Insurance",
-  "General Insurance",
-  // Prop Trading
-  "Fundamental Analysis",
-  "Technical Analysis",
-  "Quant Analysis",
-  "Algo Trading",
-  "Other"
-];
+// ── Sector → Categories (same grouping as Edit Candidate / AddJob) ───────────
+const SectorCategories = {
+  "Capital Market": [
+    "Stock Market", "Asset Management", "Portfolio Management",
+    "Wealth Management", "Alternative Investment Fund", "Investment Banking",
+  ],
+  "NBFC Sector": [
+    "Asset Finance Company (AFC)", "Loan Company (LC)", "Microfinance Institution (MFI)",
+    "Housing Finance Company (HFC)", "Gold Loan NBFC", "Retail NBFC (Consumer Finance)",
+  ],
+  "Insurance Sector": ["Life Insurance", "General Insurance"],
+  "Prop Trading": ["Fundamental Analysis", "Technical Analysis", "Quant Analysis", "Algo Trading"],
+};
+const JobSectors = Object.keys(SectorCategories);
+
+// ── Sector → Channels (the sales channels relevant to each sector) ───────────
+const SectorChannels = {
+  "Capital Market": [
+    "Direct Sales", "Sub Broker", "IAF", "Franchisee/Entrepreneurial",
+    "Digital/Online Sales", "Alternate Channels", "Other",
+  ],
+  "NBFC Sector": [
+    "Direct Sales", "DSA", "Digital/Online Sales", "Corporate / Group Channel",
+    "Alternate Channels", "Other",
+  ],
+  "Insurance Sector": [
+    "Agency Channel", "Bancassurance", "Direct Sales", "Broker Channel",
+    "Corporate / Group Channel", "POSP (Point of Sales Person)", "Worksite Marketing",
+    "Digital/Online Sales", "Alternate Channels", "Other",
+  ],
+  "Prop Trading": ["Direct Sales", "Digital/Online Sales", "Alternate Channels", "Other"],
+};
+
+// The sector a category belongs to — for profiles saved before sectors were linked
+const sectorOfCategory = (category) => JobSectors.find((s) => SectorCategories[s].includes(category)) || "";
+
+// Saved sector if it's a current one, else the sector of the saved category
+// (older profiles used a different sector list), else whatever was saved
+const resolveSector = (data) =>
+  SectorCategories[data?.sector] ? data.sector : sectorOfCategory(data?.jobCategory) || data?.sector || "";
+
+// The candidate's User record in the shape the Edit Candidate popup reads
+// (same as a recruiter-uploaded resume: name/email/phone + candidateProfile)
+const toPopupCandidate = (u) => {
+  const name = u.fullName || u.name || "";
+  // Sign-ups without an email get a placeholder address — don't show it
+  const email = [u.emailId, u.email].find((e) => e && !/@(clerk\.user|placeholder\.internal)$/i.test(e)) || "";
+  const dob = u.dob ? new Date(u.dob).toISOString().slice(0, 10) : "";
+  const products = Array.isArray(u.selectedProducts) ? u.selectedProducts.join(", ") : u.selectedProducts || "";
+  return {
+    _id: u._id,
+    candidateName: name,
+    fullName: name,
+    email,
+    phone: u.mobileNo || "",
+    resumeName: u.resume ? String(u.resume).split("/").pop() : "No resume uploaded yet",
+    resumeFile: u.resume,
+    candidateProfile: {
+      personal: {
+        gender: u.gender || "", dob, city: u.city || "", state: u.state || "",
+        maritalStatus: u.maritalStatus || "", languages: u.languages || "",
+        preferredLocation: u.preferredLocation || "",
+      },
+      professional: {
+        sector: resolveSector(u), category: u.jobCategory || "", product: products, channel: u.jobChannel || "",
+        currentDesignation: u.currentDesignation || "", currentDepartment: u.currentDepartment || "",
+        currentCompany: u.currentCompany || "", currentCTC: u.currentCTC || "", expectedCTC: u.expectedCTC || "",
+        totalExperience: u.totalExperience || "", roleExperience: u.roleExperience || "",
+        noticePeriod: u.noticePeriod || "", availability: u.availability || "",
+        jobChangeStatus: u.jobChangeStatus || "", hiringStatus: u.hiringStatus || "",
+      },
+      skills: u.skills || [],
+      education: u.education || [],
+      lastVerified: u.profileLastEdited || null,
+    },
+  };
+};
+
+// Keep a previously-saved value selectable even if it isn't in the current list
+const withCurrent = (options, current) =>
+  current && !options.includes(current) ? [current, ...options] : options;
 
 // ── Products per Category (from AddJob) ──────────────────────────────────────
 const CategoryProducts = {
@@ -90,6 +146,7 @@ const MyProfile = () => {
   const [resume, setResume] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [showEditPopup, setShowEditPopup] = useState(false);
 
   // Section editing states
   const [isEditingPersonal, setIsEditingPersonal] = useState(false);
@@ -200,8 +257,7 @@ const MyProfile = () => {
       profileData.noticePeriod,
       profileData.totalExperience,
       profileData.jobChangeStatus,
-      profileData.sector === 'Other' ? profileData.otherSector : profileData.sector,
-      profileData.category === 'Other' ? profileData.otherCategory : profileData.category,
+      profileData.sector,
       profileData.jobCategory === 'Other' ? profileData.otherJobCategory : profileData.jobCategory,
       profileData.selectedProducts && profileData.selectedProducts.length > 0 ? 'filled' : '',
       profileData.jobChannel === 'Other' ? profileData.otherJobChannel : profileData.jobChannel,
@@ -245,19 +301,6 @@ const MyProfile = () => {
     document.body.removeChild(link);
   };
 
-  // Sector / Category options (legacy fields kept for backward compat)
-  const sectorOptions = [
-    'Life Insurance', 'General Insurance', 'Equity Broking',
-    'Equity Research', 'Wealth Management', 'Other'
-  ];
-  const categoryOptions = [
-    'Equity Broking', 'Commodity Broking', 'Currency Broking',
-    'Fundamental Research', 'Technical Research', 'Data Analysis',
-    'Quant Analysis', 'Life Insurance', 'General Insurance',
-    'Asset Finance', 'Loan Companies', 'Microfinance MFI',
-    'Housing Finance Co. (HFC)', 'Discretionary Portfolio Management',
-    'Non-Discretionary Advisory', 'Other'
-  ];
   const maritalStatusOptions = ['Single', 'Married'];
   const genderOptions = ['Male', 'Female', 'Other'];
   const jobChangeStatusOptions = ['Actively Looking', 'Open to Offers', 'Not Looking'];
@@ -273,6 +316,21 @@ const MyProfile = () => {
           : [...current, p]
       };
     });
+  };
+
+  // Sector drives Category (→ Products) and Channel, like Edit Candidate / AddJob
+  const handleSectorChange = (e) => {
+    const value = e.target.value;
+    setProfileData(prev => ({
+      ...prev,
+      sector: value,
+      otherSector: '',
+      jobCategory: '',
+      otherJobCategory: '',
+      selectedProducts: [],
+      // Keep the channel only if it's still offered for the new sector
+      ...((SectorChannels[value] || []).includes(prev.jobChannel) ? {} : { jobChannel: '', otherJobChannel: '' }),
+    }));
   };
 
   const handleJobCategoryChange = (e) => {
@@ -327,7 +385,7 @@ const MyProfile = () => {
         totalExperience: userData.totalExperience || '',
         roleType: userData.roleType || 'Full Time',
         jobChangeStatus: userData.jobChangeStatus || '',
-        sector: userData.sector || '',
+        sector: resolveSector(userData),
         category: userData.category || '',
         otherSector: userData.otherSector || '',
         otherCategory: userData.otherCategory || '',
@@ -560,7 +618,7 @@ const MyProfile = () => {
         totalExperience: userData.totalExperience || '',
         roleType: userData.roleType || 'Full Time',
         jobChangeStatus: userData.jobChangeStatus || '',
-        sector: userData.sector || '',
+        sector: resolveSector(userData),
         category: userData.category || '',
         otherSector: userData.otherSector || '',
         otherCategory: userData.otherCategory || '',
@@ -586,6 +644,35 @@ const MyProfile = () => {
       <div className="absolute bottom-0 right-1/4 w-72 h-72 rounded-full blur-3xl animate-pulse delay-1000" style={{ backgroundColor: 'rgba(2, 3, 48, 0.1)' }}></div>
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
+        {/* Edit Full Profile — opens the same popup recruiters use to edit a candidate */}
+        <div className="flex justify-end mb-4">
+          <motion.button
+            onClick={() => setShowEditPopup(true)}
+            disabled={!userData}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className="flex items-center gap-2 px-5 py-2.5 text-white font-medium rounded-lg shadow-lg disabled:opacity-60"
+            style={{ background: "#FF0000", boxShadow: '0 0 20px rgba(255, 0, 0, 0.25)' }}
+            title="Edit all your details"
+          >
+            <Edit className="w-4 h-4" /> Edit Full Profile
+          </motion.button>
+        </div>
+
+        <AnimatePresence>
+          {showEditPopup && userData && (
+            <CandidateDetailsModal
+              mode="candidate"
+              candidate={toPopupCandidate(userData)}
+              backendUrl={backendUrl}
+              getAuthHeaders={async () => ({ Authorization: `Bearer ${await getToken()}` })}
+              onUpdated={() => fetchUserData()}
+              onDownloadResume={viewResumeFixed}
+              onClose={() => { setShowEditPopup(false); fetchUserData(); }}
+            />
+          )}
+        </AnimatePresence>
+
         {/* Incomplete Profile Message */}
         {isProfileIncomplete && (
           <motion.div
@@ -604,7 +691,7 @@ const MyProfile = () => {
           </motion.div>
         )}
 
-        {/* Profile Overview with Progress Bars */}
+        {/* Profile Overview with Progress Bars — hidden for now
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -635,8 +722,9 @@ const MyProfile = () => {
             </div>
           </div>
         </motion.div>
+        */}
 
-        {/* Autofill from Resume Section */}
+        {/* Autofill from Resume Section — hidden for now (uploading a resume already fills the profile)
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -685,6 +773,7 @@ const MyProfile = () => {
             </div>
           </div>
         </motion.div>
+        */}
 
         {/* Resume Section */}
         <motion.div
@@ -1145,64 +1234,64 @@ const MyProfile = () => {
                   </select>
                 </div>
 
-                {/* Sector */}
+                {/* ── Sector → Category → Products, and Channel (like Edit Candidate) ── */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Sector</label>
                   <select
                     name="sector"
                     value={profileData.sector}
-                    onChange={handleInputChange}
+                    onChange={isEditingProfessional ? handleSectorChange : undefined}
                     disabled={!isEditingProfessional}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   >
                     <option value="">Select Sector</option>
-                    {sectorOptions.map(sector => (
+                    {withCurrent(JobSectors, profileData.sector).map(sector => (
                       <option key={sector} value={sector}>{sector}</option>
                     ))}
                   </select>
                 </div>
 
-                {/* Other Sector */}
-                {profileData.sector === 'Other' && (
-                  <div className="md:col-span-2 lg:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Please specify your sector</label>
-                    <input
-                      type="text"
-                      name="otherSector"
-                      value={profileData.otherSector}
-                      onChange={handleInputChange}
-                      disabled={!isEditingProfessional}
-                      placeholder="Enter your sector"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                    />
-                  </div>
-                )}
-
-                {/* Category */}
+                {/* Category — only the selected sector's categories */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
                   <select
-                    name="category"
-                    value={profileData.category}
-                    onChange={handleInputChange}
-                    disabled={!isEditingProfessional}
+                    value={profileData.jobCategory}
+                    onChange={isEditingProfessional ? handleJobCategoryChange : undefined}
+                    disabled={!isEditingProfessional || !profileData.sector}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   >
-                    <option value="">Select Category</option>
-                    {categoryOptions.map(category => (
-                      <option key={category} value={category}>{category}</option>
+                    <option value="">{profileData.sector ? 'Select Category' : 'Select a sector first'}</option>
+                    {withCurrent([...(SectorCategories[profileData.sector] || []), 'Other'], profileData.jobCategory).map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Channel — only the selected sector's channels */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Channel</label>
+                  <select
+                    name="jobChannel"
+                    value={profileData.jobChannel}
+                    onChange={isEditingProfessional ? handleJobChannelChange : undefined}
+                    disabled={!isEditingProfessional || !profileData.sector}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  >
+                    <option value="">{profileData.sector ? 'Select Channel' : 'Select a sector first'}</option>
+                    {withCurrent(SectorChannels[profileData.sector] || JobChannels, profileData.jobChannel).map(ch => (
+                      <option key={ch} value={ch}>{ch}</option>
                     ))}
                   </select>
                 </div>
 
                 {/* Other Category */}
-                {profileData.category === 'Other' && (
+                {profileData.jobCategory === 'Other' && (
                   <div className="md:col-span-2 lg:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-2">Please specify your category</label>
                     <input
                       type="text"
-                      name="otherCategory"
-                      value={profileData.otherCategory}
+                      name="otherJobCategory"
+                      value={profileData.otherJobCategory}
                       onChange={handleInputChange}
                       disabled={!isEditingProfessional}
                       placeholder="Enter your category"
@@ -1210,23 +1299,6 @@ const MyProfile = () => {
                     />
                   </div>
                 )}
-
-                {/* ── Channel (from AddJob) ── */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Channel</label>
-                  <select
-                    name="jobChannel"
-                    value={profileData.jobChannel}
-                    onChange={isEditingProfessional ? handleJobChannelChange : undefined}
-                    disabled={!isEditingProfessional}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  >
-                    <option value="">Select Channel</option>
-                    {JobChannels.map((ch, i) => (
-                      <option key={i} value={ch}>{ch}</option>
-                    ))}
-                  </select>
-                </div>
 
                 {/* Other Channel */}
                 {profileData.jobChannel === 'Other' && (
@@ -1239,38 +1311,6 @@ const MyProfile = () => {
                       onChange={handleInputChange}
                       disabled={!isEditingProfessional}
                       placeholder="Enter your channel"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                    />
-                  </div>
-                )}
-
-                {/* ── Job Category (from AddJob) ── */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Job Category</label>
-                  <select
-                    value={profileData.jobCategory}
-                    onChange={isEditingProfessional ? handleJobCategoryChange : undefined}
-                    disabled={!isEditingProfessional}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  >
-                    <option value="">Select Job Category</option>
-                    {JobCategories.map((cat, i) => (
-                      <option key={i} value={cat}>{cat}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Other Job Category */}
-                {profileData.jobCategory === 'Other' && (
-                  <div className="md:col-span-2 lg:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Please specify your job category</label>
-                    <input
-                      type="text"
-                      name="otherJobCategory"
-                      value={profileData.otherJobCategory}
-                      onChange={handleInputChange}
-                      disabled={!isEditingProfessional}
-                      placeholder="Enter your job category"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                     />
                   </div>

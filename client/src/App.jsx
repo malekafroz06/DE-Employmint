@@ -1,5 +1,5 @@
-import React, { useContext } from "react";
-import { Route, Routes, Navigate } from "react-router-dom";
+import React, { useContext, useEffect } from "react";
+import { Route, Routes, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { useUser, useClerk } from '@clerk/clerk-react';
 import { toast } from "react-toastify";
 import Home from "./pages/Home";
@@ -17,6 +17,7 @@ import ManageJobs from "./pages/ManageJobs";
 import ViewApplications from "./pages/ViewApplications";
 import ManagePackage from "./pages/ManagePackage";
 import MyProfile from "./components/MyProfile";
+import ResumeParsing from "./components/ResumeParsing";
 import AppliedJobs from "./components/AppliedJobs";
 import BulkUpload from './pages/BulkUpload';
 import SearchResume from './pages/SearchResume';
@@ -98,12 +99,45 @@ const DemoFriendlyRecruiterRoute = ({ children, requireAuth = false }) => {
   return children;
 };
 
+// After a candidate signs in, send them to Resume Parsing if they have no resume
+// yet. Happens once per sign-in (keyed on Clerk's lastSignInAt), so "Skip for
+// now" isn't undone on every page load, but the next login prompts again.
+const promptedSignIns = new Set(); // fallback when localStorage is unavailable
+const CandidateResumePrompt = () => {
+  const { user } = useUser();
+  const { userData, companyToken } = useContext(AppContext);
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (!user || !userData || companyToken) return;
+    if (userData._id && userData._id !== user.id) return; // data still from a previous user
+    const resume = userData.resume;
+    if (typeof resume === "string" && resume.trim() && resume !== "undefined" && resume !== "null") return;
+
+    const key = `resumePrompted_${user.id}_${user.lastSignInAt ? new Date(user.lastSignInAt).getTime() : ""}`;
+    try {
+      if (localStorage.getItem(key)) return;
+      localStorage.setItem(key, "1");
+    } catch {
+      if (promptedSignIns.has(key)) return;
+    }
+    promptedSignIns.add(key);
+    if (location.pathname !== "/applications/resume-parsing") {
+      navigate("/applications/resume-parsing");
+    }
+  }, [user, userData, companyToken]);
+
+  return null;
+};
+
 const App = () => {
   const { showRecruiterLogin, companyToken } = useContext(AppContext);
 
   return (
     <div>
       {showRecruiterLogin && <RecruiterLogin />}
+      <CandidateResumePrompt />
       <ToastContainer />
       <Routes>
         {/* Public routes */}
@@ -113,6 +147,7 @@ const App = () => {
         <Route path="/JobAlert" element={<JobAlert />} />
         <Route path="/recruiter-login" element={<RecruiterLogin />} />
         <Route path="/applications" element={<Applications />}>
+          <Route path="resume-parsing" element={<ResumeParsing />} />
           <Route path="my-profile" element={<MyProfile />} />
           <Route path="applied-jobs" element={<AppliedJobs />} />
           <Route path="job-alerts" element={<JobAlerts />} />

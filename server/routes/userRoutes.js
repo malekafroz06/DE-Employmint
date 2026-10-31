@@ -12,6 +12,13 @@ import {
   forceRefreshUserData,
   extractResumeData
 } from "../controller/userController.js";
+import {
+  updateProfileInfo,
+  updateProfilePersonal,
+  updateProfileProfessional,
+  skillHandlers,
+  educationHandlers,
+} from "../controller/candidateProfileController.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
 import { uploadResume } from "../config/multer.js";
 import User from "../models/User.js"; // Import User model
@@ -63,6 +70,17 @@ userRouter.post("/sync-user", async (req, res) => {
     return res.json({ success: false, message: 'Failed to sync user' });
   }
 });
+
+// Candidate's own Edit Profile popup (same tabs as the recruiter's Edit Candidate)
+userRouter.patch("/profile/info", updateProfileInfo);
+userRouter.patch("/profile/personal", updateProfilePersonal);
+userRouter.patch("/profile/professional", updateProfileProfessional);
+userRouter.post("/profile/skills", skillHandlers.add);
+userRouter.put("/profile/skills/:rowId", skillHandlers.update);
+userRouter.delete("/profile/skills/:rowId", skillHandlers.remove);
+userRouter.post("/profile/education", educationHandlers.add);
+userRouter.put("/profile/education/:rowId", educationHandlers.update);
+userRouter.delete("/profile/education/:rowId", educationHandlers.remove);
 
 // Get user data
 userRouter.get("/user", getUserData);

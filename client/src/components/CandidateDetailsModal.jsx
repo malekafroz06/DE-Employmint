@@ -93,7 +93,11 @@ const Field = ({ label, children }) => (
 
 const inputCls = "w-full px-4 py-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all";
 
-const CandidateDetailsModal = ({ candidate, backendUrl, companyToken, onClose, onUpdated, onDownloadResume, onDownloadInfo }) => {
+// mode="recruiter" (default): a recruiter editing an uploaded resume, via /api/bulk-upload.
+// mode="candidate": a candidate editing their own profile, via /api/users/profile with
+// their login token (getAuthHeaders). Same tabs and fields; recruiter-only bits hidden.
+const CandidateDetailsModal = ({ candidate, backendUrl, companyToken, onClose, onUpdated, onDownloadResume, onDownloadInfo, mode = "recruiter", getAuthHeaders }) => {
+  const isCandidate = mode === "candidate";
   const [activeTab, setActiveTab] = useState("info");
 
   const profile = candidate.candidateProfile || {};
@@ -146,15 +150,21 @@ const CandidateDetailsModal = ({ candidate, backendUrl, companyToken, onClose, o
   const [uploadingCv, setUploadingCv] = useState(false);
   const cvInputRef = useRef(null);
 
-  const authHeaders = { headers: { token: companyToken } };
   const candidateId = candidate._id;
+  const apiBase = isCandidate
+    ? `${backendUrl}/api/users/profile`
+    : `${backendUrl}/api/bulk-upload/candidate/${candidateId}`;
+  // Candidate login tokens are short-lived, so fetch fresh headers per request
+  const authConfig = async (extraHeaders = {}) => ({
+    headers: { ...(isCandidate ? await getAuthHeaders() : { token: companyToken }), ...extraHeaders },
+  });
 
   // ── Save handlers ──────────────────────────────────────────────────────────
   const saveInfo = async () => {
     if (!info.name.trim()) { toast.error("Full name is required"); return; }
     try {
       setSavingSection("info");
-      const { data } = await axios.patch(`${backendUrl}/api/bulk-upload/candidate/${candidateId}/info`, info, authHeaders);
+      const { data } = await axios.patch(`${apiBase}/info`, info, await authConfig());
       if (data.success) {
         toast.success("Candidate information saved");
         const { name, email, phone } = data.data.parsedData || {};
@@ -178,7 +188,7 @@ const CandidateDetailsModal = ({ candidate, backendUrl, companyToken, onClose, o
   const savePersonal = async () => {
     try {
       setSavingSection("personal");
-      const { data } = await axios.patch(`${backendUrl}/api/bulk-upload/candidate/${candidateId}/personal`, personal, authHeaders);
+      const { data } = await axios.patch(`${apiBase}/personal`, personal, await authConfig());
       if (data.success) {
         toast.success("Personal information saved");
         onUpdated?.(candidateId, { candidateProfile: data.data, ...personal });
@@ -195,7 +205,7 @@ const CandidateDetailsModal = ({ candidate, backendUrl, companyToken, onClose, o
   const saveProfessional = async () => {
     try {
       setSavingSection("professional");
-      const { data } = await axios.patch(`${backendUrl}/api/bulk-upload/candidate/${candidateId}/professional`, professional, authHeaders);
+      const { data } = await axios.patch(`${apiBase}/professional`, professional, await authConfig());
       if (data.success) {
         toast.success("Professional details saved");
         onUpdated?.(candidateId, { candidateProfile: data.data, ...professional });
@@ -212,28 +222,39 @@ const CandidateDetailsModal = ({ candidate, backendUrl, companyToken, onClose, o
   // ── Document Attachments: replace CV ──────────────────────────────────────
   const handleCvReplace = async (file) => {
     if (!file) return;
-    const allowedExt = /\.(pdf|doc|docx)$/i;
+    // Candidates upload through their own resume endpoint: PDF only, up to 500KB
+    const allowedExt = isCandidate ? /\.pdf$/i : /\.(pdf|doc|docx)$/i;
     if (!allowedExt.test(file.name)) {
-      toast.error("Please select a PDF, DOC, or DOCX file");
+      toast.error(isCandidate ? "Please select a PDF file" : "Please select a PDF, DOC, or DOCX file");
+      return;
+    }
+    if (isCandidate && file.size > 500 * 1024) {
+      toast.error("Resume size must be less than 500KB");
       return;
     }
     try {
       setUploadingCv(true);
       const formData = new FormData();
-      formData.append("resumes", file);
+      formData.append(isCandidate ? "resume" : "resumes", file);
       const { data } = await axios.post(
-        `${backendUrl}/api/bulk-upload/candidate/${candidateId}/resume`,
+        isCandidate ? `${backendUrl}/api/users/update-resume` : `${apiBase}/resume`,
         formData,
-        { headers: { token: companyToken, "Content-Type": "multipart/form-data" } }
+        await authConfig({ "Content-Type": "multipart/form-data" })
       );
       if (data.success) {
         toast.success("CV updated");
-        // The server fills empty fields from the new CV — show them in the open form
         const cp = data.data.candidateProfile || {};
-        const fillEmpty = (prev, src = {}) =>
-          Object.fromEntries(Object.entries(prev).map(([k, v]) => [k, v || src[k] || ""]));
-        setPersonal((prev) => fillEmpty(prev, cp.personal));
-        setProfessional((prev) => fillEmpty(prev, cp.professional));
+        if (isCandidate) {
+          // The candidate's upload updates fields with the new CV's details — show the saved values
+          setPersonal((prev) => ({ ...prev, ...cp.personal }));
+          setProfessional((prev) => ({ ...prev, ...cp.professional }));
+        } else {
+          // The recruiter's upload fills only empty fields from the new CV — show them in the open form
+          const fillEmpty = (prev, src = {}) =>
+            Object.fromEntries(Object.entries(prev).map(([k, v]) => [k, v || src[k] || ""]));
+          setPersonal((prev) => fillEmpty(prev, cp.personal));
+          setProfessional((prev) => fillEmpty(prev, cp.professional));
+        }
         if (Array.isArray(cp.skills)) setSkills(cp.skills);
         if (Array.isArray(cp.education)) setEducation(cp.education);
         onUpdated?.(candidateId, {
@@ -279,8 +300,8 @@ const CandidateDetailsModal = ({ candidate, backendUrl, companyToken, onClose, o
       let lastProfile = null;
       if (editingSkillId) {
         const { data } = await axios.put(
-          `${backendUrl}/api/bulk-upload/candidate/${candidateId}/skills/${editingSkillId}`,
-          skillBlocks[0], authHeaders
+          `${apiBase}/skills/${editingSkillId}`,
+          skillBlocks[0], await authConfig()
         );
         if (!data.success) throw new Error(data.message || "Failed to update skill");
         lastProfile = data.data;
@@ -288,8 +309,8 @@ const CandidateDetailsModal = ({ candidate, backendUrl, companyToken, onClose, o
       } else {
         for (const block of skillBlocks) {
           const { data } = await axios.post(
-            `${backendUrl}/api/bulk-upload/candidate/${candidateId}/skills`,
-            block, authHeaders
+            `${apiBase}/skills`,
+            block, await authConfig()
           );
           if (!data.success) throw new Error(data.message || "Failed to add skill");
           lastProfile = data.data;
@@ -313,7 +334,7 @@ const CandidateDetailsModal = ({ candidate, backendUrl, companyToken, onClose, o
   const deleteSkillRow = async (row) => {
     try {
       const { data } = await axios.delete(
-        `${backendUrl}/api/bulk-upload/candidate/${candidateId}/skills/${row._id}`, authHeaders
+        `${apiBase}/skills/${row._id}`, await authConfig()
       );
       if (data.success) {
         setSkills(data.data.skills || []);
@@ -346,8 +367,8 @@ const CandidateDetailsModal = ({ candidate, backendUrl, companyToken, onClose, o
       setSavingSection("education");
       if (editingEducationId) {
         const { data } = await axios.put(
-          `${backendUrl}/api/bulk-upload/candidate/${candidateId}/education/${editingEducationId}`,
-          educationForm, authHeaders
+          `${apiBase}/education/${editingEducationId}`,
+          educationForm, await authConfig()
         );
         if (data.success) {
           setEducation(data.data.education || []);
@@ -356,8 +377,8 @@ const CandidateDetailsModal = ({ candidate, backendUrl, companyToken, onClose, o
         } else toast.error(data.message || "Failed to update");
       } else {
         const { data } = await axios.post(
-          `${backendUrl}/api/bulk-upload/candidate/${candidateId}/education`,
-          educationForm, authHeaders
+          `${apiBase}/education`,
+          educationForm, await authConfig()
         );
         if (data.success) {
           setEducation(data.data.education || []);
@@ -378,7 +399,7 @@ const CandidateDetailsModal = ({ candidate, backendUrl, companyToken, onClose, o
   const deleteEducationRow = async (row) => {
     try {
       const { data } = await axios.delete(
-        `${backendUrl}/api/bulk-upload/candidate/${candidateId}/education/${row._id}`, authHeaders
+        `${apiBase}/education/${row._id}`, await authConfig()
       );
       if (data.success) {
         setEducation(data.data.education || []);
@@ -420,7 +441,9 @@ const CandidateDetailsModal = ({ candidate, backendUrl, companyToken, onClose, o
               {candidate.candidateName?.charAt(0).toUpperCase() || "?"}
             </div>
             <div className="min-w-0">
-              <h3 className="text-lg font-bold text-gray-900 truncate">Edit Candidate — {candidate.candidateName}</h3>
+              <h3 className="text-lg font-bold text-gray-900 truncate">
+                {isCandidate ? "Edit Profile" : "Edit Candidate"} — {candidate.candidateName}
+              </h3>
               <p className="text-xs text-gray-500 truncate">
                 {candidate.resumeName}
                 <span className="mx-1.5">·</span>
@@ -483,12 +506,14 @@ const CandidateDetailsModal = ({ candidate, backendUrl, companyToken, onClose, o
                       <input type="tel" className={`${inputCls} pl-9`} placeholder="e.g. 9876543210" value={info.phone} onChange={(e) => setInfo((p) => ({ ...p, phone: e.target.value }))} />
                     </div>
                   </Field>
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <label className="text-xs text-gray-500 block mb-1">Status</label>
-                    <p className="text-sm font-semibold text-gray-900">
-                      {candidate.accepted ? "Accepted" : candidate.rejected ? "Rejected" : "Pending"}
-                    </p>
-                  </div>
+                  {!isCandidate && (
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <label className="text-xs text-gray-500 block mb-1">Status</label>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {candidate.accepted ? "Accepted" : candidate.rejected ? "Rejected" : "Pending"}
+                      </p>
+                    </div>
+                  )}
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <label className="text-xs text-gray-500 block mb-1">Last Edited</label>
                     <p className="text-sm font-semibold text-gray-900">
@@ -498,14 +523,18 @@ const CandidateDetailsModal = ({ candidate, backendUrl, companyToken, onClose, o
                     </p>
                   </div>
                 </div>
-                <p className="text-xs text-gray-400">Last Edited updates automatically whenever any change is saved for this candidate.</p>
+                <p className="text-xs text-gray-400">
+                  Last Edited updates automatically whenever any change is saved for {isCandidate ? "your profile" : "this candidate"}.
+                </p>
                 <div className="flex justify-end flex-wrap gap-2 pt-2">
-                  <button
-                    onClick={() => onDownloadInfo?.(candidate)}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    <FiDownload size={14} /> Download Full Information (Excel)
-                  </button>
+                  {!isCandidate && (
+                    <button
+                      onClick={() => onDownloadInfo?.(candidate)}
+                      className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      <FiDownload size={14} /> Download Full Information (Excel)
+                    </button>
+                  )}
                   <button onClick={saveInfo} disabled={savingSection === "info"} className="flex items-center gap-2 px-5 py-2.5 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700 transition-colors disabled:opacity-60">
                     <FiSave size={14} /> {savingSection === "info" ? "Saving..." : "Save Changes"}
                   </button>
@@ -836,13 +865,17 @@ const CandidateDetailsModal = ({ candidate, backendUrl, companyToken, onClose, o
                     <input
                       ref={cvInputRef}
                       type="file"
-                      accept=".pdf,.doc,.docx"
+                      accept={isCandidate ? ".pdf" : ".pdf,.doc,.docx"}
                       className="hidden"
                       onChange={(e) => handleCvReplace(e.target.files?.[0])}
                     />
                   </div>
                 </div>
-                <p className="text-xs text-gray-400">Replacing the CV keeps this candidate&apos;s record and download link the same — only the file changes. Additional document uploads (ID proof, certificates, etc.) aren&apos;t supported yet.</p>
+                <p className="text-xs text-gray-400">
+                  {isCandidate
+                    ? "Uploading a new CV (PDF, up to 500KB) replaces your current one and updates your profile with its details."
+                    : <>Replacing the CV keeps this candidate&apos;s record and download link the same — only the file changes. Additional document uploads (ID proof, certificates, etc.) aren&apos;t supported yet.</>}
+                </p>
               </div>
             )}
           </div>
